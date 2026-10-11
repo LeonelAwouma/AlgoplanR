@@ -1,0 +1,45 @@
+{
+  "name": "algoplanr-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:factice": "node scripts/dev-factice.mjs",
+    "build": "next build && node scripts/nettoyer-export.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node -e \"require('fs').rmSync('.test-build',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && node --test \".test-build/tests/*.test.js\"",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.104.1",
+    "docx": "^9.7.1",
+    "lucide-react": "^1.16.0",
+    "next": "16.3.3",
+    "react": "^19",
+    "react-dom": "^19",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.3",
+    "eslint-config-prettier": "^10.1.8",
+    "msw": "^2.15.0",
+    "postcss": "^8.5",
+    "prettier": "^3.9.10",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.7.3"
+  },
+  "description": "Plateforme locale d’analyse, de planification et d’aide à la décision sur les ressources enseignantes.",
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

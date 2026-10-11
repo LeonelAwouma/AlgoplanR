@@ -1,0 +1,18 @@
+# Fichiers générés
+.next/
+out/
+.test-build/
+next-env.d.ts
+tsconfig.tsbuildinfo
+pnpm-lock.yaml
+
+# Régénéré par `next dev`
+AGENTS.md
+
+# Données volumineuses et fichiers fournis par des outils tiers
+public/geo/
+public/mockServiceWorker.js
+
+# Données générées par moteur-reference (pnpm fixtures)
+public/donnees-factices/
+tests/donnees/
