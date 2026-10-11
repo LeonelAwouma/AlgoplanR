@@ -1,0 +1,11 @@
+# Scripts d'installation des dépendances : refusés par défaut (pnpm 11).
+# - msw : son script ne fait que copier le service worker dans public/, déjà
+#   versionné (à régénérer par `npx msw init public` après une mise à jour de msw) ;
+# - unrs-resolver (résolveur d'imports d'ESLint) : son script ne fait que vérifier
+#   le binaire natif, déjà fourni par une dépendance optionnelle.
+allowBuilds:
+  msw: false
+  unrs-resolver: false
+minimumReleaseAgeExclude:
+  - '@next/*'
+  - next
