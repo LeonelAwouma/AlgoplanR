@@ -38,7 +38,7 @@ export function SituationNationalePage() {
 
   const diagnostic = useDiagnostic(jeu, filtres)
   const synthese = useSynthese(jeu, filtres, scenario)
-  const vue = useVueTerritoriale(jeu, filtres, null)
+  const vue = useVueTerritoriale(jeu, filtres, scenario)
   const parametres = useParametres(jeu)
 
   /**
