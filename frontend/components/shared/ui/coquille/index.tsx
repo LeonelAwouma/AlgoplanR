@@ -205,6 +205,7 @@ export function Sidebar({
 export function Topbar({
   mode,
   onModeChange,
+  analysteDisponible = true,
   theme,
   onThemeChange,
   onOuvrirMenu,
@@ -220,6 +221,8 @@ export function Topbar({
 }: {
   mode: ViewMode
   onModeChange: (m: ViewMode) => void
+  /** La Vue analyste est réservée au DRH : le bouton n'est pas proposé aux délégués. */
+  analysteDisponible?: boolean
   theme: Theme
   onThemeChange: (t: Theme) => void
   onOuvrirMenu: () => void
@@ -291,9 +294,11 @@ export function Topbar({
           <button type="button" aria-pressed={mode === 'simple'} onClick={() => onModeChange('simple')}>
             Simplifiée
           </button>
-          <button type="button" aria-pressed={mode === 'analyste'} onClick={() => onModeChange('analyste')}>
-            Analyste
-          </button>
+          {analysteDisponible && (
+            <button type="button" aria-pressed={mode === 'analyste'} onClick={() => onModeChange('analyste')}>
+              Analyste
+            </button>
+          )}
         </div>
         <button
           type="button"

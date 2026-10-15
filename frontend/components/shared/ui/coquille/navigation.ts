@@ -219,6 +219,7 @@ export const RUBRIQUES: Rubrique[] = [
         sousTitre: 'Redéploiements décidés par la DRH',
         icon: Crown,
         exigeDonnees: true,
+        analysteSeulement: true,
         drhSeulement: true,
       },
       {
@@ -451,6 +452,11 @@ export function rubriqueDePage(page: PageKey): Rubrique | undefined {
 /** Vrai si la page est réservée au DRH : un délégué ne doit ni la voir dans le menu ni l'ouvrir. */
 export function pageReserveeAuDrh(page: PageKey): boolean {
   return TOUTES.some(i => i.id === page && i.drhSeulement)
+}
+
+/** Vrai si la page n'existe qu'en Vue analyste, réservée au DRH : un délégué ne l'ouvre jamais. */
+export function pageAnalysteSeule(page: PageKey): boolean {
+  return TOUTES.some(i => i.id === page && i.analysteSeulement)
 }
 
 /** Étapes d'une rubrique visibles dans le mode d'affichage courant, pour le rôle connecté. */

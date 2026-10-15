@@ -9,17 +9,33 @@
  */
 
 import type { UseQueryResult } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { RefreshCw, ServerOff } from 'lucide-react'
 
 import { estInjoignable, messageErreur } from '@shared/api'
 import { Notice } from '@shared/ui/commun'
 
-/** Indicateur d'attente, annoncé aux lecteurs d'écran. */
+/** Délai après lequel l'attente est expliquée : un grand fichier national se calcule en plusieurs secondes. */
+const DELAI_EXPLICATION_MS = 6000
+
+/** Indicateur d'attente, annoncé aux lecteurs d'écran ; une attente longue est expliquée, pas laissée muette. */
 export function ChargementEnCours({ libelle = 'Chargement des données…' }: { libelle?: string }) {
+  const [longue, setLongue] = useState(false)
+  useEffect(() => {
+    const minuteur = window.setTimeout(() => setLongue(true), DELAI_EXPLICATION_MS)
+    return () => window.clearTimeout(minuteur)
+  }, [])
   return (
     <div className="chargement" role="status" aria-live="polite">
       <RefreshCw size={16} className="spin" aria-hidden="true" />
-      <span>{libelle}</span>
+      <span>
+        {libelle}
+        {longue && (
+          <small className="bloc">
+            Le calcul est en cours sur ce poste ; il peut prendre quelques secondes sur une base nationale.
+          </small>
+        )}
+      </span>
     </div>
   )
 }
