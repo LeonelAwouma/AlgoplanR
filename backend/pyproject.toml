@@ -1,0 +1,28 @@
+[project]
+name = "algoplanr"
+version = "2.1.0"
+description = "AlgoPlanR - API d'affectation des enseignants (Django + DDD)"
+requires-python = ">=3.12"
+dependencies = [
+    "Django>=5.1,<7",
+    "djangorestframework>=3.15",
+    "drf-spectacular>=0.27",
+    "django-cors-headers>=4.4",
+    "whitenoise>=6.7",
+    "waitress>=3.0",
+    "pandas>=2.2",
+    "openpyxl>=3.1",
+    "python-calamine>=0.3",
+]
+
+[project.optional-dependencies]
+ia = ["google-genai"]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-django>=4.8"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = []

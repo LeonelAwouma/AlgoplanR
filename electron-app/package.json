@@ -1,0 +1,73 @@
+{
+  "name": "planification-enseignants-desktop",
+  "version": "1.0.0",
+  "description": "Application d'affectation des enseignants, empaquetée en application de bureau Windows.",
+  "author": "Leonel Awouma",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "devDependencies": {
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.algoplanr.desktop",
+    "electronLanguages": [
+      "fr",
+      "en-US"
+    ],
+    "afterPack": "build/afterPack.js",
+    "productName": "AlgoPlanR",
+    "directories": {
+      "output": "../dist"
+    },
+    "files": [
+      "main.js",
+      "mises-a-jour.js",
+      "stockage.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/out",
+        "to": "out"
+      },
+      {
+        "from": "../backend/packaging/sortie/algoplanr-serveur",
+        "to": "backend"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "installerIcon": "build/installerIcon.ico",
+      "uninstallerIcon": "build/uninstallerIcon.ico",
+      "installerHeader": "build/installerHeader.bmp",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/uninstallerSidebar.bmp",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "AlgoPlanR-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LeonelAwouma",
+        "repo": "algorithm_need_school",
+        "releaseType": "draft"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}

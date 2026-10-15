@@ -1,0 +1,16 @@
+# Dépendances
+node_modules/
+
+# Compilation Next.js et export statique
+.next/
+out/
+.test-build/
+.build-scripts/
+*.tsbuildinfo
+
+# Variables d'environnement locales (adresse du backend en développement)
+.env*.local
+
+# Système
+.DS_Store
+Thumbs.db
