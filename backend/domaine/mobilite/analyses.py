@@ -50,12 +50,16 @@ def _ratio(num: float, den: float, chiffres: int) -> float:
     return round(num / den, chiffres) if den else 0.0
 
 
-def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], cfg: dict) -> dict:
+def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], cfg: dict, *,
+                                   effectifs_import: Optional[Dict[str, float]] = None,
+                                   libelle: str = "National") -> dict:
     """Taux d'encadrement (élèves par enseignant) et turnover, avant l'algorithme (fichier d'origine) et après.
 
-    - Encadrement : avant = élèves ÷ `Enseignants_Actuels` (déjà mis à jour des faits du Prince, appliqués avant
-      l'algorithme) ; après, l'effectif de chaque école gagne ses arrivées et perd ses départs ordinaires (une
-      affectation part de l'école d'attache de l'enseignant).
+    - Encadrement : avant = élèves ÷ effectif déclaré à l'import (`effectifs_import`, école -> `Enseignants_Actuels`
+      des bases importées : avant les faits du Prince et avant l'algorithme). Sans `effectifs_import`, l'effectif des
+      écoles du résultat, déjà mis à jour des faits du Prince. Après : l'effectif de chaque école (faits du Prince
+      compris) gagne ses arrivées et perd ses départs ordinaires (une affectation part de l'école d'attache de
+      l'enseignant).
     - Turnover : le fichier n'a pas d'historique de départs ; est « récent » un enseignant dont l'ancienneté au
       poste est sous le seuil de recevabilité. Avant = récents ÷ effectif ; après = (récents + déplacés) ÷ effectif,
       car un enseignant déplacé repart à zéro dans son nouveau poste (le vivier n'en contient jamais de récents).
@@ -82,7 +86,8 @@ def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], c
     for e in ecoles.values():
         r = region_de(e[C.COL_ETAB_ID])
         cumuler(r, "eleves", float(e.get(C.COL_ETAB_NE) or 0))
-        cumuler(r, "enseignants_avant", float(e.get(C.COL_ETAB_EE) or 0))
+        importe = (effectifs_import or {}).get(e[C.COL_ETAB_ID])
+        cumuler(r, "enseignants_avant", float(e.get(C.COL_ETAB_EE) or 0) if importe is None else float(importe or 0))
         cumuler(r, "enseignants_apres", float(e.get(C.COL_ETAB_EE) or 0))
     for a in res["affectations"]:
         cumuler(region_de(a["id_etab"]), "deplaces", 1)
@@ -118,8 +123,8 @@ def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], c
             "turnover_apres": _ratio(brut["recents"] + brut["deplaces"], brut["effectif_apres"], 4),
         }
 
-    return {"seuil_anciennete_ans": seuil, "national": finir(national, "National"),
-            "par_region": [finir(b, r or "(région non renseignée)")
+    return {"seuil_anciennete_ans": seuil, "national": finir(national, libelle),
+            "par_region": [finir(b, r or "Région non renseignée")
                            for r, b in sorted(regions.items(), key=lambda kv: cle_tri_fr(kv[0]))]}
 
 

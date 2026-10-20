@@ -97,6 +97,25 @@ def test_reconnaissance_par_mot_entier():
     assert score_enseignant_poste(ens, b, cfg) > score_enseignant_poste(ens, a, cfg)
 
 
+def test_ponctuation_francaise_et_identifiants_composes():
+    """La revue de code a relevé des motifs bien formés mais non reconnus : guillemets, ! ? …, tiret final, barre."""
+    e, n = construire_jeu_demonstration(5, 30, 40)
+    base = dataclasses.replace(construire_enseignant(n[0]), voeux=("ECO001", "DRC/12", ""))
+    for motif, attendu in (
+        ("Rapprochement conjoint «ECO001»", "ECO001"),
+        ("Rapprochement conjoint « ECO001 »", "ECO001"),
+        ("conjoint ECO001!", "ECO001"),
+        ("conjoint ECO001?", "ECO001"),
+        ("conjoint ECO001…", "ECO001"),
+        ("conjoint ECO001-", "ECO001"),
+        ("conjoint ECO001.", "ECO001"),
+        ("Rapprochement de conjoint à DRC/12", "DRC/12"),
+        ("Rapprochement de conjoint DRC/13", None),
+        ("Rapprochement de conjoint ECO0011", None),
+    ):
+        assert ecole_bonifiee(dataclasses.replace(base, motif_bonification=motif)) == attendu, motif
+
+
 def test_le_rapport_de_qualite_signale_les_motifs_sans_ecole():
     etab = [{C.COL_ETAB_ID: "A"}, {C.COL_ETAB_ID: "B"}]
     ens = [{C.COL_ENS_ID: "M1", C.COL_ENS_ETAB: "A", C.COL_ENS_V1: "B", C.COL_ENS_MOTIF: "Rapprochement de conjoint B"},

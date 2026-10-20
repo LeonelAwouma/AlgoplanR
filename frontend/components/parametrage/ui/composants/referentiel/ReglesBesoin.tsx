@@ -9,6 +9,7 @@
 import type { EngineSettings, ReglesBesoin as Regles } from '@shared/api'
 import { Panel } from '@shared/ui/commun'
 
+import { estNonApplique } from '../../../domain/champsMoteur'
 import { nombreSaisi, type MajParametres } from '../../../domain/edition'
 import { Interrupteur, Regle } from '../ChampsRegles'
 
@@ -107,7 +108,7 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
             enonce="Sans effectif d’élèves, une classe nécessite"
             precision="Le calcul compte alors 0 élève, donc un seul maître ; les écoles concernées sont listées dans la qualité des données."
             htmlFor="r-repli"
-            nonApplique
+            nonApplique={estNonApplique('besoin', 'enseignantsParClasseRepli')}
           >
             <input
               id="r-repli"
@@ -125,7 +126,7 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
             enonce="Les postes à pourvoir sont établis à partir"
             precision="Le serveur n’utilise que le besoin calculé par le référentiel."
             htmlFor="r-source"
-            nonApplique
+            nonApplique={estNonApplique('sourceDesPostes')}
           >
             <select
               id="r-source"
@@ -157,7 +158,7 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
             texte="Les maîtres qui partent à la retraite à la rentrée ne sont pas comptés dans l’effectif E."
             coche={b.deduireDepartsConnus}
             onChange={v => besoin('deduireDepartsConnus', v)}
-            nonApplique
+            nonApplique={estNonApplique('besoin', 'deduireDepartsConnus')}
           />
         </div>
       </Panel>

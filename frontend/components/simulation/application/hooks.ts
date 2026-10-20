@@ -16,6 +16,7 @@ import {
   type DemandePage,
   type IdJeu,
   type IssueCandidature,
+  SELECTION_NATIONALE,
   type TerritorySelection,
 } from '../../shared/api'
 import { useEcritureJeu, useLectureJeu } from '../../shared/requetes'
@@ -140,8 +141,14 @@ export function useExplication(jeu: IdJeu | null, scenario: string | null, matri
 }
 
 /** Taux d'encadrement et turnover, avant et après le scénario. */
-export function useEncadrementScenario(jeu: IdJeu | null, scenario: string | null) {
-  return useSectionScenario(jeu, scenario, 'encadrement', [], lireEncadrement)
+export function useEncadrementScenario(
+  jeu: IdJeu | null,
+  scenario: string | null,
+  selection: TerritorySelection = SELECTION_NATIONALE,
+) {
+  return useSectionScenario(jeu, scenario, 'encadrement', [selection], (ref, signal) =>
+    lireEncadrement(ref, selection, signal),
+  )
 }
 
 /** Enseignants du vivier restés sans affectation. */

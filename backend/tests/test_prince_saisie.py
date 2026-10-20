@@ -178,6 +178,24 @@ def test_import_atomique_et_un_seul_recalcul(drh, jeu, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_import_avec_matricule_repete_une_correction_apres_une_erreur_est_retenue(drh, jeu):
+    from contextes.donnees.models import JeuDeDonnees
+    from contextes.prince import services
+    j = JeuDeDonnees.objects.get(id=jeu)
+    bilan = services.importer(j, [
+        {"id_ens": "MAT00229", "id_etab": "ECO999", "motif": "erreur de saisie"},     # école inconnue : rejetée
+        {"id_ens": "MAT00229", "id_etab": "ECO011", "motif": "correction"},           # la correction est retenue
+        {"id_ens": "MAT00094", "id_etab": "ECO014", "motif": "a"},
+        {"id_ens": "MAT00094", "id_etab": "ECO012", "motif": "doublon"},              # doublon d'une ligne retenue
+    ])
+    assert [(l["id_ens"], l["id_etab"]) for l in bilan["acceptees"]] == [("MAT00229", "ECO011"), ("MAT00094", "ECO014")]
+    refus = {(l["id_ens"], l["id_etab"]): l["motifs"][0] for l in bilan["refusees"]}
+    assert "École de destination inconnue" in refus[("MAT00229", "ECO999")]
+    assert refus[("MAT00094", "ECO012")].startswith("Doublon dans le fichier") and "ligne" in refus[("MAT00094", "ECO012")]
+    assert len(bilan["refusees"]) == 2
+
+
+@pytest.mark.django_db
 def test_ecole_de_reference_et_destination_decidee(drh, jeu):
     assert _post(drh, jeu, "faits-prince/", {"id_ens": "MAT00001", "id_etab": "ECO011"}).status_code == 201
     liste = drh.get(B + f"jeux/{jeu}/enseignants/", {"q": "MAT00001"}).json()["resultats"]
@@ -193,3 +211,47 @@ def test_ecole_de_reference_et_destination_decidee(drh, jeu):
     aff = drh.get(B + f"jeux/{jeu}/scenarios/{sc['id']}/affectations/", {"phase": "effet_de_prince", "taille": 50})
     item = next(a for a in aff.json()["resultats"] if a["id_ens"] == "MAT00001")
     assert item["id_etab_origine"] == "ECO019" and item["id_etab"] == "ECO011"
+
+
+@pytest.mark.django_db
+def test_validation_du_jeu_et_ecarts_d_effectifs_des_ecoles_touchees(drh, jeu):
+    def controles():
+        return {c["code"]: c for c in drh.get(B + f"jeux/{jeu}/validation/").json()["controles"]}
+    avant = controles()
+    assert avant["effectifs_prince"]["ok"] and avant["effectifs_prince"]["bloquant"]
+    assert "effectifs" in avant and avant["effectifs"]["bloquant"] is False
+    assert _post(drh, jeu, "faits-prince/", {"id_ens": "MAT00001", "id_etab": "ECO011"}).status_code == 201
+    ecarts = drh.get(B + f"jeux/{jeu}/faits-prince/application/").json()["ecarts_effectifs"]
+    apres = controles()["effectifs_prince"]
+    # Le contrôle bloquant reflète exactement les écarts des écoles touchées par le fait.
+    assert apres["ok"] is (not ecarts)
+    assert all(e["bloquant"] for e in ecarts)
+
+
+@pytest.mark.django_db
+def test_rem_avant_est_celui_des_bases_importees_et_respecte_le_perimetre(drh, jeu):
+    from collections import defaultdict
+    from contextes.donnees import depots
+    from contextes.donnees.models import JeuDeDonnees
+    ecoles = depots.charger_ecoles(JeuDeDonnees.objects.get(id=jeu))
+    declares = defaultdict(float)
+    for e in ecoles:
+        declares[e.region] += e.enseignants_actuels
+    # MAT00229 -> ECO011 et MAT00094 -> ECO014 : deux faits du Prince qui déplacent des effectifs déclarés.
+    for mat, ecole in (("MAT00229", "ECO011"), ("MAT00094", "ECO014"), ("MAT00001", "ECO011")):
+        assert _post(drh, jeu, "faits-prince/", {"id_ens": mat, "id_etab": ecole}).status_code == 201
+    sc = next(s for s in drh.get(B + f"jeux/{jeu}/scenarios/").json() if s["code"] == "geo_departement")
+    url = B + f"jeux/{jeu}/scenarios/{sc['id']}/encadrement/"
+    d = drh.get(url).json()
+    # Avant = effectifs déclarés des bases importées, quels que soient les faits du Prince.
+    assert d["national"]["enseignants_avant"] == round(sum(declares.values()))
+    assert {r["territoire"]: r["enseignants_avant"] for r in d["par_region"]} == {
+        (k or "Région non renseignée"): round(v) for k, v in declares.items()}
+    # Après : le Prince déplace des effectifs d'une école à l'autre, sans changer le total national des faits.
+    assert d["national"]["enseignants_apres"] != 0
+    # Un périmètre restreint la comparaison à sa région, avec son libellé.
+    region = ecoles[0].region
+    r = drh.get(url, {"region": region}).json()
+    assert r["national"]["territoire"] == region
+    assert [x["territoire"] for x in r["par_region"]] == [region]
+    assert r["national"]["enseignants_avant"] == round(declares[region])

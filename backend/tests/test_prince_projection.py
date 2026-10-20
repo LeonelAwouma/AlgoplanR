@@ -144,8 +144,14 @@ def test_alertes_sans_rejet(cfg):
 
 def test_decision_sans_alerte(cfg):
     ecoles = enrichir_ecoles([_ecole("A", 100, 8), _ecole("B", 180, 3)], cfg)     # A : dotation De = 6 pour 8 maîtres
-    app = appliquer_effets_prince(ecoles, [_ens("X", "A")], [_fait("X", "B")], cfg)
+    # Effectifs déclarés = matricules rattachés (8 et 3) : aucun écart à signaler.
+    ens = [_ens("X", "A")] + [_ens(f"A{i}", "A") for i in range(7)] + [_ens(f"B{i}", "B") for i in range(3)]
+    app = appliquer_effets_prince(ecoles, ens, [_fait("X", "B")], cfg)
     assert app.decisions[0].statut == APPLIQUE and not app.decisions[0].alertes
+    # Avec un seul matricule rattaché, l'écart d'effectif des deux écoles est annoncé dès la décision.
+    seul = appliquer_effets_prince(ecoles, [_ens("X", "A")], [_fait("X", "B")], cfg)
+    texte = " | ".join(seul.decisions[0].alertes)
+    assert "école d'origine (8)" in texte and "école de destination (3)" in texte and "réconcilier" in texte
 
 
 def test_ecarts_d_effectifs_signales(cfg):

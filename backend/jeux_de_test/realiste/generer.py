@@ -365,6 +365,11 @@ def enseignants_de(rnd: random.Random, ecoles: list) -> list:
                 if rnd.random() < 0.07:
                     motif = rnd.choice(["Rapprochement de conjoint", "Raison de santé (certificat médical)",
                                         "Conjoint fonctionnaire dans la localité", "Parent âgé à charge"])
+                    # Les deux premiers motifs citent l'école visée (son premier vœu), comme l'exige la bonification
+                    # ciblée ; les deux autres restent des motifs libres, sans bonification (avertissement à l'import).
+                    # Sans tirage supplémentaire : le reste du jeu est inchangé.
+                    if voeux[0] and motif in ("Rapprochement de conjoint", "Raison de santé (certificat médical)"):
+                        motif = f"{motif} — {voeux[0]}"
             enseignants.append({
                 "Matricule_Enseignant": m, "nom": rnd.choice(NOMS[aire]), "prenom": rnd.choice(PRENOMS[aire]),
                 "Statut": "Actif", "Paye_Par_Etat": "Oui", "Sous_Systeme_Formation": formation_ss,

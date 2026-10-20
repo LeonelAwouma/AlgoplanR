@@ -66,6 +66,7 @@ export function ChampNombre({
   min = 0,
   max,
   pas,
+  nonApplique = false,
 }: {
   id: string
   libelle: string
@@ -74,6 +75,8 @@ export function ChampNombre({
   min?: number
   max?: number
   pas?: number
+  /** Le serveur ne lit pas ce réglage : affiché sans pouvoir le modifier. */
+  nonApplique?: boolean
 }) {
   return (
     <div className="field">
@@ -85,8 +88,10 @@ export function ChampNombre({
         max={max}
         step={pas}
         value={valeur}
+        disabled={nonApplique}
         onChange={e => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
       />
+      {nonApplique && <span className="hint">Non appliqué : le calcul n’utilise pas ce réglage.</span>}
     </div>
   )
 }

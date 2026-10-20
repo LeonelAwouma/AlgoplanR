@@ -139,10 +139,18 @@ def explication(request, jeu, sid, matricule):
 @extend_schema(responses=OBJ, summary="Taux d'encadrement et turnover, avant (fichier d'origine) et après le scénario")
 @api_view(["GET"])
 def encadrement(request, jeu, sid):
+    from contextes.diagnostic.services import preparer
     j = jeu_autorise(request, jeu)
     sc = sim.scenario_du_jeu(j, sid)
+    perimetre = perimetre_depuis(request)
+    res = restreindre_resultat(sim.charger_resultat(sc), perimetre)       # le périmètre s'applique comme ailleurs
+    ids = {e["Identifiant_Ecole"] for e in res["etab_enrichi"]}
+    enseignants = [t for t in depots.charger_enseignants(j) if t.ecole_attache in ids]
+    # « Avant » : effectifs déclarés des bases importées, avant les faits du Prince et avant l'algorithme.
+    importes = {e.id: e.enseignants_actuels for e in preparer(j).avant().ecoles}
     return Response({"scenario": sc.pk, **an.comparer_encadrement_turnover(
-        sim.charger_resultat(sc), depots.charger_enseignants(j), sim.config_resultat(sc))})
+        res, enseignants, sim.config_resultat(sc), effectifs_import=importes,
+        libelle="National" if perimetre.national else perimetre.titre)})
 
 
 @extend_schema(parameters=PAGE, responses=OBJ, summary="Vœux et leur statut")

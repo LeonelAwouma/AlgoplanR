@@ -26,21 +26,24 @@ def _candidat(id_ens: str, id_etab: str, motif: str = "") -> dict:
     return {"id_ens": id_ens.strip(), "id_etab": id_etab.strip(), "motif": (motif or MOTIF_DEFAUT).strip()}
 
 
-def _evaluer(jeu, id_ens: str, id_etab: str, motif: str = "", *, avec_base: bool = False):
+def _evaluer(jeu, id_ens: str, id_etab: str, motif: str = "", *, avec_base: bool = False, cfg: Optional[dict] = None):
     """Applique les faits actifs puis le fait proposé aux bases d'origine, comme le fera le prétraitement.
 
     Retourne (refus, alertes, application sans le fait ou None, application avec le fait ou None). Un fait du Prince
     peut créer un déficit comme un excédent : seules les impossibilités matérielles sont des refus (voir
-    `motifs_de_refus`) ; le reste est une alerte, connue de la DRH avant l'enregistrement.
+    `motifs_de_refus`) ; le reste est une alerte, connue de la DRH avant l'enregistrement. `cfg` : configuration
+    du scénario dont on veut l'aperçu (celle du jeu par défaut), pour que les alertes et les besoins des deux écoles
+    soient ceux que le moteur calculera.
     """
     p = preparer(jeu).avant()
+    cfg = cfg or p.cfg
     actifs = sim.faits_prince_actifs(jeu)
     candidat = _candidat(id_ens, id_etab, motif)
     if any(f["id_ens"] == candidat["id_ens"] for f in actifs):
         return [MOTIF_FAIT_ACTIF], [], None, None
     ens = list(p.enseignants.values())
-    base = appliquer_effets_prince(p.ecoles, ens, actifs, p.cfg) if avec_base else None
-    app = appliquer_effets_prince(p.ecoles, ens, actifs + [candidat], p.cfg)
+    base = appliquer_effets_prince(p.ecoles, ens, actifs, cfg) if avec_base else None
+    app = appliquer_effets_prince(p.ecoles, ens, actifs + [candidat], cfg)
     d = app.decisions[-1]
     return motifs_de_refus(d.rejets), list(d.alertes), base, app
 
@@ -83,13 +86,13 @@ def _ecart_ecole(ident: str, base, app, depart) -> dict:
 def impact(jeu, id_ens: str, id_etab: str, motif: str = "") -> dict:
     """Aperçu d'un fait unique : les deux écoles avant / après, calculées par le même prétraitement que l'import, et
     l'effet sur le scénario de référence. Rien n'est enregistré."""
-    refus, alertes, base, app = _evaluer(jeu, id_ens, id_etab, motif, avec_base=True)
+    sc = sim.scenario_par_defaut(jeu)
+    cfg = sim.config_scenario(jeu, sc)
+    refus, alertes, base, app = _evaluer(jeu, id_ens, id_etab, motif, avec_base=True, cfg=cfg)
     if refus:
         raise RefusMetier("Fait de Prince refusé", refus, code="fait_prince_refuse")
     depart = preparer(jeu).avant().ecoles_par_id
     d = app.decisions[-1]
-    sc = sim.scenario_par_defaut(jeu)
-    cfg = sim.config_scenario(jeu, sc)
     actifs = sim.faits_prince_actifs(jeu)
     avant = sim.executer_moteur(jeu, cfg, faits=actifs, arbitrages=sim.arbitrages_jeu(jeu))
     apres = sim.executer_moteur(jeu, cfg, faits=actifs + [_candidat(id_ens, id_etab, motif)],
@@ -111,31 +114,69 @@ def impact(jeu, id_ens: str, id_etab: str, motif: str = "") -> dict:
 def _classer_import(jeu, lignes: List[dict]) -> Tuple[List[dict], List[dict], List[str]]:
     """Classe les lignes d'un fichier en acceptées / refusées, sans rien enregistrer.
 
-    Le prétraitement juge toutes les lignes en un seul passage : une ligne rejetée ne modifie rien, donc le résultat
-    est le même qu'en les essayant une à une. Chaque ligne acceptée porte ses alertes.
+    Le prétraitement juge les lignes d'un même passage ensemble : une ligne rejetée ne modifie rien, donc le résultat est
+    le même qu'en les essayant une à une. Un matricule cité plusieurs fois dans le fichier : la première ligne valable
+    est retenue, les suivantes sont refusées comme doublons ; si la première est rejetée (école inconnue…), la suivante
+    est essayée à son tour, comme le ferait une saisie ligne par ligne. Chaque ligne acceptée porte ses alertes.
     """
     analyse = analyser_fichier_prince(lignes)
     refusees = list(analyse["refusees"])
     actifs = sim.faits_prince_actifs(jeu)
-    vus = {f["id_ens"] for f in actifs}
-    candidates = []
-    for l in analyse["acceptees"]:
-        if l["id_ens"] in vus:
-            refusees.append({**l, "motifs": [MOTIF_FAIT_ACTIF]})
-        else:
-            vus.add(l["id_ens"])
-            candidates.append(l)
+    deja_actifs = {f["id_ens"] for f in actifs}
     p = preparer(jeu)
     avant = p.avant()
-    app = appliquer_effets_prince(avant.ecoles, list(avant.enseignants.values()),
-                                  actifs + [_candidat(l["id_ens"], l["id_etab"], l["motif"]) for l in candidates],
-                                  avant.cfg)
+    ens = list(avant.enseignants.values())
+
+    # Lignes de chaque matricule, dans l'ordre du fichier. Un matricule déjà actif n'est plus à examiner.
+    par_matricule: Dict[str, List[dict]] = {}
+    for l in analyse["acceptees"]:
+        if l["id_ens"] in deja_actifs:
+            refusees.append({**l, "motifs": [MOTIF_FAIT_ACTIF]})
+        else:
+            par_matricule.setdefault(l["id_ens"], []).append(l)
+
+    retenues: Dict[str, dict] = {}                 # matricule -> ligne retenue
+    rejets: Dict[str, List[str]] = {}              # matricule -> motifs de la dernière ligne essayée
+    rang = {m: 0 for m in par_matricule}           # prochaine ligne à essayer pour chaque matricule
+    a_essayer = list(par_matricule)
+    while a_essayer:
+        essais = [(m, par_matricule[m][rang[m]]) for m in a_essayer]
+        app = appliquer_effets_prince(avant.ecoles, ens, actifs + [
+            _candidat(l["id_ens"], l["id_etab"], l["motif"]) for _, l in essais], avant.cfg)
+        suivants = []
+        for (m, l), d in zip(essais, app.decisions[len(actifs):]):
+            if not d.rejets:
+                retenues[m] = l
+                continue
+            rejets[m] = motifs_de_refus(d.rejets)
+            rang[m] += 1
+            if rang[m] < len(par_matricule[m]):
+                suivants.append(m)
+            else:
+                refusees.append({**l, "motifs": rejets[m]})
+        a_essayer = suivants
+    for m, lignes_m in par_matricule.items():
+        gardee = retenues.get(m)
+        for l in lignes_m:
+            if l is gardee:
+                continue
+            if gardee is not None and l["ligne"] > gardee["ligne"]:
+                refusees.append({**l, "motifs": [f"Doublon dans le fichier : ce matricule est déjà retenu à la ligne "
+                                                 f"{gardee['ligne']}"]})
+            elif gardee is not None or l is not lignes_m[-1]:
+                # Ligne essayée puis rejetée avant la ligne retenue (ou avant une autre tentative) : motif propre.
+                refusees.append({**l, "motifs": rejets.get(m, [MOTIF_FAIT_ACTIF])})
+    # Dernier passage, dans l'ordre du fichier : les alertes tiennent compte des décisions retenues avant chaque ligne.
+    ordre = sorted(retenues.values(), key=lambda l: l["ligne"])
+    final = appliquer_effets_prince(avant.ecoles, ens, actifs + [
+        _candidat(l["id_ens"], l["id_etab"], l["motif"]) for l in ordre], avant.cfg)
     acceptees = []
-    for l, d in zip(candidates, app.decisions[len(actifs):]):
-        if d.rejets:
+    for l, d in zip(ordre, final.decisions[len(actifs):]):
+        if d.rejets:                                # ne peut arriver que si l'ordre change l'issue : on refuse par prudence
             refusees.append({**l, "motifs": motifs_de_refus(d.rejets)})
         else:
             acceptees.append({**l, "alertes": list(d.alertes)})
+    refusees.sort(key=lambda l: l.get("ligne", 0))
     manquantes = sorted({l["id_etab"] for l in analyse["acceptees"] if l["id_etab"] not in p.ecoles_par_id}
                         | {l["id_ens"] for l in analyse["acceptees"] if l["id_ens"] not in p.enseignants})
     return acceptees, refusees, manquantes

@@ -19,7 +19,10 @@ from ..donnees.modeles import Enseignant
 #: Fragments (sans accents, en minuscules) qui désignent un motif ouvrant droit à la bonification.
 TYPES_DE_MOTIF = ("rapprochement", "conjoint", "medical", "sante")
 
-_MOTS = re.compile(r"[^\s,;:()\[\]{}\"'’/]+")
+# Séparateurs de mots : espaces et ponctuation (guillemets français compris). La barre oblique n'en est pas un : elle peut
+# appartenir à un identifiant d'école (« DRC/12 »). Les points et tirets collés en bout de mot sont retirés ensuite.
+_MOTS = re.compile(r"[^\s,;:()\[\]{}\"'’«»!?…]+")
+_BORDS = ".-–—"
 
 
 def motif_reconnu(motif: str) -> bool:
@@ -34,7 +37,7 @@ def ecole_bonifiee(e: Enseignant) -> Optional[str]:
         return None
     voeux = {v.strip().lower(): v.strip() for v in e.voeux if v and not est_vide(v)}
     for mot in _MOTS.findall(motif):
-        trouve = voeux.get(mot.rstrip(".").lower())
+        trouve = voeux.get(mot.strip(_BORDS).lower())
         if trouve:
             return trouve
     return None

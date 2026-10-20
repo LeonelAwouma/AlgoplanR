@@ -27,6 +27,65 @@ export const LIBELLES_AJUSTEMENTS: Record<keyof ScoringConfig['ajustements'], st
   bonificationCiblee: 'Bonification ciblée (rapprochement de conjoint, suivi médical) sur l’école visée',
 }
 
+/**
+ * Réglages que l'interface propose mais que le serveur ne lit pas : ils sont affichés tels qu'il les applique, sans
+ * pouvoir les modifier (« non appliqué »). `tests/champs-moteur.test.ts` vérifie cette liste contre
+ * `versConfigDjango` : un réglage transmis ne peut pas y figurer, et tout réglage non transmis doit être classé ici ou
+ * dans `REGLAGES_FIXES`.
+ */
+export const REGLAGES_NON_APPLIQUES: readonly CheminReglage[] = [
+  ['sourceDesPostes'],
+  ['besoin', 'deduireDepartsConnus'],
+  ['besoin', 'enseignantsParClasseRepli'],
+  ['seuilsSeverite', 'faible'],
+  ['seuilsSeverite', 'important'],
+  ['priorite', 'pointsAccessibilite'],
+  ['priorite', 'pointsSecurite'],
+  ['priorite', 'seuilNiveau1'],
+  ['priorite', 'seuilNiveau2'],
+  ['priorite', 'tranchesBesoin'],
+  ['priorite', 'pointsBesoinAuDela'],
+  ['mobilite', 'nombreMaxVoeux'],
+  ['mobilite', 'ordreExamen'],
+  ['mobilite', 'anneesAvantRetraite'],
+  ['mobilite', 'stabilitePourObligatoire'],
+  ['mobilite', 'protegerProchesRetraite'],
+  ['mobilite', 'solutionProche'],
+  ['mobilite', 'redeploiementObligatoire'],
+  ['mobilite', 'regleZoneRouge'],
+  ['mobilite', 'projectionN2'],
+  ['mobilite', 'departageFeminin'],
+  ['recrutement', 'tauxAttritionHorsRetraite'],
+]
+
+/**
+ * Constantes du moteur que l'interface lit sans jamais les proposer à la modification (barème C1 à C5, proximité par
+ * IAEB ou région que le serveur ne distingue pas…) ou qui ne se règlent pas ici (année scolaire : fixée à la création
+ * du jeu).
+ */
+export const REGLAGES_FIXES: readonly CheminReglage[] = [
+  ['anneeScolaire'],
+  ['mobilite', 'ancienneteDebutPointsAns'],
+  ['mobilite', 'pointsAncienneteBase'],
+  ['mobilite', 'pointsParAnSupplementaire'],
+  ['mobilite', 'plafondAnciennete'],
+  ['mobilite', 'malusRetraite'],
+  ['mobilite', 'pointsAnneeNiveau1'],
+  ['mobilite', 'pointsAnneeNiveau2'],
+  ['mobilite', 'plancherZoneDifficile'],
+  ['scoring', 'pointsParEnfant'],
+  ['scoring', 'pointsParFormation'],
+  ['scoring', 'plafondFormation'],
+  ['scoring', 'pointsCohorte'],
+  ['scoring', 'pointsProximite', 'memeIaeb'],
+  ['scoring', 'pointsProximite', 'memeRegion'],
+]
+
+/** Ce réglage est-il affiché sans effet sur le calcul ? (voir `REGLAGES_NON_APPLIQUES`) */
+export function estNonApplique(...chemin: string[]): boolean {
+  return REGLAGES_NON_APPLIQUES.some(c => c.length === chemin.length && c.every((cle, i) => cle === chemin[i]))
+}
+
 const SITUATIONS_REGLABLES = ['celibataire', 'divorce', 'veuf', 'marie']
 
 /** Tous les champs éditables de la page, par chemin dans `EngineSettings`. */

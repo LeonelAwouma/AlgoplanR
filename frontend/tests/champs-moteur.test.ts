@@ -104,3 +104,73 @@ describe('Vœux affichés', () => {
     assert.equal('poidsExamen' in v1, false)
   })
 })
+
+// --- Audit exhaustif : aucun réglage proposé n'est inerte sans le dire ---------------------------------------------
+
+import { REGLAGES_FIXES, REGLAGES_NON_APPLIQUES, estNonApplique } from '../components/parametrage/domain/champsMoteur'
+
+/** Feuilles de l'arbre des réglages : les objets sont parcourus, les tableaux et valeurs simples sont des feuilles. */
+function feuilles(noeud: unknown, chemin: string[] = []): string[][] {
+  if (noeud !== null && typeof noeud === 'object' && !Array.isArray(noeud)) {
+    return Object.entries(noeud as Objet).flatMap(([cle, v]) => feuilles(v, [...chemin, cle]))
+  }
+  return [chemin]
+}
+
+/** Copie dont la feuille au `chemin` est changée, quel que soit son type. */
+function changer(base: Objet, chemin: readonly string[]): Objet {
+  const copie = structuredClone(base)
+  let noeud = copie
+  for (const cle of chemin.slice(0, -1)) noeud = noeud[cle] as Objet
+  const dernier = chemin[chemin.length - 1]
+  const v = noeud[dernier]
+  noeud[dernier] =
+    typeof v === 'number' ? v + 7 : typeof v === 'boolean' ? !v : Array.isArray(v) ? [] : `${String(v)}-modifie`
+  return copie
+}
+
+/** Un chemin est couvert par une entrée qui le désigne exactement ou désigne un de ses ancêtres. */
+const couvert = (chemin: readonly string[], liste: readonly (readonly string[])[]) =>
+  liste.some(c => c.length <= chemin.length && c.every((cle, i) => cle === chemin[i]))
+
+describe('Audit des réglages', () => {
+  const reglages = versEngineSettings(CONFIG) as unknown as Objet
+  const reference = JSON.stringify(versConfigDjango(reglages as never))
+  const transmis = (chemin: string[]) =>
+    JSON.stringify(versConfigDjango(changer(reglages, chemin) as never)) !== reference
+  const toutes = feuilles(reglages)
+
+  it('chaque réglage est soit transmis au serveur, soit déclaré « non appliqué », soit une constante affichée', () => {
+    const orphelins = toutes
+      .filter(c => !transmis(c) && !couvert(c, REGLAGES_NON_APPLIQUES) && !couvert(c, REGLAGES_FIXES))
+      .map(c => c.join('.'))
+    assert.deepEqual(orphelins, [], `réglages ignorés par le serveur et non déclarés : ${orphelins.join(', ')}`)
+  })
+
+  it('aucun réglage déclaré « non appliqué » ou « fixe » n’est en réalité transmis', () => {
+    const faux = toutes
+      .filter(c => transmis(c) && (couvert(c, REGLAGES_NON_APPLIQUES) || couvert(c, REGLAGES_FIXES)))
+      .map(c => c.join('.'))
+    assert.deepEqual(faux, [], `déclarés inactifs alors que le serveur les lit : ${faux.join(', ')}`)
+  })
+
+  it('les listes ne contiennent que des réglages qui existent', () => {
+    for (const c of [...REGLAGES_NON_APPLIQUES, ...REGLAGES_FIXES]) {
+      assert.ok(
+        toutes.some(f => f.length >= c.length && c.every((cle, i) => cle === f[i])),
+        `réglage inconnu : ${c.join('.')}`,
+      )
+    }
+  })
+
+  it('les champs éditables de la page « Configuration du moteur » sont tous transmis', () => {
+    const inertes = CHEMINS_MOTEUR_EDITABLES.filter(c => !transmis([...c])).map(c => c.join('.'))
+    assert.deepEqual(inertes, [])
+  })
+
+  it('estNonApplique reconnaît exactement les entrées de la liste', () => {
+    assert.ok(estNonApplique('mobilite', 'solutionProche'))
+    assert.ok(!estNonApplique('mobilite', 'phaseVoeux'))
+    assert.ok(!estNonApplique('besoin', 'elevesParMaitre'))
+  })
+})

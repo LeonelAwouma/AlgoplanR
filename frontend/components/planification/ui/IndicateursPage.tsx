@@ -39,7 +39,7 @@ export function IndicateursPage() {
   const indicateurs = useIndicateurs(jeu, perimetre)
   const evolution = useEvolutionIndicateurs(jeu, perimetre)
   const { scenario, detail } = useScenarioAffiche()
-  const encadrement = useEncadrementScenario(jeu, scenario)
+  const encadrement = useEncadrementScenario(jeu, scenario, filtres.territoire)
   const alea = useDegreAlea(jeu, { ...perimetre, scenario: scenario ?? undefined })
 
   if (!jeu) return <ChargementEnCours />

@@ -108,6 +108,7 @@ def appliquer_effets_prince(ecoles: Iterable[Ecole], enseignants: Iterable[Ensei
     par_ecole: Dict[str, Ecole] = {e.id: e for e in ecoles}
     par_ens: Dict[str, Enseignant] = {t.matricule: t for t in enseignants}
     seuils = cfg["seuils"]
+    rattaches = Counter(t.ecole_attache for t in enseignants)
 
     # Décisions d'un même matricule : contradictoires (destinations différentes) = toutes rejetées ; identiques = la
     # première s'applique, les suivantes sont des doublons.
@@ -168,6 +169,12 @@ def appliquer_effets_prince(ecoles: Iterable[Ecole], enseignants: Iterable[Ensei
             d.alertes.append(f"Ancienneté au poste inférieure à {seuils['anciennete_poste_recevabilite_ans']} ans")
         if ind_c.BMAX > 0 and (cible.enseignants_actuels or 0) + 1 > ind_c.BMAX:
             d.alertes.append(f"Capacité physique dépassée à l'arrivée (BMAX = {int(ind_c.BMAX)} salle(s))")
+        # L'écart d'effectif bloquera la validation du jeu : il est annoncé dès la décision.
+        for libelle, ecole in (("d'origine", par_ecole[origine.id]), ("de destination", par_ecole[cible.id])):
+            declares = int(ecole.enseignants_actuels or 0)
+            if declares != rattaches.get(ecole.id, 0):
+                d.alertes.append(f"L'effectif déclaré de l'école {libelle} ({declares}) diffère du nombre de matricules "
+                                 f"rattachés ({rattaches.get(ecole.id, 0)}) : à réconcilier avant de valider le jeu")
         arrivee = calculer_indicateurs(replace(cible, enseignants_actuels=float(cible.enseignants_actuels) + 1), cfg)
         if arrivee.xe > 0:
             d.alertes.append(f"L'école de destination passe en excédent après l'arrivée "
@@ -190,7 +197,6 @@ def appliquer_effets_prince(ecoles: Iterable[Ecole], enseignants: Iterable[Ensei
             totaux_apres[cle] += delta
 
     # --- écarts entre effectif déclaré et matricules rattachés, pour les écoles touchées ---
-    rattaches = Counter(t.ecole_attache for t in enseignants)
     ecarts = []
     for ident in sorted(courantes):
         declares = int(par_ecole[ident].enseignants_actuels or 0)

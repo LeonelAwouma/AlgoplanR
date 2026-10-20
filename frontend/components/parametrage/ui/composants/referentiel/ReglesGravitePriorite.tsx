@@ -9,6 +9,7 @@
 import type { EngineSettings, ReglesPriorite } from '@shared/api'
 import { Panel } from '@shared/ui/commun'
 
+import { estNonApplique } from '../../../domain/champsMoteur'
 import type { MajParametres } from '../../../domain/edition'
 import { ChampNombre, Regle } from '../ChampsRegles'
 
@@ -53,10 +54,15 @@ export function ReglesGravitePriorite({ parametres, maj }: ProprietesReglesGravi
         hint="Le besoin d’une école est rapporté à sa cible K."
       >
         <div className="regles">
-          <Regle enonce="Le besoin reste qualifié de faible tant qu’il ne dépasse pas" htmlFor="r-seuil-faible">
+          <Regle
+            enonce="Le besoin reste qualifié de faible tant qu’il ne dépasse pas"
+            htmlFor="r-seuil-faible"
+            nonApplique={estNonApplique('seuilsSeverite', 'faible')}
+          >
             <input
               id="r-seuil-faible"
               type="number"
+              disabled={estNonApplique('seuilsSeverite', 'faible')}
               min={5}
               max={50}
               value={Math.round(parametres.seuilsSeverite.faible * 100)}
@@ -68,10 +74,12 @@ export function ReglesGravitePriorite({ parametres, maj }: ProprietesReglesGravi
             enonce="Il devient critique au-delà de"
             precision="Entre les deux valeurs, il est qualifié d’important."
             htmlFor="r-seuil-important"
+            nonApplique={estNonApplique('seuilsSeverite', 'important')}
           >
             <input
               id="r-seuil-important"
               type="number"
+              disabled={estNonApplique('seuilsSeverite', 'important')}
               min={10}
               max={90}
               value={Math.round(parametres.seuilsSeverite.important * 100)}
@@ -93,6 +101,7 @@ export function ReglesGravitePriorite({ parametres, maj }: ProprietesReglesGravi
               key={cle}
               id={`r-acc-${cle}`}
               libelle={libelle}
+              nonApplique={estNonApplique('priorite', 'pointsAccessibilite')}
               max={50}
               valeur={p.pointsAccessibilite[cle]}
               onChange={v => priorite(x => ({ ...x, pointsAccessibilite: { ...x.pointsAccessibilite, [cle]: v } }))}
@@ -103,6 +112,7 @@ export function ReglesGravitePriorite({ parametres, maj }: ProprietesReglesGravi
               key={cle}
               id={`r-sec-${cle}`}
               libelle={libelle}
+              nonApplique={estNonApplique('priorite', 'pointsSecurite')}
               max={50}
               valeur={p.pointsSecurite[cle]}
               onChange={v => priorite(x => ({ ...x, pointsSecurite: { ...x.pointsSecurite, [cle]: v } }))}
@@ -127,6 +137,7 @@ export function ReglesGravitePriorite({ parametres, maj }: ProprietesReglesGravi
           />
           <ChampNombre
             id="r-n1"
+            nonApplique={estNonApplique('priorite', 'seuilNiveau1')}
             libelle="Niveau de difficulté 1 à partir de (points)"
             max={100}
             valeur={p.seuilNiveau1}
@@ -134,6 +145,7 @@ export function ReglesGravitePriorite({ parametres, maj }: ProprietesReglesGravi
           />
           <ChampNombre
             id="r-n2"
+            nonApplique={estNonApplique('priorite', 'seuilNiveau2')}
             libelle="Niveau de difficulté 2 à partir de (points)"
             max={100}
             valeur={p.seuilNiveau2}
@@ -147,6 +159,7 @@ export function ReglesGravitePriorite({ parametres, maj }: ProprietesReglesGravi
             <ChampNombre
               key={tranche.remMax}
               id={`r-tr-${i}`}
+              nonApplique={estNonApplique('priorite', 'tranchesBesoin')}
               libelle={`REM jusqu’à ${tranche.remMax}`}
               max={50}
               valeur={tranche.points}
@@ -160,6 +173,7 @@ export function ReglesGravitePriorite({ parametres, maj }: ProprietesReglesGravi
           ))}
           <ChampNombre
             id="r-tr-au-dela"
+            nonApplique={estNonApplique('priorite', 'pointsBesoinAuDela')}
             libelle="Au-delà, ou école sans maître"
             max={50}
             valeur={p.pointsBesoinAuDela}

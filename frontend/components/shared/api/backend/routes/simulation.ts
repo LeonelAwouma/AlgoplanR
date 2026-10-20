@@ -255,8 +255,8 @@ export const conversionsSimulation: Record<string, Conversion> = {
     }
   },
 
-  [`GET ${S}/encadrement/`]: async (_, acces, p): Promise<ComparaisonEncadrement> => {
-    const e = await acces.lire<EncadrementDjango>(`jeux/${p.jeu}/scenarios/${p.scenario}/encadrement/`)
+  [`GET ${S}/encadrement/`]: async (r, acces, p): Promise<ComparaisonEncadrement> => {
+    const e = await acces.lire<EncadrementDjango>(`jeux/${p.jeu}/scenarios/${p.scenario}/encadrement/`, r.query)
     return {
       scenarioId: String(e.scenario),
       seuilAncienneteAns: e.seuil_anciennete_ans,

@@ -41,7 +41,7 @@ export function construireSuiviAvantApres(
 ): SuiviAvantApres {
   const regions = new Map<string, LigneSuivi>()
   const national: LigneSuivi = {
-    territoire: 'National',
+    territoire: alea?.perimetre ?? encadrement?.national.territoire ?? 'National',
     national: true,
     remAvant: encadrement?.national.remAvant ?? null,
     remApres: encadrement?.national.remApres ?? null,

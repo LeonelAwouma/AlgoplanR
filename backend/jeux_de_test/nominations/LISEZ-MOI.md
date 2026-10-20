@@ -12,7 +12,7 @@ contre le moteur.
 
 | # | Fichier | Où | Résultat attendu |
 |---|---------|----|------------------|
-| 1 | `etablissements.xlsx` + `enseignants.xlsx` | création du jeu | 40 écoles, 300 enseignants, 0 erreur, 1 avertissement (retraités) |
+| 1 | `etablissements.xlsx` + `enseignants.xlsx` | création du jeu | 40 écoles, 300 enseignants, 0 erreur, 3 avertissements : 18 retraités exclus, 19 motifs de demande sans école citée, 39 écoles sur 40 dont l'effectif déclaré diffère des matricules rattachés (effectifs fictifs indépendants des matricules) |
 | 2 | — | scénario retenu | **départemental** (`geo_departement`) |
 | 3 | `recrues.xlsx` | recrues | 8 acceptées, 2 refusées |
 | 4 | `faits_prince.xlsx` | faits du Prince | 2 acceptés, 3 refusés |

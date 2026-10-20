@@ -8,6 +8,7 @@
 import type { EngineSettings, ReglesMobilite as Regles } from '@shared/api'
 import { Panel } from '@shared/ui/commun'
 
+import { estNonApplique } from '../../../domain/champsMoteur'
 import { nombreSaisi, type MajParametres } from '../../../domain/edition'
 import { Interrupteur, Regle } from '../ChampsRegles'
 
@@ -103,10 +104,15 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
             />
             <span className="regle-unite">ans au poste</span>
           </Regle>
-          <Regle enonce="Chaque enseignant peut formuler au plus" htmlFor="r-voeux">
+          <Regle
+            enonce="Chaque enseignant peut formuler au plus"
+            htmlFor="r-voeux"
+            nonApplique={estNonApplique('mobilite', 'nombreMaxVoeux')}
+          >
             <input
               id="r-voeux"
               type="number"
+              disabled
               min={1}
               max={3}
               value={m.nombreMaxVoeux}
@@ -118,9 +124,11 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
             enonce="Les vœux de chaque enseignant sont examinés"
             precision="Dans l’ordre de l’enseignant, ajouter une école à sa liste ne peut jamais lui nuire. Par poids, un enseignant a intérêt à retirer une école difficile de sa liste."
             htmlFor="r-ordre"
+            nonApplique={estNonApplique('mobilite', 'ordreExamen')}
           >
             <select
               id="r-ordre"
+              disabled
               value={m.ordreExamen}
               onChange={e => mobilite('ordreExamen', e.target.value as Regles['ordreExamen'])}
             >
@@ -128,10 +136,15 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
               <option value="poids">de l’école la plus difficile à la plus facile (variante)</option>
             </select>
           </Regle>
-          <Regle enonce="Un enseignant est considéré proche de la retraite à moins de" htmlFor="r-proche">
+          <Regle
+            enonce="Un enseignant est considéré proche de la retraite à moins de"
+            htmlFor="r-proche"
+            nonApplique={estNonApplique('mobilite', 'anneesAvantRetraite')}
+          >
             <input
               id="r-proche"
               type="number"
+              disabled
               min={0}
               max={10}
               value={m.anneesAvantRetraite}
@@ -142,7 +155,14 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
         </div>
         <div className="switch-list">
           {INTERRUPTEURS.map(({ cle, titre, texte }) => (
-            <Interrupteur key={cle} titre={titre} texte={texte} coche={m[cle]} onChange={v => mobilite(cle, v)} />
+            <Interrupteur
+              key={cle}
+              titre={titre}
+              texte={texte}
+              coche={m[cle]}
+              onChange={v => mobilite(cle, v)}
+              nonApplique={estNonApplique('mobilite', cle)}
+            />
           ))}
         </div>
       </Panel>
@@ -153,10 +173,12 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
             enonce="Chaque année, hors retraites, quittent la profession"
             precision="Taux d’attrition τ* (définition UNESCO, indicateur ODD 4.c.6). Recrutement à prévoir = besoin restant après redéploiement + ⌈τ* × effectif ÷ 100⌉, par sous-système. La planification sur 5 ans a ses propres hypothèses."
             htmlFor="r-attrition"
+            nonApplique={estNonApplique('recrutement', 'tauxAttritionHorsRetraite')}
           >
             <input
               id="r-attrition"
               type="number"
+              disabled
               min={0}
               max={20}
               step={0.1}

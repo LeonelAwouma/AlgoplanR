@@ -49,6 +49,7 @@ import {
   type ScenarioCalcule,
   type SimulationResult,
   type TeachingPost,
+  SELECTION_NATIONALE,
   type TerritorySelection,
 } from '../../shared/api'
 
@@ -182,9 +183,16 @@ export function expliquerAffectation(
   return appeler(ROUTES.explication, { params: { ...ref, matricule }, signal })
 }
 
-/** Taux d'encadrement et turnover du scénario, avant (fichier d'origine) et après l'algorithme. */
-export function lireEncadrement(ref: RefScenario, signal?: AbortSignal): Promise<ComparaisonEncadrement> {
-  return appeler(ROUTES.encadrement, { params: { ...ref }, signal })
+/**
+ * Taux d'encadrement et turnover du scénario, avant (bases importées) et après l'algorithme, sur le territoire
+ * sélectionné (national par défaut).
+ */
+export function lireEncadrement(
+  ref: RefScenario,
+  selection: TerritorySelection = SELECTION_NATIONALE,
+  signal?: AbortSignal,
+): Promise<ComparaisonEncadrement> {
+  return appeler(ROUTES.encadrement, { params: { ...ref }, query: querySelection(selection), signal })
 }
 
 /** Enseignants du vivier restés sans affectation. */
