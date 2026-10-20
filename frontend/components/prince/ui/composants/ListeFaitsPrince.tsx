@@ -46,10 +46,10 @@ export function ListeFaitsPrince({ jeu, onOuvrirEcole, onAnnule }: ProprietesLis
       [
         'Matricule',
         'Enseignant',
-        'École origine',
-        'Commune origine',
-        'École destination',
-        'Commune destination',
+        'École de référence',
+        'Commune de l’école de référence',
+        'Destination décidée',
+        'Commune de la destination',
         'Décidé le',
         'Référence',
         'État',
@@ -82,7 +82,7 @@ export function ListeFaitsPrince({ jeu, onOuvrirEcole, onAnnule }: ProprietesLis
     },
     {
       cle: 'mouvement',
-      entete: 'Redéploiement',
+      entete: 'École de référence → destination décidée',
       rendu: a => (
         <span>
           <button type="button" className="row-action" onClick={() => onOuvrirEcole(a.fait.origine.id)}>

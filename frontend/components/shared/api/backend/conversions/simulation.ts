@@ -11,9 +11,11 @@ import type {
   Candidature,
   CombinaisonArbitrage,
   EngineSettings,
+  FaitPrinceApplique,
   GeographicScope,
   InvariantCheck,
   JournalSimulation,
+  LieuPrince,
   NatureMouvement,
   PoolTeacher,
   PresetScenario,
@@ -88,6 +90,10 @@ export interface AffectationDjango {
   score_affectation: number
   motif_derogation: string
   arbitrage: string
+  /** École d'attache de l'agent avant l'affectation (école de référence). */
+  id_etab_origine?: string
+  /** Fait du Prince seulement : alertes de la décision. */
+  alertes_prince?: string[]
 }
 
 export interface PosteDjango {
@@ -290,7 +296,7 @@ export function versProposition(
   enseignant: EnseignantDjango | undefined,
   ecoles: Map<string, SchoolDiagnostic>,
 ): ProposedAssignment {
-  const origineId = enseignant?.Ecole_Attache_Actuelle ?? ''
+  const origineId = a.id_etab_origine ?? enseignant?.Ecole_Attache_Actuelle ?? ''
   const origine = ecoles.get(origineId)?.school
   const destination = ecoles.get(a.id_etab)?.school
   const voeu = /^phase1_voeu_(\d)$/.exec(a.phase)
@@ -413,6 +419,7 @@ export function versPoste(p: PosteDjango, rang: number, ecoles: Map<string, Scho
       indice: nombre(p.Up),
       zoneSecurite: zs,
       zoneRouge: Boolean(p.est_zone_rouge),
+      rang: d?.priorite.rang ?? null,
     },
     rang,
     pourvu: Boolean(p.pourvu),
@@ -612,6 +619,47 @@ function situation(ecoles: Iterable<SchoolDiagnostic>, couverts: Map<string, num
   }
 }
 
+function lieuPrince(id: string, ecoles: Map<string, SchoolDiagnostic>): LieuPrince {
+  const s = ecoles.get(id)?.school
+  return {
+    id,
+    nom: s?.nom ?? id,
+    commune: s?.commune ?? '',
+    departement: s?.departement ?? '',
+    region: s?.region ?? '',
+  }
+}
+
+/**
+ * Décisions du Prince prises en compte par le scénario : les affectations de phase `effet_de_prince`. L'école de
+ * référence est celle du fichier importé, la destination est celle que la décision a fixée. La date est celle du calcul.
+ */
+export function versFaitsPrince(
+  affectations: AffectationDjango[],
+  ecoles: Map<string, SchoolDiagnostic>,
+  calculeLe: string,
+): FaitPrinceApplique[] {
+  return affectations
+    .filter(a => a.phase === 'effet_de_prince')
+    .map(a => ({
+      fait: {
+        id: a.id_poste,
+        teacherId: a.id_ens,
+        schoolDestinationId: a.id_etab,
+        reference: texte(a.motif_derogation),
+        decideLe: calculeLe,
+        enseignant: `${texte(a.prenom_ens)} ${texte(a.nom_ens)}`.trim() || a.id_ens,
+        origine: lieuPrince(a.id_etab_origine ?? '', ecoles),
+        destination: lieuPrince(a.id_etab, ecoles),
+      },
+      statut: a.alertes_prince && a.alertes_prince.length > 0 ? 'applique_avec_alerte' : 'applique',
+      motif:
+        a.alertes_prince && a.alertes_prince.length > 0
+          ? a.alertes_prince.join(' ; ')
+          : 'Décision appliquée aux bases.',
+    }))
+}
+
 /** Résultat national complet du contrat. */
 export function versResultat(d: DonneesResultat): SimulationResult {
   const vivier = new Map(d.vivier.map(t => [t.Matricule_Enseignant, t]))
@@ -679,7 +727,7 @@ export function versResultat(d: DonneesResultat): SimulationResult {
     postesZoneRougeNonPourvus: uncoveredPosts.filter(p => p.priorite.zoneRouge).length,
     before: situation(diagnostics, new Map()),
     after: situation(diagnostics, couverts),
-    faitsPrince: [],
+    faitsPrince: versFaitsPrince(d.affectations, d.ecoles, d.scenario.calcule_le ?? ''),
     invariants: versInvariants(d.invariants),
     logs: versJournal(d.journal, d.scenario.calcule_le).logs,
     computedAt: d.scenario.calcule_le ?? '',

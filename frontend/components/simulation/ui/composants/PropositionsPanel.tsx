@@ -80,7 +80,7 @@ export function PropositionsPanel({ jeu, resultat, analyste }: ProprietesProposi
     },
     {
       cle: 'origine',
-      entete: 'Origine',
+      entete: 'École de référence',
       rendu: a => (
         <span>
           {a.nomEtabOrigine}
@@ -91,7 +91,7 @@ export function PropositionsPanel({ jeu, resultat, analyste }: ProprietesProposi
     },
     {
       cle: 'destination',
-      entete: 'Destination',
+      entete: 'Destination projetée',
       rendu: a => (
         <span>
           <strong>{a.nomEtabDestination}</strong>

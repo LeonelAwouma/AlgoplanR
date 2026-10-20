@@ -36,7 +36,14 @@ export function PrincePage() {
         Un fait de Prince redéploie un enseignant à la seule volonté de la DRH : le départ de l’école d’origine et
         l’arrivée dans l’école de destination sont appliqués aux bases avant le calcul des besoins, des excédents et du
         vivier. L’algorithme ne remet jamais cet enseignant en mouvement. Les alertes signalent ce qui mérite d’être
-        vérifié (école d’origine sans excédent, changement de sous-système, capacité dépassée) sans bloquer la décision.
+        vérifié (école d’origine sans excédent, changement de sous-système, capacité dépassée, école de destination qui
+        passe en excédent) sans bloquer la décision.
+      </Notice>
+      <Notice tone="info" title="Quatre écoles à ne pas confondre.">
+        <strong>École de référence</strong> : celle du fichier importé. <strong>Destination décidée</strong> : celle que
+        fixe un fait du Prince (appliquée aux bases à titre de simulation). <strong>Destination projetée</strong> :
+        celle que propose l’algorithme dans un scénario. <strong>École effective</strong> : celle où l’enseignant exerce
+        réellement ; tant qu’aucun acte n’est mis en œuvre, c’est l’école de référence.
       </Notice>
 
       {confirmation && (

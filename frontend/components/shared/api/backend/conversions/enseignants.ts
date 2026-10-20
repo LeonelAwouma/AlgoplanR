@@ -25,6 +25,11 @@ export interface EnseignantDjango {
   Age: number | null
   /** Âge renseigné dans le fichier : faux quand la colonne est absente (35 ans supposés) ou la cellule vide. */
   age_connu?: boolean
+  /** Déplacé par un fait du Prince : `Ecole_Attache_Actuelle` est alors la destination décidée. */
+  fait_prince?: boolean
+  /** École du fichier importé (avant les faits du Prince). */
+  ecole_reference?: string
+  nom_ecole_reference?: string
   Anciennete_Carriere: number
   Anciennete_Poste_Actuel: number
   Annees_Zone_Difficulte_1: number
@@ -124,6 +129,9 @@ export function versTeacher(t: EnseignantDjango, ligne = 0): Teacher {
     voeux: [t.Voeu_1, t.Voeu_2, t.Voeu_3].map(texte).filter(v => v !== ''),
     motifDemande: motifDemande(t.Motif_Bonification),
     ecoleMotif: null,
+    faitPrinceId: t.fait_prince ? t.Matricule_Enseignant : undefined,
+    idEtabReference: t.ecole_reference ? texte(t.ecole_reference) : undefined,
+    nomEtabReference: t.nom_ecole_reference ? texte(t.nom_ecole_reference) : undefined,
     anneesZoneNiveau1: nombre(t.Annees_Zone_Difficulte_1),
     anneesZoneNiveau2: nombre(t.Annees_Zone_Difficulte_2),
     rangTirage: null,

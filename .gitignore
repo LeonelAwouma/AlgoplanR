@@ -29,3 +29,12 @@ backend/packaging/travail/
 # Classeurs nationaux et jeux « réalistes » : fictifs, générés, volumineux
 *_national*.xlsx
 *_realiste*.xlsx
+
+dist/
+frontend/node_modules/
+frontend/.next/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example

@@ -1415,6 +1415,15 @@ button.kpi:hover .kpi-link {
   max-height: min(640px, calc(100vh - 300px));
   border-top: 1px solid var(--line);
 }
+/* Tableau consulté page par page : défilement horizontal seulement, jamais de fenêtre à hauteur fixe. */
+.table-defile-x {
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+}
+/* Contenu réservé au papier / PDF : absent de l'écran. */
+.print-only {
+  display: none;
+}
 table.data {
   width: 100%;
   border-collapse: separate;
@@ -2727,6 +2736,12 @@ pre.code {
     break-before: page;
   }
   .report-affectations .table-scroll {
+    overflow: visible;
+  }
+  .print-only {
+    display: block;
+  }
+  .table-defile-x {
     overflow: visible;
   }
   .report-affectations table {

@@ -65,8 +65,9 @@ export const NOTIONS: NotionMethodologique[] = [
     explication:
       "La vulnérabilité d'une école combine des points d'accessibilité (urbain 5, semi-urbain 10, rural 15, rural enclavé 20) et de sécurité (zone verte 0, jaune 10, rouge 25), pondérés par t1 et t2 (t1 + t2 = 1). Elle fixe le niveau de difficulté de l'école. Comme elle ne mesure pas l'ampleur du besoin, on lui ajoute des points de besoin selon le REM actuel : c'est le poids du poste Up. Les postes sont servis par poids décroissant ; à poids égal, les écoles passent avant les structures, puis l'école au REM le plus élevé.",
     formule:
-      'wp = 0,4 × α + 0,6 × σ ; niveau 1 si wp ≥ 14, 2 si wp ≥ 6, sinon 3 ; βp = 0 (REM ≤ 80), 5 (≤ 100), 10 (≤ 150), 15 au-delà ou sans maître ; Up = wp + βp',
-    parametrable: 'Points, seuils et tranches sont à valider par la hiérarchie et modifiables dans le Référentiel.',
+      'wp = 0,30 × α + 0,70 × σ ; niveau 1 si wp ≥ 30, 2 si wp ≥ 15, sinon 3 ; βp = 0 (REM ≤ 80), 5 (≤ 100), 10 (≤ 150), 15 au-delà ou sans maître ; Up = wp + βp',
+    parametrable:
+      'Les coefficients t1 (0,30) et t2 (0,70) se règlent dans la configuration du moteur. Les seuils de niveau de difficulté (30 et 15) et les tranches de REM sont des constantes du moteur, non paramétrables aujourd’hui.',
   },
   {
     titre: 'Demandes de mutation — qui est recevable',
@@ -80,14 +81,13 @@ export const NOTIONS: NotionMethodologique[] = [
       "Pour un poste donné, les candidats sont classés par score d'appariement Score(e, p) décroissant, et le poste revient au plus fort score. Le poids du poste étant le même pour tous les candidats d'un même poste, l'arbitrage se joue sur le poids de l'individu : son barème augmenté de ses ajustements. Un enseignant dont le vœu n'est pas satisfait se voit chercher une école avec un poste ouvert. À score égal, passe d'abord la plus grande ancienneté générale, puis le plus âgé, puis le meilleur rang de tirage au sort ; le rang du vœu et l'ordre de saisie ne départagent jamais.",
     formule:
       'poste p attribué au candidat e de plus fort Score(e, p) ; ex-æquo : ancienneté générale, âge, rang de tirage',
-    parametrable: 'En variante, le score de priorité S = A + Z + B de l’ancien référentiel peut classer les candidats.',
   },
   {
     titre: 'Barème individuel (étage 1) — le poids de l’enseignant',
     explication:
-      "Le barème additionne cinq critères pondérés : l'ancienneté de carrière multipliée par le service en zone difficile, l'ancienneté au poste et la stabilité, les charges familiales (chaque enfant à charge retire des points), la formation continue et la cohorte d'âge. Il fait le poids de l'individu dans le score d'appariement et ordonne les départs d'une école excédentaire. Exemple : un enseignant marié de 42 ans, trois enfants, 18 ans de service dont 4 en zone de niveau 1, 9 ans à son poste en zone de niveau 2 et 2 stages a un barème de 97,25.",
+      "Le barème additionne cinq critères pondérés : l'ancienneté de carrière multipliée par le service en zone difficile, l'ancienneté au poste et la stabilité, les charges familiales (chaque enfant à charge retire des points), la formation continue et la cohorte d'âge. Il fait le poids de l'individu dans le score d'appariement et ordonne les départs d'une école excédentaire. Exemple : un enseignant marié de 42 ans, trois enfants, 18 ans de service dont 4 en zone de niveau 1, 9 ans à son poste en zone de niveau 2 et 2 stages a un barème de 95,25.",
     formule:
-      'barème = 0,30 × C1 + 0,25 × C2 + 0,20 × C3 + 0,15 × C4 + 0,10 × C5 ; C1 = carrière × max(10 ; 2 n1 + n2) ; C2 = années au poste + 5 dès 5 ans + 1 par année au-delà de 6, − 5 à moins de 5 ans de la retraite ; C3 = situation (marié 5, divorcé ou veuf 8, célibataire 10) − 2 par enfant ; C4 = 2 par formation, 10 au plus ; C5 = 10 (< 35 ans), 8 (35 à 49 ans), 5 (≥ 50 ans)',
+      'barème = 0,30 × C1 + 0,25 × C2 + 0,20 × C3 + 0,15 × C4 + 0,10 × C5 ; C1 = carrière × max(10 ; 2 n1 + n2) ; C2 = 5 dès 5 ans au poste + 1 par année au-delà de 5 (9 ans au poste : 9), − 5 à moins de 5 ans de la retraite ; C3 = situation (marié 5, divorcé ou veuf 8, célibataire 10) − 2 par enfant ; C4 = 2 par formation, 10 au plus ; C5 = 10 (< 35 ans), 8 (35 à 49 ans), 5 (≥ 50 ans)',
     parametrable: 'Poids et points se règlent dans la configuration du moteur.',
   },
   {

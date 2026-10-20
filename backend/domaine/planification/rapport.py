@@ -12,12 +12,13 @@ Le jeu ne distingue pas la maternelle : seul le bloc primaire est produit.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from ..commun.texte import cle_tri_fr
-from ..donnees.modeles import Enseignant
+from ..donnees.modeles import Ecole, Enseignant
 from .parametres import ANNEES_PLAN
-from .projection import SCENARIOS, ProjectionEcole, arrondi, calculer_annees, taux_attrition
+from .projection import (SCENARIOS, ProjectionEcole, arrondi, calculer_annees, code_sous_systeme, est_structure,
+                         taux_attrition)
 from .referentiel_drh import region_drh
 
 LIBELLES_SCENARIOS = {"min": "S-min", "maintien": "S-maintien", "besoin": "S-besoin", "plafond": "Sous plafond"}
@@ -214,6 +215,17 @@ def alea_et_raison(ecoles: List[ProjectionEcole]) -> tuple:
     if syy == 0:
         return None, "Tous les effectifs d'enseignants sont identiques"
     return round(1 - sxy * sxy / (sxx * syy), 2), None
+
+
+def ecoles_a_l_import(ecoles: Iterable[Ecole]) -> List[ProjectionEcole]:
+    """Écoles telles que les bases importées les déclarent (effectifs déclarés, avant faits du Prince et avant
+    l'algorithme), sous la forme que lit `alea_par_region`. Les structures administratives sont exclues, comme pour la
+    projection."""
+    return [ProjectionEcole(id=e.id, nom=e.nom or e.id, region=e.region, departement=e.departement,
+                            commune=e.commune, iaeb=e.iaeb, sous_systeme=code_sous_systeme(e.sous_systeme),
+                            eleves_connus=e.effectif_eleves > 0, effectif_initial=max(0, int(round(e.enseignants_actuels))),
+                            arrivees=0, deficit_initial=0, eleves_initial=e.effectif_eleves)
+            for e in ecoles if not est_structure(e)]
 
 
 def alea(ecoles: List[ProjectionEcole]) -> Optional[float]:

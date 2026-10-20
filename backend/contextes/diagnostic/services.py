@@ -58,7 +58,7 @@ _PREP: "OrderedDict[tuple, Preparation]" = OrderedDict()
 _ECOLES: "OrderedDict[tuple, List[dict]]" = OrderedDict()
 _MAX_JEUX = 4
 # Version du contenu des écoles enrichies : la changer invalide les caches SQLite déjà écrits.
-_VERSION_ECOLES = 4
+_VERSION_ECOLES = 5
 
 
 def empreinte_jeu(jeu) -> str:
@@ -91,7 +91,7 @@ def _situation(cfg: dict, ecoles: List[Ecole], tous: List[Enseignant], ecartes=(
     return Preparation(cfg=cfg, ecoles=ecoles, ecoles_par_id={e.id: e for e in ecoles},
                        enseignants={e.matricule: e for e in tous},
                        exclus={x["matricule"]: x["raison"] for x in exclus}, vivier=vivier,
-                       ecoles_dicts=[_ligne_ecole(e, mobilisables.get(e.id, 0)) for e in ecoles])
+                       ecoles_dicts=syn.attribuer_rangs([_ligne_ecole(e, mobilisables.get(e.id, 0)) for e in ecoles]))
 
 
 def preparer(jeu) -> Preparation:
@@ -125,8 +125,8 @@ def _apres_prince(origine: Preparation, faits: List[dict]) -> Preparation:
     apres = _situation(cfg, application.ecoles, tous, ecartes=application.deplaces)
     # Chaque école garde, à côté de ses valeurs actuelles, celles d'avant les faits du Prince.
     mobilisables = Counter(v.ecole_attache for v in apres.vivier)
-    apres.ecoles_dicts = [_ligne_ecole(e, mobilisables.get(e.id, 0), origine.ecoles_par_id[e.id], e.id in touchees)
-                          for e in apres.ecoles]
+    apres.ecoles_dicts = syn.attribuer_rangs(
+        [_ligne_ecole(e, mobilisables.get(e.id, 0), origine.ecoles_par_id[e.id], e.id in touchees) for e in apres.ecoles])
     apres.origine = origine
     apres.application = application
     return apres
@@ -163,11 +163,20 @@ def lignes_enseignants(prep: Preparation) -> List[dict]:
     """Lignes de la liste des enseignants (fiche, vivier, exclusion), construites une fois par préparation."""
     if prep.lignes_enseignants is None:
         ids_vivier = {e.matricule for e in prep.vivier}
+        # École de référence : celle du fichier importé. Pour un agent déplacé par un fait du Prince, `Ecole_Attache_Actuelle`
+        # est la destination décidée (bases après Prince) ; l'école de référence en est distincte.
+        avant = prep.application.enseignants_avant if prep.application else {}
+        ecoles_avant = prep.avant().ecoles_par_id
         lignes = []
         for e in prep.enseignants.values():
             d = e.vers_dict()
             d["dans_vivier"] = e.matricule in ids_vivier
             d["exclu_du_calcul"] = prep.exclus.get(e.matricule, "")
+            origine = avant.get(e.matricule)
+            d["fait_prince"] = origine is not None
+            reference = origine.ecole_attache if origine else e.ecole_attache
+            d["ecole_reference"] = reference
+            d["nom_ecole_reference"] = (ecoles_avant[reference].nom or reference) if reference in ecoles_avant else reference
             lignes.append(d)
         prep.lignes_enseignants = lignes
     return prep.lignes_enseignants
@@ -193,7 +202,7 @@ def ecoles_dicts_origine(prep: Preparation) -> List[dict]:
     if prep.ecoles_dicts_origine is None:
         o = prep.origine
         mobilisables = Counter(v.ecole_attache for v in o.vivier)
-        prep.ecoles_dicts_origine = [_ligne_ecole(e, mobilisables.get(e.id, 0)) for e in o.ecoles]
+        prep.ecoles_dicts_origine = syn.attribuer_rangs([_ligne_ecole(e, mobilisables.get(e.id, 0)) for e in o.ecoles])
     return prep.ecoles_dicts_origine
 
 

@@ -175,3 +175,21 @@ def test_import_atomique_et_un_seul_recalcul(drh, jeu, monkeypatch):
     with pytest.raises(RuntimeError):
         services.importer(j, lignes)
     assert FaitPrince.objects.filter(jeu=j).count() == 0
+
+
+@pytest.mark.django_db
+def test_ecole_de_reference_et_destination_decidee(drh, jeu):
+    assert _post(drh, jeu, "faits-prince/", {"id_ens": "MAT00001", "id_etab": "ECO011"}).status_code == 201
+    liste = drh.get(B + f"jeux/{jeu}/enseignants/", {"q": "MAT00001"}).json()["resultats"]
+    ligne = next(l for l in liste if l["Matricule_Enseignant"] == "MAT00001")
+    assert ligne["fait_prince"] is True
+    assert ligne["ecole_reference"] == "ECO019" and ligne["Ecole_Attache_Actuelle"] == "ECO011"
+    assert ligne["nom_ecole_reference"]
+    autre = drh.get(B + f"jeux/{jeu}/enseignants/", {"q": "MAT00002"}).json()["resultats"]
+    ligne2 = next(l for l in autre if l["Matricule_Enseignant"] == "MAT00002")
+    assert ligne2["fait_prince"] is False and ligne2["ecole_reference"] == ligne2["Ecole_Attache_Actuelle"]
+    # L'affectation du fait porte aussi l'école d'origine (export Excel des faits du Prince).
+    sc = next(s for s in drh.get(B + f"jeux/{jeu}/scenarios/").json() if s["code"] == "geo_departement")
+    aff = drh.get(B + f"jeux/{jeu}/scenarios/{sc['id']}/affectations/", {"phase": "effet_de_prince", "taille": 50})
+    item = next(a for a in aff.json()["resultats"] if a["id_ens"] == "MAT00001")
+    assert item["id_etab_origine"] == "ECO019" and item["id_etab"] == "ECO011"

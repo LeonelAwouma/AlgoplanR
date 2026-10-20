@@ -102,3 +102,80 @@ test('Deux exports du même rapport produisent le même contenu', async () => {
     )
   assert.equal(await lire(), await lire())
 })
+
+// --- Annexe des propositions d'affectation -----------------------------------------------------------------------
+
+const ENTETES_ANNEXE = Array.from({ length: 15 }, (_, i) => `Colonne ${i + 1}`)
+const lignesAnnexe = (n: number) =>
+  Array.from({ length: n }, (_, i) => ENTETES_ANNEXE.map((_, j) => (j === 0 ? String(i + 1) : `L${i + 1}C${j + 1}`)))
+
+/** Position et orientation de chaque section du document (`w:sectPr`), dans l'ordre. */
+const sections = (xml: string) =>
+  [...xml.matchAll(/<w:pgSz\b[^>]*>/g)].map(m => ({
+    paysage: /w:orient="landscape"/.test(m[0]),
+    largeur: Number(/w:w="(\d+)"/.exec(m[0])?.[1]),
+    hauteur: Number(/w:h="(\d+)"/.exec(m[0])?.[1]),
+  }))
+
+test('L’annexe contient les 1 762 affectations, quelle que soit la page consultée à l’écran', async () => {
+  const lignes = lignesAnnexe(1762)
+  const blob = await construireRapportDocx({
+    rapport: rapportDeTest(),
+    scenarioNom: 'Scénario',
+    donneesDemonstration: false,
+    annexeAffectations: { entetes: ENTETES_ANNEXE, lignes },
+  })
+  const xml = lireDocumentXml(Buffer.from(await blob.arrayBuffer()))
+  const annexe = xml.slice(xml.indexOf('Annexe A'))
+
+  assert.ok(annexe.length > 0, 'l’annexe est dans le document')
+  assert.ok(annexe.includes('1 762') || annexe.includes('1 762') || annexe.includes('1 762'))
+  // Première et dernière ligne, et une ligne au milieu : rien n'est tronqué à une page de consultation.
+  for (const repere of ['L1C2', 'L50C2', 'L51C2', 'L100C2', 'L901C7', 'L1762C15']) {
+    assert.ok(annexe.includes(`>${repere}<`), `ligne manquante : ${repere}`)
+  }
+  const nbLignes = (annexe.match(/<w:tr>|<w:tr /g) ?? []).length
+  assert.equal(nbLignes, 1762 + 1, '1 762 lignes + l’en-tête')
+})
+
+test('Le corps du rapport reste en portrait ; seule l’annexe est en paysage', async () => {
+  const blob = await construireRapportDocx({
+    rapport: rapportDeTest(),
+    scenarioNom: 'Scénario',
+    donneesDemonstration: false,
+    annexeAffectations: { entetes: ENTETES_ANNEXE, lignes: lignesAnnexe(10) },
+  })
+  const s = sections(lireDocumentXml(Buffer.from(await blob.arrayBuffer())))
+  assert.equal(s.length, 2)
+  assert.equal(s[0].paysage, false)
+  assert.ok(s[0].hauteur > s[0].largeur, 'portrait')
+  assert.equal(s[1].paysage, true)
+  assert.ok(s[1].largeur > s[1].hauteur, 'paysage')
+})
+
+test('L’annexe répète l’en-tête sur chaque page et ne coupe aucune ligne', async () => {
+  const blob = await construireRapportDocx({
+    rapport: rapportDeTest(),
+    scenarioNom: 'Scénario',
+    donneesDemonstration: false,
+    annexeAffectations: { entetes: ENTETES_ANNEXE, lignes: lignesAnnexe(200) },
+  })
+  const xml = lireDocumentXml(Buffer.from(await blob.arrayBuffer()))
+  const annexe = xml.slice(xml.indexOf('Annexe A'))
+  assert.equal((annexe.match(/<w:tblHeader\b/g) ?? []).length, 1, 'une seule ligne d’en-tête, répétée par Word')
+  assert.equal((annexe.match(/<w:cantSplit\b/g) ?? []).length, 200 + 1, 'aucune ligne coupée entre deux pages')
+})
+
+test('Sans affectation, aucune annexe ni section paysage', async () => {
+  for (const annexeAffectations of [undefined, { entetes: ENTETES_ANNEXE, lignes: [] }]) {
+    const blob = await construireRapportDocx({
+      rapport: rapportDeTest(),
+      scenarioNom: 'Situation actuelle',
+      donneesDemonstration: false,
+      annexeAffectations,
+    })
+    const xml = lireDocumentXml(Buffer.from(await blob.arrayBuffer()))
+    assert.ok(!xml.includes('Annexe A'))
+    assert.equal(sections(xml).filter(s => s.paysage).length, 0)
+  }
+})

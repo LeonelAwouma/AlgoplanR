@@ -191,6 +191,12 @@ export interface Teacher {
    * l'algorithme ne le remet jamais en mouvement.
    */
   faitPrinceId?: string
+  /**
+   * École de référence : celle du fichier importé. Pour un enseignant déplacé par un fait du Prince, l'école de
+   * rattachement des bases est la destination décidée ; l'école de référence en est distincte.
+   */
+  idEtabReference?: string
+  nomEtabReference?: string
 
   ligneSource: number
 }
@@ -311,6 +317,11 @@ export interface PrioriteEcole {
   /** Zone de sécurité de l'école, `null` si non renseignée (comptée en zone verte). */
   zoneSecurite: ZoneSecurite | null
   zoneRouge: boolean
+  /**
+   * Rang d'accueil calculé par le serveur (1 = premier ; `null` pour une école sans besoin) : poids du poste décroissant,
+   * écoles avant structures, puis REM le plus élevé. C'est l'ordre unique, affiché tel quel.
+   */
+  rang: number | null
 }
 
 /** Volume de besoin d'un établissement, utilisé pour construire les postes. */

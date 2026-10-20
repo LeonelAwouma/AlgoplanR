@@ -26,6 +26,7 @@ def arbitrages(request, jeu):
     j = jeu_autorise(request, jeu)
     if request.method == "GET":
         return Response([_d(a) for a in j.arbitrages.all()])
+    sim.exiger_a_jour(j.scenario_retenu or sim.scenario_par_defaut(j))
     d = request.data
     ens, etab = str(d.get("id_ens", "")).strip(), str(d.get("id_etab", "")).strip()
     p = preparer(j)

@@ -392,9 +392,14 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
 def alea(ctx: Contexte, p: dict) -> dict:
     """Degré d'aléa (1 − R² enseignants ~ élèves) du périmètre et de chacune de ses régions.
 
-    Calculé sur les effectifs après les mouvements du scénario du contexte, comme le rapport prévisionnel.
+    « Après » (au premier niveau de la réponse) : effectifs après les faits du Prince et les mouvements du scénario du
+    contexte, comme le rapport prévisionnel. « Avant » (clé `avant`) : effectifs déclarés des bases à l'import, avant
+    les faits du Prince et avant l'algorithme.
     """
-    return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **rap.alea_par_region(ecoles_de(ctx, p))}
+    from contextes.diagnostic import services as diag
+    importees = [e for e in rap.ecoles_a_l_import(diag.preparer(ctx.jeu).avant().ecoles) if dans(e.lieu(), p)]
+    return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **rap.alea_par_region(ecoles_de(ctx, p)),
+            "avant": rap.alea_par_region(importees)}
 
 
 def listes_rapport(ctx: Contexte, p: dict, seuil_cohorte=5) -> dict:

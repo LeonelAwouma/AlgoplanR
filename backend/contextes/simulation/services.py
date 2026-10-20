@@ -187,6 +187,17 @@ def est_obsolete(sc: Scenario) -> bool:
         return False
 
 
+def exiger_a_jour(sc: Scenario) -> None:
+    """Refuse une décision (nomination, arbitrage) fondée sur un scénario obsolète : ses chiffres ne reflètent plus les
+    règles ni les données en vigueur."""
+    if est_obsolete(sc):
+        raise RefusMetier(
+            "Le scénario de référence est obsolète",
+            [f"« {sc.nom} » n'a pas été recalculé depuis la dernière modification des règles ou des données : "
+             "recalculez d'abord les scénarios (page Simulation), puis reprenez la décision."],
+            code="scenario_obsolete")
+
+
 def resume_scenario(sc: Scenario) -> dict:
     obsolete = est_obsolete(sc)
     try:

@@ -16,8 +16,10 @@ import { ChargementEnCours, EtatRequetes } from '@shared/ui/etats'
 
 import { useEncadrementScenario, useScenarioAffiche } from '@components/simulation'
 
-import { useEvolutionIndicateurs, useIndicateurs } from '../application/hooks'
+import { useDegreAlea, useEvolutionIndicateurs, useIndicateurs } from '../application/hooks'
+import { construireSuiviAvantApres } from '../application/suiviAvantApres'
 import { EncadrementTurnover } from './composants/EncadrementTurnover'
+import { SuiviAvantApres } from './composants/SuiviAvantApres'
 
 /** Valeur affichée d'un indicateur, selon son unité. */
 function valeurAffichee(indicateur: IndicateurSuivi): string {
@@ -38,6 +40,7 @@ export function IndicateursPage() {
   const evolution = useEvolutionIndicateurs(jeu, perimetre)
   const { scenario, detail } = useScenarioAffiche()
   const encadrement = useEncadrementScenario(jeu, scenario)
+  const alea = useDegreAlea(jeu, { ...perimetre, scenario: scenario ?? undefined })
 
   if (!jeu) return <ChargementEnCours />
   if (!indicateurs.data) return <EtatRequetes requetes={[indicateurs]} />
@@ -53,6 +56,13 @@ export function IndicateursPage() {
           ))}
         </div>
       </Panel>
+
+      {scenario !== null && (encadrement.data || alea.data) && (
+        <SuiviAvantApres
+          suivi={construireSuiviAvantApres(encadrement.data, alea.data)}
+          scenarioNom={detail?.scenario.nom ?? 'scénario affiché'}
+        />
+      )}
 
       {scenario === null ? (
         <Panel kicker="Encadrement et rotation" title="Avant / après l’algorithme">

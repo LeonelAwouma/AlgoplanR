@@ -182,19 +182,18 @@ export function agregerTotaux(diagnostics: SchoolDiagnostic[]): TerritorialTotal
 }
 
 /**
- * Ordre de priorité d'attention : écoles nécessiteuses d'abord, par indice de
- * priorité u décroissant, puis REM actuel le plus élevé, puis besoin (§2.6, §3.1).
+ * Ordre de priorité d'attention : celui du serveur (rang d'accueil : poids du poste décroissant, écoles avant
+ * structures, puis REM le plus élevé). Les écoles sans besoin suivent, par poids du poste puis identifiant. Aucune règle
+ * de classement n'est recopiée ici : deux classements différents donneraient deux ordres à l'écran.
  */
 export function trierParPriorite(diagnostics: SchoolDiagnostic[]): SchoolDiagnostic[] {
   return [...diagnostics].sort((a, b) => {
-    const na = a.besoinTheorique > 0 ? 1 : 0
-    const nb = b.besoinTheorique > 0 ? 1 : 0
-    if (nb !== na) return nb - na
+    const ra = a.priorite.rang
+    const rb = b.priorite.rang
+    if (ra !== null && rb !== null) return ra - rb
+    if (ra !== null) return -1
+    if (rb !== null) return 1
     if (b.priorite.indice !== a.priorite.indice) return b.priorite.indice - a.priorite.indice
-    const ra = a.calcul.remActuel ?? -1
-    const rb = b.calcul.remActuel ?? -1
-    if (rb !== ra) return rb - ra
-    if (b.deficitAbsolu !== a.deficitAbsolu) return b.deficitAbsolu - a.deficitAbsolu
     return a.school.id.localeCompare(b.school.id)
   })
 }

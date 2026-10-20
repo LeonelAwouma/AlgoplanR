@@ -71,12 +71,37 @@ def raisons_priorite(e: dict) -> List[str]:
     return r
 
 
-def trier_par_priorite(ecoles: List[dict]) -> List[dict]:
-    """Priorité d'affectation : poids du poste Up, puis nombre de postes ouverts, puis zone rouge."""
+STRUCTURES = ("IAEB", "DREB", "DELEGATION")
+
+
+def _rem(e: dict) -> float:
+    """Élèves par enseignant ; une école sans maître mais avec des élèves passe en premier."""
+    ee, ne = float(e.get(C.COL_ETAB_EE, 0) or 0), float(e.get(C.COL_ETAB_NE, 0) or 0)
+    return ne / ee if ee > 0 else (float("inf") if ne > 0 else 0.0)
+
+
+def ordre_priorite(ecoles: List[dict]) -> List[dict]:
+    """Écoles à besoin, dans l'ordre de priorité d'accueil (méthodologie §3.3.4) : poids du poste Up décroissant ;
+    à poids égal les écoles avant les structures (IAEB, DREB…), puis le REM le plus élevé ; enfin, pour un ordre total,
+    le nombre de postes ouverts, la zone rouge puis l'identifiant. C'est l'ordre unique : l'interface l'affiche tel quel."""
     necessiteuses = [e for e in ecoles if e.get("est_necessiteuse")]
-    necessiteuses.sort(key=lambda e: (-float(e.get("Up", 0) or 0), -int(e.get("nb_postes_ouverts", 0) or 0),
+    necessiteuses.sort(key=lambda e: (-float(e.get("Up", 0) or 0), str(e.get("type_etab") or "").upper() in STRUCTURES,
+                                      -_rem(e), -int(e.get("nb_postes_ouverts", 0) or 0),
                                       not e.get("est_zone_rouge"), str(e.get(C.COL_ETAB_ID))))
-    return [{**e, "rang": i + 1, "raisons": raisons_priorite(e)} for i, e in enumerate(necessiteuses)]
+    return necessiteuses
+
+
+def attribuer_rangs(ecoles: List[dict]) -> List[dict]:
+    """Ajoute `rang_priorite` (1 = premier ; `None` pour une école sans besoin) à chaque ligne, en place."""
+    rangs = {e[C.COL_ETAB_ID]: i for i, e in enumerate(ordre_priorite(ecoles), 1)}
+    for e in ecoles:
+        e["rang_priorite"] = rangs.get(e[C.COL_ETAB_ID])
+    return ecoles
+
+
+def trier_par_priorite(ecoles: List[dict]) -> List[dict]:
+    """Priorité d'affectation (voir `ordre_priorite`), avec rang et raisons."""
+    return [{**e, "rang": i + 1, "raisons": raisons_priorite(e)} for i, e in enumerate(ordre_priorite(ecoles))]
 
 
 def points_attention(synthese: dict, ecoles: List[dict]) -> List[dict]:

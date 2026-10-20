@@ -181,6 +181,27 @@ def test_degre_alea_national_et_par_region(c, jeu):
                 assert ligne["ecart_national"] == round(ligne["alea"] - alea["national"]["alea"], 2)
 
 
+def test_degre_alea_avant_a_l_import_et_apres_le_recalcul(c, jeu):
+    """Avant = bases importées (effectifs déclarés) ; après = bases après faits du Prince et mouvements du scénario."""
+    retenir(c, jeu)
+    alea = get(c, f"jeux/{jeu}/planification/alea/")
+    avant = alea["avant"]
+    assert set(avant) == {"national", "regions"} and avant["regions"]
+    assert {l["region"] for l in avant["regions"]} == {l["region"] for l in alea["regions"]}
+    # Avant l'algorithme et sans fait du Prince, l'aléa se calcule sur les effectifs déclarés du fichier.
+    from contextes.donnees import depots
+    from contextes.donnees.models import JeuDeDonnees
+    from domaine.planification import rapport as rap
+    ecoles = depots.charger_ecoles(JeuDeDonnees.objects.get(id=jeu))
+    attendu = rap.alea_par_region(rap.ecoles_a_l_import(ecoles))
+    assert avant["national"]["alea"] == attendu["national"]["alea"]
+    for ligne in avant["regions"] + alea["regions"]:
+        assert ligne["alea"] is None or 0 <= ligne["alea"] <= 1
+    # Le recalcul déplace des agents : l'aléa « après » diffère de l'aléa « avant » sur au moins une ligne.
+    apres = {l["region"]: l["alea"] for l in alea["regions"]}
+    assert apres != {l["region"]: l["alea"] for l in avant["regions"]}
+
+
 def test_degre_alea_delegue_limite_a_sa_region(centre):
     jeu = centre.post(B + "jeux/demonstration/", {"nb_ecoles": 40, "nb_enseignants": 300},
                       content_type="application/json").json()["id"]

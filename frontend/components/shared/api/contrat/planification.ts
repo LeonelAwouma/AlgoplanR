@@ -313,8 +313,11 @@ export interface LigneAlea {
 export interface DegreAlea {
   perimetre: string
   scenarioId: string
+  /** Aléa après le recalcul : bases après les faits du Prince et les mouvements du scénario. */
   national: LigneAlea
   regions: LigneAlea[]
+  /** Aléa à l'import : effectifs déclarés des bases importées, avant les faits du Prince et avant l'algorithme. */
+  avant?: { national: LigneAlea; regions: LigneAlea[] }
 }
 
 /** Disponibilité des données qui fondent les projections. */

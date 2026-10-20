@@ -61,6 +61,13 @@ export function NominationsPage() {
 
   return (
     <div className="stack">
+      {synthese.data?.scenarioObsolete && (
+        <Notice tone="alert" title="Scénario de référence obsolète : recalculez d’abord.">
+          Les règles ou les données ont changé depuis le dernier calcul de « {synthese.data.scenarioReference} ». Tant
+          qu’il n’est pas recalculé (page Simulation), le serveur refuse de proposer, valider ou mettre en œuvre une
+          nomination. Rejeter ou annuler reste possible.
+        </Notice>
+      )}
       <Notice tone="info" title="Proposée, validée, mise en œuvre.">
         Une nomination proposée n’est comptée nulle part. Validée, elle réserve le poste et compte en « prévu ». Mise en
         œuvre, elle modifie les effectifs et devient définitive. Le serveur refuse toute double nomination d’une

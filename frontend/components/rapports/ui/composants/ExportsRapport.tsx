@@ -24,6 +24,7 @@ import { classesDe } from '@shared/kernel'
 import { Notice, Panel } from '@shared/ui/commun'
 
 import { construireRapportDocx } from '../../application/exports/export-docx'
+import { ENTETES_AFFECTATIONS, lignesAffectations } from '../../domain/affectations'
 import { exporterClasseurComplet } from '../../application/exports/export-excel'
 
 /** Types MIME des fichiers produits. */
@@ -103,7 +104,16 @@ export function ExportsRapport(props: ProprietesExportsRapport) {
 
   const exporterWord = () =>
     exporter('word', async () => {
-      const blob = await construireRapportDocx({ rapport, scenarioNom, donneesDemonstration: demonstration })
+      // Toutes les propositions du périmètre du rapport : l'annexe ne dépend pas de la page consultée à l'écran.
+      const annexeAffectations = resultat
+        ? { entetes: ENTETES_AFFECTATIONS, lignes: lignesAffectations(resultat.assignments) }
+        : undefined
+      const blob = await construireRapportDocx({
+        rapport,
+        scenarioNom,
+        donneesDemonstration: demonstration,
+        annexeAffectations,
+      })
       telechargerFichier(blob, `rapport-affectation-${annee}.docx`, MIME_DOCX)
     })
 

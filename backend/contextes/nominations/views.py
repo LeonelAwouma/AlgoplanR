@@ -10,6 +10,7 @@ from contextes.audit.services import auteur_de, journaliser
 from contextes.commun.erreurs import RefusMetier
 from contextes.commun.outils import reponse_paginee
 from contextes.donnees.lecteur import FichierIllisible, lire_classeur_numerote
+from contextes.simulation import services as sim
 from domaine.commun.texte import nombre_ou_none, norm, texte
 from domaine.nominations import cycle
 from domaine.planification.parametres import SOURCES_VIVIER
@@ -220,7 +221,9 @@ def generer(request, jeu):
     j = jeu_autorise(request, jeu)
     d = _corps(request)
     region = region_imposee(request) or str(d.get("region") or "")
-    bilan = nom.generer(nom.registre(j), str(d.get("annee") or "N+1"), region=region,
+    reg = nom.registre(j)
+    sim.exiger_a_jour(reg.scenario)
+    bilan = nom.generer(reg, str(d.get("annee") or "N+1"), region=region,
                         departement=str(d.get("departement") or ""), request=request,
                         auteur=auteur_de(request, d.get("auteur")))
     return Response(bilan)
@@ -236,6 +239,8 @@ def lot(request, jeu):
     if action not in ("valider", "rejeter"):
         raise RefusMetier("Action inconnue", ["action : valider ou rejeter"])
     reg = nom.registre(j)
+    if action == "valider":
+        sim.exiger_a_jour(reg.scenario)
     auteur = auteur_de(request, d.get("auteur"))
     bilan = {"traitees": 0, "refus": []}
     for ident in d.get("nominations") or []:
@@ -270,6 +275,7 @@ def importer(request, jeu):
     c_ref, c_date = _colonne(entetes, "reference", "référence", "reference_acte"), _colonne(entetes, "date_effet")
     c_motif = _colonne(entetes, "motif")
     reg = nom.registre(j)
+    sim.exiger_a_jour(reg.scenario)        # sinon chaque ligne serait refusée une à une
     auteur = auteur_de(request, request.data.get("auteur"))
     importees, refus = 0, []
     for i, l in enumerate(lignes):

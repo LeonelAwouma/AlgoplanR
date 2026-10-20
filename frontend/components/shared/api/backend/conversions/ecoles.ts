@@ -66,6 +66,8 @@ export interface EcoleDjango {
   est_necessiteuse: boolean
   est_excedentaire: boolean
   est_zone_rouge: boolean
+  /** Rang d'accueil calculé par le serveur ; `null` pour une école sans besoin. */
+  rang_priorite?: number | null
   latitude?: number
   longitude?: number
 }
@@ -172,6 +174,7 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
       indice: nombre(e.Up),
       zoneSecurite: zs,
       zoneRouge: Boolean(e.est_zone_rouge),
+      rang: e.rang_priorite ?? null,
     },
     elevesParEnseignant: parEnseignant == null ? null : round2(parEnseignant),
     elevesParEnseignantEtat: parEnseignant == null ? null : round2(parEnseignant),

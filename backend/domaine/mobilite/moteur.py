@@ -128,7 +128,7 @@ def _aff_item(e: Enseignant, p: Poste, cfg: dict, phase: str, motif: str = "", a
         "phase": phase, "id_poste": p.id_poste, "id_etab": p.id_etab, "nom_etab": p.nom_etab,
         "commune_poste": p.commune, "departement_poste": p.departement, "region_poste": p.region,
         "zone_poste": p.accessibilite, "sous_systeme": p.sous_systeme,
-        "id_ens": e.matricule, "nom_ens": e.nom, "prenom_ens": e.prenom,
+        "id_ens": e.matricule, "nom_ens": e.nom, "prenom_ens": e.prenom, "id_etab_origine": e.ecole_attache,
         "commune_origine": e.commune_attache, "departement_origine": e.departement_attache,
         "region_origine": e.region_attache,
         "sous_systeme_ens": e.sous_systeme, "bareme": e.bareme,

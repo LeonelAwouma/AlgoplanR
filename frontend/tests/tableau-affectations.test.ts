@@ -86,3 +86,64 @@ test('Le rang du vœu satisfait apparaît dans la nature, et les nombres sont fo
 test('Aucune proposition : aucune ligne', () => {
   assert.deepEqual(lignesAffectations([]), [])
 })
+
+// --- Consultation paginée à l'écran ------------------------------------------------------------------------------
+
+import {
+  FILTRES_AFFECTATIONS_VIDES,
+  filtrerLignes,
+  optionsFiltre,
+  paginer,
+} from '../components/rapports/domain/affectations'
+
+function lignesDeTest(n: number): string[][] {
+  const regions = ['Adamaoua', 'Centre', 'Nord']
+  return lignesAffectations(
+    Array.from({ length: n }, (_, i) =>
+      proposition(`M${String(i).padStart(4, '0')}`, regions[i % 3], `Dept ${i % 6}`, `Nom${i}`, i % 2 ? 1 : null),
+    ),
+  )
+}
+
+test('La pagination sert des pages de 50 ou 100 lignes sans en perdre', () => {
+  const lignes = lignesDeTest(1762)
+  const p1 = paginer(lignes, 1, 50)
+  assert.equal(p1.lignes.length, 50)
+  assert.equal(p1.pages, 36)
+  assert.deepEqual([p1.de, p1.a, p1.total], [1, 50, 1762])
+  const derniere = paginer(lignes, 36, 50)
+  assert.equal(derniere.lignes.length, 12)
+  assert.deepEqual([derniere.de, derniere.a], [1751, 1762])
+  assert.equal(paginer(lignes, 18, 100).lignes.length, 62)
+  // Toutes les pages mises bout à bout redonnent toutes les lignes, une fois chacune.
+  const vues = Array.from({ length: p1.pages }, (_, k) => paginer(lignes, k + 1, 50).lignes).flat()
+  assert.equal(vues.length, 1762)
+  assert.equal(new Set(vues.map(l => l[0])).size, 1762)
+})
+
+test('Une page hors bornes est ramenée dans les bornes, et une liste vide donne une page vide', () => {
+  const lignes = lignesDeTest(120)
+  assert.equal(paginer(lignes, 99, 50).page, 3)
+  assert.equal(paginer(lignes, 0, 50).page, 1)
+  assert.equal(paginer(lignes, -4, 50).page, 1)
+  const vide = paginer([], 1, 50)
+  assert.deepEqual([vide.lignes.length, vide.page, vide.pages, vide.de, vide.a], [0, 1, 1, 0, 0])
+})
+
+test('Les filtres ne touchent que la consultation : la liste complète reste intacte', () => {
+  const lignes = lignesDeTest(300)
+  const avant = lignes.length
+  const nord = filtrerLignes(lignes, { ...FILTRES_AFFECTATIONS_VIDES, region: 'Nord' })
+  assert.equal(nord.length, 100)
+  assert.ok(nord.every(l => l[9] === 'Nord'))
+  assert.equal(lignes.length, avant, 'les lignes servant à l’annexe Word ne sont pas modifiées')
+  assert.equal(filtrerLignes(lignes, { ...FILTRES_AFFECTATIONS_VIDES, recherche: 'm0042' }).length, 1)
+  assert.equal(filtrerLignes(lignes, { ...FILTRES_AFFECTATIONS_VIDES, recherche: 'NOM7' }).length, 11) // Nom7, Nom70..Nom79
+})
+
+test('Les départements proposés dépendent de la région choisie', () => {
+  const lignes = lignesDeTest(60)
+  assert.deepEqual(optionsFiltre(lignes, 'region', FILTRES_AFFECTATIONS_VIDES), ['Adamaoua', 'Centre', 'Nord'])
+  const depts = optionsFiltre(lignes, 'departement', { ...FILTRES_AFFECTATIONS_VIDES, region: 'Centre' })
+  assert.ok(depts.length > 0 && depts.length < 6)
+})

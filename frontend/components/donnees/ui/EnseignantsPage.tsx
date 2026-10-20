@@ -46,7 +46,8 @@ function exporterListe(lignes: EnseignantResume[]) {
       'Matricule',
       'Nom',
       'Prénom',
-      'École',
+      'École de rattachement',
+      'École de référence',
       'Commune',
       'Département',
       'Âge',
@@ -67,6 +68,7 @@ function exporterListe(lignes: EnseignantResume[]) {
       l.teacher.nom,
       l.teacher.prenom,
       l.nomEtab,
+      l.teacher.nomEtabReference ?? l.nomEtab,
       l.teacher.communeAttache,
       l.teacher.departementAttache,
       ageRevolu(l),
@@ -134,10 +136,16 @@ export function EnseignantsPage() {
       entete: 'École de rattachement',
       rendu: l => (
         <button type="button" className="row-action" onClick={() => ouvrirEcole(l.teacher.idEtabAttache)}>
-          <strong>{l.nomEtab}</strong>
+          <strong>
+            {l.teacher.faitPrinceId ? 'Destination décidée : ' : ''}
+            {l.nomEtab}
+          </strong>
           <small>
             {l.teacher.communeAttache} · {l.teacher.departementAttache}
           </small>
+          {l.teacher.faitPrinceId && l.teacher.nomEtabReference && (
+            <small>École de référence : {l.teacher.nomEtabReference}</small>
+          )}
         </button>
       ),
       tri: l => l.nomEtab,

@@ -552,7 +552,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
 
     // Journal d'audit : chaque décision et chaque proposition, horodatées, avec leur statut.
     const journal: CellValue[][] = []
-    for (const { fait } of resultat.faitsPrince.filter(e => e.statut === 'applique')) {
+    for (const { fait } of resultat.faitsPrince.filter(e => e.statut !== 'rejete')) {
       journal.push([
         fait.decideLe,
         'Fait de Prince',
@@ -825,18 +825,20 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
     )
   }
 
-  const decisionsPrince = (resultat?.faitsPrince ?? []).filter(e => e.statut === 'applique')
+  const decisionsPrince = (resultat?.faitsPrince ?? []).filter(
+    e => e.statut === 'applique' || e.statut === 'applique_avec_alerte',
+  )
   if (decisionsPrince.length > 0) {
     ajouter(
       'Fait_De_Prince',
       [
         'Matricule',
         'Enseignant',
-        'École origine',
-        'Commune origine',
-        'École destination',
-        'Commune destination',
-        'Décidé le',
+        'École de référence',
+        'Commune de l’école de référence',
+        'Destination décidée',
+        'Commune de la destination',
+        'Pris en compte le',
         'Référence',
       ],
       decisionsPrince.map(({ fait }) => [
@@ -846,7 +848,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         fait.origine.commune,
         fait.destination.nom,
         fait.destination.commune,
-        new Date(fait.decideLe).toLocaleDateString('fr-FR'),
+        fait.decideLe ? new Date(fait.decideLe).toLocaleDateString('fr-FR') : '',
         fait.reference,
       ]),
     )

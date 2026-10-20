@@ -227,11 +227,15 @@ export const conversionsNominations: Record<string, Conversion> = {
   'GET jeux/{jeu}/nominations/synthese/': async (_, acces, p): Promise<SyntheseNominations> => {
     type Compte = Record<StatutNomination, number>
     const s = await acces.lire<{
+      scenario_reference?: string
+      scenario_obsolete?: boolean
       par_statut: Compte
       par_territoire: { territoire: string; par_statut: Compte }[]
       par_annee: { annee: AnneePlan; par_statut: Compte }[]
     }>(`jeux/${p.jeu}/nominations/synthese/`)
     return {
+      scenarioReference: s.scenario_reference,
+      scenarioObsolete: s.scenario_obsolete ?? false,
       parStatut: s.par_statut,
       parTerritoire: s.par_territoire.map(t => ({ territoire: t.territoire, parStatut: t.par_statut })),
       parAnnee: s.par_annee.map(a => ({ annee: a.annee, parStatut: a.par_statut })),
