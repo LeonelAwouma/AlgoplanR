@@ -11,7 +11,7 @@
 import type { IndicateurSuivi } from '@shared/api'
 import { selectionLevel } from '@shared/kernel'
 import { useSession } from '@shared/session'
-import { KpiCard, Panel, fmt, fmtPct } from '@shared/ui/commun'
+import { KpiCard, Panel, fmt } from '@shared/ui/commun'
 import { ChargementEnCours, EtatRequetes } from '@shared/ui/etats'
 
 import { useEncadrementScenario, useScenarioAffiche } from '@components/simulation'
@@ -24,7 +24,8 @@ import { SuiviAvantApres } from './composants/SuiviAvantApres'
 /** Valeur affichée d'un indicateur, selon son unité. */
 function valeurAffichee(indicateur: IndicateurSuivi): string {
   if (indicateur.valeur == null) return '—'
-  return indicateur.unite === 'pourcentage' ? fmtPct(indicateur.valeur) : fmt(indicateur.valeur)
+  // Le serveur renvoie les pourcentages déjà en pourcents entiers (47 pour 47 %), pas en part de 0 à 1.
+  return indicateur.unite === 'pourcentage' ? `${Math.round(indicateur.valeur)} %` : fmt(indicateur.valeur)
 }
 
 /** Page « Indicateurs de suivi ». */

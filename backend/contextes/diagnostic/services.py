@@ -186,7 +186,9 @@ def index_recherche(prep: Preparation, cible: str) -> Tuple[List[dict], List[Lis
     """Éléments recherchables et leurs clés normalisées (cle_recherche), calculées une fois par préparation."""
     if cible not in prep.recherche:
         if cible == "enseignants":
-            items = [e.vers_dict() for e in prep.enseignants.values()]
+            # Un agent déjà déplacé par un fait du Prince est signalé : on ne propose pas d'en prendre un second.
+            deplaces = prep.application.deplaces if prep.application else set()
+            items = [{**e.vers_dict(), "fait_prince": e.matricule in deplaces} for e in prep.enseignants.values()]
             champs = [[d[C.COL_ENS_ID], d["nom"], d["prenom"], f"{d['nom']} {d['prenom']}"] for d in items]
         else:
             items = prep.ecoles_dicts

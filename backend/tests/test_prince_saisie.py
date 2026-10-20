@@ -255,3 +255,13 @@ def test_rem_avant_est_celui_des_bases_importees_et_respecte_le_perimetre(drh, j
     assert r["national"]["territoire"] == region
     assert [x["territoire"] for x in r["par_region"]] == [region]
     assert r["national"]["enseignants_avant"] == round(declares[region])
+
+
+@pytest.mark.django_db
+def test_la_recherche_signale_un_agent_deja_deplace(drh, jeu):
+    def item():
+        r = drh.get(B + f"jeux/{jeu}/recherche/enseignants/", {"q": "MAT00001"}).json()
+        return next(x for x in r["resultats"] if x["Matricule_Enseignant"] == "MAT00001")
+    assert item()["fait_prince"] is False
+    assert _post(drh, jeu, "faits-prince/", {"id_ens": "MAT00001", "id_etab": "ECO011"}).status_code == 201
+    assert item()["fait_prince"] is True

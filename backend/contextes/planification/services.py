@@ -432,7 +432,11 @@ def evolution(ctx: Contexte, p: dict) -> dict:
             points.append({"version": v.version, "calcule_le": v.calcule_le, "indicateurs": valeurs})
     courant = indicateurs(ctx, p)["indicateurs"]
     if not points or points[-1]["indicateurs"] != courant:
-        points.append({"version": ctx.etat.version, "calcule_le": timezone.now(), "indicateurs": courant})
+        actuel = {"version": ctx.etat.version, "calcule_le": timezone.now(), "indicateurs": courant}
+        if points and points[-1]["version"] == actuel["version"]:
+            points[-1] = actuel  # une version n'apparaît qu'une fois : l'état courant remplace son instantané
+        else:
+            points.append(actuel)
     return {"points": points}
 
 

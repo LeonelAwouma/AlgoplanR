@@ -111,3 +111,26 @@ Préparation : scénario calculé avec de nombreuses affectations (idéalement 1
 Pour chaque étape non conforme : numéro, capture, comportement observé, navigateur et version. Les points bloquants sont
 ceux qui empêchent un usage correct (donnée fausse, export incomplet, réglage trompeur) ; les autres sont des
 améliorations.
+
+## 10. Recette réellement exécutée (Chrome headless, 20 octobre 2026)
+
+Exécutée par script (puppeteer-core, Chrome 64 bits headless, 1440 × 900) contre un backend Django et un frontend Next.js
+isolés, sur deux jeux : 40 écoles / 300 enseignants (avec un fait du Prince et une validation avec réserve DRH) et
+500 écoles / 9 000 enseignants. Ce n'est pas une relecture à l'œil : les contrôles de lignes, de pages et de balises ont
+été faits par programme, les captures servent de pièces. **Aucun contrôle visuel humain** (lisibilité, mise en page fine)
+n'a été fait ; l'ouverture du Word dans Microsoft Word n'a pas non plus été faite.
+
+| Étape | Résultat |
+|---|---|
+| 2 Configuration du moteur, référentiel | Conforme : champs appliqués modifiables, champs non appliqués figés avec la mention « Non appliqué ». |
+| 4 Faits du Prince, validation avec réserve | Conforme : motif obligatoire, bouton désactivé sans auteur ni motif, statut et motif affichés, mention dans le rapport. |
+| 5 Indicateurs de suivi | **Deux défauts réels trouvés et corrigés** : pourcentages affichés ×100 (« 3700 % » au lieu de 37 %) ; ligne de version en double dans « D'une version à l'autre » (clé React dupliquée). |
+| 6 Consultation paginée | Conforme : 50 puis 100 lignes par page, pas de hauteur fixe, filtres région et département. |
+| 6 Impression / PDF | Conforme : 293 lignes sur 293, consultation masquée ; PDF de 36 pages, 5 en portrait puis 31 en paysage. |
+| 6 Word | Conforme (inspection du XML) : deux sections, portrait puis paysage ; annexe de 293 lignes plus l'en-tête ; en-tête répété ; lignes non coupées. |
+| 7 Mode démonstration | Les six rubriques s'affichent. Le degré d'aléa est volontairement « non simulé » (réponse 422 attendue). |
+| 8 Scénario obsolète | Conforme : bandeau côté nominations, état obsolète côté planification. |
+| Bases après Prince | Conforme : région initiale → région après décision. |
+
+Reste non exécuté : refus d'une action de nomination par le serveur (8.2) depuis l'interface, et mesure d'effet de la
+bonification sur un classement réel (couvert côté serveur par les tests).

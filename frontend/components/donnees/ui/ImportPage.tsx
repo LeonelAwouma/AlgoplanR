@@ -341,7 +341,7 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
       </div>
 
       {!occupe && (
-        <div className="field">
+        <div className="field" style={{ maxWidth: 260 }}>
           <label htmlFor="import-annee">Année scolaire du jeu</label>
           <input
             id="import-annee"

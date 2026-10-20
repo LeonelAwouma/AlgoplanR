@@ -106,6 +106,21 @@ def test_tableau_et_ventilations(c, jeu):
     assert get(c, f"jeux/{jeu}/indicateurs/evolution/")["points"]
 
 
+def test_evolution_une_seule_ligne_par_version(c, jeu):
+    """L'état courant remplace l'instantané de sa version au lieu de s'y ajouter (clé de ligne dupliquée à l'écran)."""
+    from contextes.planification.models import VersionPlanification
+    retenir(c, jeu)
+    get(c, f"jeux/{jeu}/planification/")
+    v = VersionPlanification.objects.get(jeu_id=jeu, version=get(c, f"jeux/{jeu}/planification/etat/")["version"])
+    v.indicateurs = {"national": [{"code": "besoin_residuel", "libelle": "x", "valeur": -1, "unite": "nombre",
+                                   "detail": ""}], "regions": {}}
+    v.save()
+    points = get(c, f"jeux/{jeu}/indicateurs/evolution/")["points"]
+    versions = [p["version"] for p in points]
+    assert len(versions) == len(set(versions))
+    assert all(i["valeur"] != -1 for i in points[-1]["indicateurs"])
+
+
 def test_quotas_versions(c, jeu):
     retenir(c, jeu)
     quotas = get(c, f"jeux/{jeu}/quotas/", annee="N+1")

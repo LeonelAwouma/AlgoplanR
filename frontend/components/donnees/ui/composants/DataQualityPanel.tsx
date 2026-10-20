@@ -87,7 +87,8 @@ export function DataQualityPanel({ rapport, compact = false }: { rapport: DataQu
           <li className="check-alert" key={e.code}>
             <CircleAlert size={15} aria-hidden="true" />
             <span>
-              <strong>{fmt(e.count)}</strong> {e.label} — {e.consequence}
+              <strong>{fmt(e.count)}</strong> {e.label}
+              {e.consequence ? ` — ${e.consequence}` : ''}
               {e.exemples.length > 0 && <span className="hint"> Exemples : {e.exemples.join(', ')}</span>}
             </span>
           </li>
@@ -96,7 +97,8 @@ export function DataQualityPanel({ rapport, compact = false }: { rapport: DataQu
           <li className="check-warn" key={w.code}>
             <AlertTriangle size={15} aria-hidden="true" />
             <span>
-              <strong>{fmt(w.count)}</strong> {w.label} — {w.consequence}
+              <strong>{fmt(w.count)}</strong> {w.label}
+              {w.consequence ? ` — ${w.consequence}` : ''}
               {w.exemples.length > 0 && <span className="hint"> Exemples : {w.exemples.join(', ')}</span>}
             </span>
           </li>

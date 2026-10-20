@@ -366,7 +366,8 @@ export function EtapesRubrique({
   // Le menu qui n'a qu'une étape (le tableau de bord) la garde comme premier onglet, pour y revenir.
   const detail = parcours.length === 1 ? [...parcours, ...onglets] : onglets
   const avecParcours = parcours.length >= 2
-  const avecDetail = onglets.length > 0 && detail.length >= 2
+  // Un seul onglet de détail suffit quand le menu a un parcours : sinon « Qualité des données » serait inaccessible.
+  const avecDetail = onglets.length > 0 && (avecParcours || detail.length >= 2)
   if (!avecParcours && !avecDetail) return null
 
   const etat: EtatJeu = { donneesChargees, simulationPrete }

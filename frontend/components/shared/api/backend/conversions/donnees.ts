@@ -394,7 +394,8 @@ function versAnomalie(a: QualiteDjango['erreurs'][number], severite: 'erreur' | 
   return {
     code: a.code,
     severity: severite,
-    label: a.message,
+    // Le nombre est affiché à part (en gras) : le libellé ne le répète pas.
+    label: nombre ? a.message.replace(/^\d+\s*/, '') : a.message,
     consequence: severite === 'erreur' ? 'Le jeu ne peut pas être créé tant que ce point n’est pas corrigé.' : '',
     dataset: a.code.startsWith('ETAB') ? 'etablissements' : a.code.startsWith('ENS') ? 'enseignants' : 'croisement',
     count: nombre ? Number(nombre) : 1,
@@ -407,7 +408,10 @@ function versAnomalie(a: QualiteDjango['erreurs'][number], severite: 'erreur' | 
 export function versRapportQualite(q: QualiteDjango, ecoles: SchoolDiagnostic[]): DataQualityReport {
   const errors = q.erreurs.map(a => versAnomalie(a, 'erreur'))
   const warnings = q.avertissements.map(a => versAnomalie(a, 'avertissement'))
-  const detailScore = [...errors, ...warnings].map(i => ({ label: i.label, points: i.penalite }))
+  const detailScore = [...q.erreurs, ...q.avertissements].map((a, i) => ({
+    label: a.message,
+    points: [...errors, ...warnings][i].penalite,
+  }))
   const score = Math.max(0, 100 - detailScore.reduce((s, d) => s + d.points, 0))
   const total = ecoles.length
   const avecRegion = ecoles.filter(d => d.school.region !== '').length
