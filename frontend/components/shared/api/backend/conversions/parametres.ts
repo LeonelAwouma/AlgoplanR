@@ -59,7 +59,6 @@ export interface ConfigDjango {
     phase2_proximite_iaeb: boolean
     phase2_proximite_departement: boolean
     phase3_extension_regionale: boolean
-    phase4_vivier_recrutement: boolean
     regions_etanches: boolean
   }
 }
@@ -122,7 +121,6 @@ const REGLES_FIXES: Omit<EngineSettings, 'scoring'> & { scoring: Omit<EngineSett
     projectionN2: true,
     departageFeminin: false,
   },
-  recrutement: { tauxAttritionHorsRetraite: 2 },
   scoring: {
     poidsBaremeIndividuel: {
       carriereZone: 0.3,

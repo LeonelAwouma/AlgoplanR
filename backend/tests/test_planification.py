@@ -222,3 +222,86 @@ def test_degre_alea_delegue_limite_a_sa_region(centre):
                       content_type="application/json").json()["id"]
     alea = get(centre, f"jeux/{jeu}/planification/alea/")
     assert [l["region"] for l in alea["regions"]] == ["Centre"]
+
+
+# --- Lot 4.1 / 4.2 : attrition unique, chaînage des effectifs sur cinq ans -----------------------------------------
+
+def _tableau_national(c, jeu, **kw):
+    return get(c, f"jeux/{jeu}/planification/", **kw)["annees"]
+
+
+def test_effectifs_chaines_sur_cinq_ans(c, jeu):
+    """L'effectif de fin d'une année est l'effectif de début de la suivante : rien n'apparaît ni ne disparaît."""
+    retenir(c, jeu)
+    annees = _tableau_national(c, jeu)
+    assert len(annees) == 5
+    for a in annees:
+        assert a["effectif_fin"] == max(0, a["effectif_debut"] - a["departs_retraite"] - a["departs_attrition"]
+                                        - a["directeurs_decharges"] + a["recrutement"])
+    for a, b in zip(annees, annees[1:]):
+        assert b["effectif_debut"] == a["effectif_fin"]
+
+
+def test_attrition_calculee_sur_l_effectif_de_chaque_annee(c, jeu):
+    """Départs d'attrition = taux × effectif de début de l'année, arrondi demi vers le haut, taux constant."""
+    from domaine.planification.projection import arrondi
+    retenir(c, jeu)
+    annees = _tableau_national(c, jeu)
+    taux = {a["taux_attrition"] for a in annees}
+    assert len(taux) == 1
+    for a in annees:
+        assert a["departs_attrition"] == arrondi(a["taux_attrition"] * a["effectif_debut"] / 100.0)
+
+
+def test_une_seule_source_d_attrition(c, jeu):
+    """Le taux des hypothèses est le seul qui commande l'attrition ; le modifier la modifie, partout, sur cinq ans."""
+    retenir(c, jeu)
+    avant = _tableau_national(c, jeu)
+    h = get(c, f"jeux/{jeu}/hypotheses/")
+    corps = {k: v for k, v in h.items() if k not in ("version", "modifiees_le", "modifiees_par", "drh")}
+    corps["attrition"] = {**corps["attrition"], "taux_unique": 5.0}
+    envoyer(c, "put", f"jeux/{jeu}/hypotheses/", {**corps, "motif": "Test", "auteur": "Analyste"})
+    apres = _tableau_national(c, jeu)
+    assert all(a["taux_attrition"] == 5.0 for a in apres)
+    assert apres[0]["departs_attrition"] > avant[0]["departs_attrition"]
+    assert apres[0]["departs_attrition"] == round(5.0 * apres[0]["effectif_debut"] / 100.0 + 1e-9)
+
+
+def test_effectifs_chaines_avec_un_quota_retenu(c, jeu):
+    """Un quota retenu différent du quota calculé se reporte sur les effectifs des années suivantes."""
+    retenir(c, jeu)
+    base = _tableau_national(c, jeu)
+    q = get(c, f"jeux/{jeu}/quotas/", annee="N+1")[0]
+    url = f"jeux/{jeu}/quotas/N%2B1/{q['code_territoire']}/"
+    envoyer(c, "put", url, {"sous_systeme": q["sous_systeme"], "retenu": q["calcule"] + 4, "motif": "Budget",
+                            "auteur": "DRH"})
+    annees = _tableau_national(c, jeu)
+    assert annees[0]["recrutement"] == base[0]["recrutement"] + 4
+    for a, b in zip(annees, annees[1:]):
+        assert b["effectif_debut"] == a["effectif_fin"]
+
+
+def test_niveau_d_arrondi_sans_effet_declare_non_applique(c, jeu):
+    """`attrition.niveau_arrondi` est conservé mais aucun calcul ne le lit : l'interface le présente « non appliqué ».
+
+    Si ce test échoue, le réglage a été branché : le retirer de la liste des réglages non appliqués de l'interface.
+    """
+    retenir(c, jeu)
+    avant = _tableau_national(c, jeu)
+    h = get(c, f"jeux/{jeu}/hypotheses/")
+    corps = {k: v for k, v in h.items() if k not in ("version", "modifiees_le", "modifiees_par", "drh")}
+    corps["attrition"] = {**corps["attrition"], "niveau_arrondi": "commune"}
+    envoyer(c, "put", f"jeux/{jeu}/hypotheses/", {**corps, "motif": "Test", "auteur": "Analyste"})
+    apres = _tableau_national(c, jeu)
+    assert [a["departs_attrition"] for a in apres] == [a["departs_attrition"] for a in avant]
+
+
+def test_rem_projete_suit_l_effectif_de_debut_meme_avec_un_quota_retenu(c, jeu):
+    retenir(c, jeu)
+    q = get(c, f"jeux/{jeu}/quotas/", annee="N+1")[0]
+    url = f"jeux/{jeu}/quotas/N%2B1/{q['code_territoire']}/"
+    envoyer(c, "put", url, {"sous_systeme": q["sous_systeme"], "retenu": q["calcule"] + 6, "motif": "Budget",
+                            "auteur": "DRH"})
+    for a in _tableau_national(c, jeu):
+        assert a["effectif_debut"] > 0
+        assert abs(a["rem"] - a["eleves"] / a["effectif_debut"]) < 0.1

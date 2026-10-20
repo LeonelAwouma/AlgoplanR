@@ -134,3 +134,22 @@ n'a été fait ; l'ouverture du Word dans Microsoft Word n'a pas non plus été 
 
 Reste non exécuté : refus d'une action de nomination par le serveur (8.2) depuis l'interface, et mesure d'effet de la
 bonification sur un classement réel (couvert côté serveur par les tests).
+
+## 11. Lot 4.1 et 4.2 — recette réellement exécutée (Chrome headless, 20 octobre 2026)
+
+Même méthode qu'au §10, jeu de 40 écoles / 300 enseignants, serveur relancé sur le code modifié. Contrôles faits par
+programme sur les valeurs lues dans la page ; captures en pièces. Aucun contrôle visuel humain.
+
+| Étape | Résultat |
+|---|---|
+| Planification → Projection sur 5 ans → onglet « Projection N+1 à N+5 » | Ouvert par défaut ; cinq années ; mention « Lecture seule : chiffres du serveur » et taux appliqué. |
+| Enchaînement des effectifs | Conforme : fin = début − retraites − attrition − directeurs + recrutements ; début de N+k+1 = fin de N+k. |
+| Modification du taux d'attrition (2,25 → 6 %) dans « Hypothèses de calcul » | Conforme : attrition 6, 5, 5, 5, 5 → 15, 13, 13, 13, 12 ; chaînage toujours cohérent ; « 6,00 % par an » annoncé. |
+| Niveau d'arrondi | Champ figé, libellé « non appliqué » (aucun calcul ne le lit ; test serveur de garde). |
+| Référentiel | Plus de champ « Taux d'attrition τ* ». |
+| Méthodologie | « Projection de N+1 à N+5 » ; plus de « N+1 à N+3 ». |
+| Rapport | Section « Projection de N+1 à N+5 » tirée de la planification ; plus de « Quota de recrutement estimé en N+2, N+3 ». |
+
+Limite connue : la colonne « Évolution » et suivantes du tableau de l'onglet défilent horizontalement à 1440 px.
+Mode démonstration (exécuté) : l'onglet s'affiche ; les données factices n'ont pas le détail de la projection, les colonnes
+concernées (directeurs, recrutements, REM) affichent « — » ; l'effectif de fin est l'effectif de début de l'année suivante.

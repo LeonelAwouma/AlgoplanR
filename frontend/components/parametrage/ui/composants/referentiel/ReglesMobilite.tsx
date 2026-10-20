@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * Règles de rotation et de redéploiement (§3.2 à §3.9) et taux d'attrition
- * du recrutement à prévoir (§2.6).
+ * Règles de rotation et de redéploiement (§3.2 à §3.9). Le taux d'attrition hors retraite ne se règle pas ici :
+ * il relève des hypothèses de planification (Planification → Hypothèses), source unique.
  */
 
 import type { EngineSettings, ReglesMobilite as Regles } from '@shared/api'
@@ -76,7 +76,7 @@ export interface ProprietesReglesMobilite {
   maj: MajParametres
 }
 
-/** Panneaux « Rotation et redéploiement » et « Recrutement à prévoir ». */
+/** Panneaux de rotation, de redéploiement et de règles de mobilité. */
 export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
   const mobilite = <K extends keyof Regles>(cle: K, valeur: Regles[K]) =>
     maj(s => ({ ...s, mobilite: { ...s.mobilite, [cle]: valeur } }))
@@ -164,31 +164,6 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
               nonApplique={estNonApplique('mobilite', cle)}
             />
           ))}
-        </div>
-      </Panel>
-
-      <Panel kicker="Recrutement à prévoir (§2.6)" title="Départs imprévisibles à anticiper">
-        <div className="regles">
-          <Regle
-            enonce="Chaque année, hors retraites, quittent la profession"
-            precision="Taux d’attrition τ* (définition UNESCO, indicateur ODD 4.c.6). Recrutement à prévoir = besoin restant après redéploiement + ⌈τ* × effectif ÷ 100⌉, par sous-système. La planification sur 5 ans a ses propres hypothèses."
-            htmlFor="r-attrition"
-            nonApplique={estNonApplique('recrutement', 'tauxAttritionHorsRetraite')}
-          >
-            <input
-              id="r-attrition"
-              type="number"
-              disabled
-              min={0}
-              max={20}
-              step={0.1}
-              value={parametres.recrutement.tauxAttritionHorsRetraite}
-              onChange={e =>
-                maj(s => ({ ...s, recrutement: { tauxAttritionHorsRetraite: nombreSaisi(e.target.value) } }))
-              }
-            />
-            <span className="regle-unite">% des enseignants</span>
-          </Regle>
         </div>
       </Panel>
     </>

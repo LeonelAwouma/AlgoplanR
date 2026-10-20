@@ -106,7 +106,9 @@ postes_rouge = _liste("postes_rouge_non_pourvus", "Postes non pourvus en zone ro
 ecoles_besoin = _liste("ecoles_en_besoin", "Écoles en besoin", "-Up")
 ecoles_fournisseurs = _liste("ecoles_fournisseurs", "Écoles fournissant le vivier", "-nb_enseignants_vivier")
 journal = _liste("journal_audit", "Journal des tours de l'appariement")
-projections = _liste("projections_n3", "Projections pluriannuelles N à N+3")
+# OBSOLÈTE : projection N à N+3 du moteur d'affectation (domaine/mobilite/projection.py), à taux d'attrition fixe de 2 %.
+# Aucun écran ni rapport ne la lit plus ; les projections font foi dans la planification (jeux/{jeu}/planification/).
+projections = _liste("projections_n3", "OBSOLÈTE — projections N à N+3 du moteur (attrition fixe) ; voir planification/")
 
 
 @extend_schema(parameters=GEO, responses=OBJ, summary="Postes non couverts regroupés par sous-système, région, département")
@@ -266,8 +268,6 @@ def exporter(request, jeu, sid):
                      "Vivier_Detail": r["vivier"]})
     if r["postes_rouge_non_pourvus"]:
         feuilles["Postes_Zone_Rouge"] = r["postes_rouge_non_pourvus"]
-    if r["projections_n3"]:
-        feuilles["Projections_N_a_N3"] = r["projections_n3"]
     if r["journal_audit"]:
         feuilles["Journal_Audit"] = r["journal_audit"]
     rep = HttpResponse(ecrire_excel(feuilles),

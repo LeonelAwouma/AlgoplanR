@@ -82,6 +82,12 @@ interface AnneeDjango {
   deploiements_prevus: number
   deploiements_realises: number
   besoin_restant: number
+  directeurs_decharges?: number
+  recrutement?: number
+  effectif_fin?: number
+  taux_attrition?: number
+  eleves?: number
+  rem?: number | null
 }
 
 interface TableauDjango {
@@ -176,6 +182,12 @@ export function versAnnee(a: AnneeDjango): IndicateursAnnee {
     deploiementsPrevus: a.deploiements_prevus,
     deploiementsRealises: a.deploiements_realises,
     besoinRestant: a.besoin_restant,
+    directeursDecharges: a.directeurs_decharges,
+    recrutement: a.recrutement,
+    effectifFin: a.effectif_fin,
+    tauxAttrition: a.taux_attrition,
+    eleves: a.eleves,
+    rem: a.rem,
   }
 }
 

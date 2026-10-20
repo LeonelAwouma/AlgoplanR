@@ -139,7 +139,7 @@ domaine/          PYTHON PUR (testé : aucun import django/pandas/numpy)
   donnees/        colonnes, entités Ecole/Enseignant/Poste, détection des colonnes, recherche, jeu de démo
   qualite/        rapport de qualité
   diagnostic/     indicateurs (Pe, De, BMAX, be, xe, se, Wp, Up...), territoires, synthèse, priorités
-  mobilite/       barème C1-C5, score Z1-Z4, vivier, moteur (phases 0-4), projections N+3, flux, invariants,
+  mobilite/       barème C1-C5, score Z1-Z4, vivier, moteur (phases 0-4), projections N+3 (obsolètes : voir planification), flux, invariants,
                   candidatures, combinaisons, explication, scénarios, recrues
   prince/         vérification des faits, analyse de fichier
   rapport/        rapport de décision
@@ -203,7 +203,7 @@ des enseignants sans poste compatible : retenez un scénario plus proche (`geo_d
 
 | Fidèle au .py (parité testée) | Adapté ou inventé (absent du .py) |
 |---|---|
-| indicateurs, barème, score, phases 0-3, vivier, synthèse, projections N+3, filtre territorial, export Excel, IA | scénarios (3 préréglages géographiques = combinaisons de phases), arbitrages (phase `arbitrage_commission`), déploiement des recrues, `candidatures`, `combinaisons`, `invariants`, `flux`, `comparaison`, `priorites`, `rapport`, `explication` |
+| indicateurs, barème, score, phases 0-3, vivier, synthèse, projections N+3 (obsolètes), filtre territorial, export Excel, IA | scénarios (3 préréglages géographiques = combinaisons de phases), arbitrages (phase `arbitrage_commission`), déploiement des recrues, `candidatures`, `combinaisons`, `invariants`, `flux`, `comparaison`, `priorites`, `rapport`, `explication` |
 
 ## Points hérités du code d'origine, volontairement conservés
 

@@ -12,7 +12,7 @@ from domaine.parametrage.config import defaut
 #: Réglages lus par le code mais sans effet démontrable sur le jeu fictif ci-dessous (donnée absente de ce jeu).
 SANS_EFFET_SUR_LE_JEU_FICTIF: set = set()
 #: Réglages présents dans la configuration mais lus par aucun calcul.
-INACTIFS = {"regles_dreb.phase4_vivier_recrutement"}   # drapeau mort, à brancher ou retirer (lot 4)
+INACTIFS: set = set()
 
 
 def _feuilles(noeud, chemin=()):
@@ -63,3 +63,13 @@ def test_chaque_reglage_a_un_effet(chemin):
         pytest.skip("effet non démontrable sur le jeu fictif")
     else:
         assert modifie != base, f"{nom} ne change aucun résultat : réglage inactif à déclarer ou à brancher"
+
+
+def test_cle_heritee_ignoree_sans_erreur():
+    """Une configuration enregistrée avant le retrait de `phase4_vivier_recrutement` reste lisible et valide."""
+    from domaine.parametrage.config import fusionner, valider, DEFAULT_CONFIG
+    ancienne = {"regles_dreb": {"phase4_vivier_recrutement": False, "phase1_voeux_actif": False}}
+    cfg, _ = valider(ancienne)
+    assert "phase4_vivier_recrutement" not in cfg["regles_dreb"]
+    assert cfg["regles_dreb"]["phase1_voeux_actif"] is False       # le reste de la surcharge est conservé
+    assert "phase4_vivier_recrutement" not in fusionner(DEFAULT_CONFIG, ancienne)["regles_dreb"]

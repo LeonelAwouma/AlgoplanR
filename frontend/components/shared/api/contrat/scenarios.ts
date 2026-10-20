@@ -9,8 +9,6 @@ import type {
   CombinaisonArbitrage,
   EngineSettings,
   GeographicScope,
-  ProjectionEcole,
-  ProjectionTerritoire,
   ProposedAssignment,
   ProximityLevel,
   ScoreBreakdown,
@@ -68,12 +66,6 @@ export interface JournalSimulation {
   toursTronques: boolean
   logs: SimulationLogEntry[]
   computedAt: string
-}
-
-/** Projection pluriannuelle d'un scénario (remplacée par la planification sur cinq ans). */
-export interface ProjectionsScenario {
-  ecoles: ProjectionEcole[]
-  territoire: ProjectionTerritoire[]
 }
 
 /** École restée sans maître, avec les combinaisons proposées à la commission. */

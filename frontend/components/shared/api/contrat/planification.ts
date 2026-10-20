@@ -100,8 +100,27 @@ export interface EstimationAttrition {
 
 // --- Tableau de planification ---------------------------------------------------------
 
+/**
+ * Détail de la projection d'une année, calculé par le serveur : de quoi reconstituer l'évolution des effectifs.
+ * Facultatif : un serveur ou un jeu de données factices plus ancien ne le fournit pas.
+ */
+export interface DetailProjectionAnnee {
+  /** Classes libérées par les directeurs déchargés, rapportées au périmètre. */
+  directeursDecharges: number
+  /** Recrutements de l'année : quota retenu s'il est fixé, sinon quota calculé (quotas supposés réalisés). */
+  recrutement: number
+  /** Effectif en fin d'année : début − retraites − attrition − directeurs + recrutements. */
+  effectifFin: number
+  /** Taux d'attrition appliqué (%), celui des hypothèses de planification. */
+  tauxAttrition: number
+  /** Élèves projetés des écoles dont l'effectif est connu. */
+  eleves: number
+  /** Élèves par enseignant projeté, `null` quand il n'est pas calculable. */
+  rem: number | null
+}
+
 /** Les huit indicateurs du mémo (§2.1), pour une année et un périmètre. */
-export interface IndicateursAnnee {
+export interface IndicateursAnnee extends Partial<DetailProjectionAnnee> {
   annee: AnneePlan
   /** Effectif enseignant disponible en début de période. */
   effectifDebut: number
@@ -122,9 +141,12 @@ export interface IndicateursAnnee {
   besoinRestant: number
 }
 
+/** Indicateur numérique du tableau de planification (hors détail de la projection). */
+export type CleIndicateurPlan = Exclude<keyof Omit<IndicateursAnnee, 'annee'>, keyof DetailProjectionAnnee>
+
 /** Fiabilité d'un indicateur, selon la disponibilité des données sources. */
 export interface FiabiliteIndicateur {
-  indicateur: keyof Omit<IndicateursAnnee, 'annee'>
+  indicateur: CleIndicateurPlan
   niveau: 'bonne' | 'partielle' | 'faible'
   detail: string
 }
@@ -363,7 +385,7 @@ export interface DetailVersionPlanification {
 export interface ComparaisonVersions {
   de: VersionPlanification
   a: VersionPlanification
-  ecarts: { annee: AnneePlan; indicateur: keyof Omit<IndicateursAnnee, 'annee'>; de: number; a: number }[]
+  ecarts: { annee: AnneePlan; indicateur: CleIndicateurPlan; de: number; a: number }[]
 }
 
 // --- Quotas -----------------------------------------------------------------------------

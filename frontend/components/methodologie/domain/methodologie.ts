@@ -127,18 +127,19 @@ export const NOTIONS: NotionMethodologique[] = [
     formule: 'b(N+2) = max(0 ; K − (E(N+1) − départs prévisibles pendant N+1))',
   },
   {
-    titre: 'Projection de N+1 à N+3',
+    titre: 'Projection de N+1 à N+5',
     explication:
-      "Pour chaque école, l'effectif part de la situation après le plan (mouvements et nouveaux recrutés compris), puis perd les enseignants qui atteignent l'âge de la retraite au cours de chaque année. Le besoin projeté suit la même règle que le besoin de la rentrée. L'attrition hors retraite est appliquée au territoire, par sous-système, et cumulée d'une année sur l'autre en l'absence de recrutement intermédiaire.",
+      "Calculée par le serveur à partir des hypothèses de planification du jeu. Pour chaque école, l'effectif part de la situation après le plan (mouvements compris), puis perd chaque année les enseignants qui atteignent l'âge de la retraite. Au niveau du territoire, l'attrition hors retraite est un taux (hypothèses de planification, source unique) appliqué à l'effectif du début de l'année et arrondi à l'entier le plus proche ; les prises de fonction de directeurs libèrent des classes ; les recrutements de l'année s'ajoutent. L'effectif de fin d'une année est l'effectif de début de la suivante. Les quotas de recrutement des années précédentes sont supposés réalisés tant que les hypothèses le disent.",
     formule:
-      'E(N+k) = E(N+k−1) − retraites ; besoin = max(0 ; K − E) ; recrutement à prévoir = Σ max(0 ; B − X) + attrition cumulée',
+      'E(fin) = E(début) − retraites − attrition − directeurs déchargés + recrutements ; attrition = arrondi(τ × E(début) ÷ 100), avant report d’un quota retenu ; E(début de N+k+1) = E(fin de N+k)',
   },
   {
     titre: 'Agrégation, recrutement à prévoir et déséquilibre des dotations',
     explication:
       "Les résultats des écoles sont additionnés séparément pour chaque sous-système, après écrêtage à zéro : l'excédent d'une école n'annule pas le déficit d'une autre. Le recrutement à prévoir ajoute au besoin restant après redéploiement les départs imprévisibles attendus. Le taux de déséquilibre des dotations mesure la part de la dotation mal répartie entre les écoles d'un territoire ; il tombe à zéro quand besoin et excédent s'annulent. Il se distingue du degré d'aléa du tableau de bord (1 − R²), qui mesure si le nombre d'enseignants des écoles suit leur nombre d'élèves.",
-    formule: 'R = Σ max(0 ; B − X) par sous-système ; REC = R + ⌈τ* × E ÷ 100⌉ ; déséquilibre = (B + X) ÷ Σ K',
-    parametrable: "Le taux d'attrition hors retraite τ* se règle dans le Référentiel.",
+    formule: 'R = Σ max(0 ; B − X) par sous-système ; REC = R + arrondi(τ × E ÷ 100) ; déséquilibre = (B + X) ÷ Σ K',
+    parametrable:
+      "Le taux d'attrition hors retraite τ se règle dans Planification → Hypothèses de calcul (source unique).",
   },
   {
     titre: 'Arbitrage et traçabilité',

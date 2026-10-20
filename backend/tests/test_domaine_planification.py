@@ -173,3 +173,34 @@ def test_classement_des_regions():
     assert classer(76.0, 13.9, 74.4, 7)[1].startswith("Encadrement proche de la norme")
     assert classer(48.1, 10.0, 74.4, 7)[:2] == (2, "Encadrement au-dessus de la norme ; vague de retraites")
     assert classer(48.1, 5.0, 74.4, 7)[0] == 3
+
+
+def _annees_chainees():
+    ecoles, ens = _jeu()
+    p, _ = projeter_ecoles(ecoles, ens, defaut(), _hyp())
+    return p, calculer_annees(p, _hyp())
+
+
+def test_suivi_effectif_fin_chaine_les_annees_avec_et_sans_quota_retenu():
+    p, a = _annees_chainees()
+    quotas = [{"annee": "N+1", "territoire": "Centre", "sous_systeme": "francophone", "retenu": 1, "statut": "ajuste"}]
+    for retenus in ([], quotas):                      # quota retenu inférieur au quota calculé (3), puis aucun
+        s = appliquer_suivi(a, {}, quotas=retenus, nominations=[], mouvements=[], recrutements_supposes=True)
+        for x, y in zip(s, s[1:]):
+            assert y["effectif_debut"] == x["effectif_fin"]
+    assert s[0]["recrutement"] == 1 and s[0]["quota_calcule"] == 3
+
+
+def test_suivi_sans_recrutements_supposes_le_quota_retenu_ne_modifie_pas_les_effectifs():
+    p, a = _annees_chainees()
+    quotas = [{"annee": "N+1", "territoire": "Centre", "sous_systeme": "francophone", "retenu": 9, "statut": "ajuste"}]
+    s = appliquer_suivi(a, {}, quotas=quotas, nominations=[], mouvements=[], recrutements_supposes=False)
+    assert [x["effectif_debut"] for x in s] == [x["effectif_debut"] for x in a]
+    assert s[0]["quota_retenu"] == 9 and s[0]["recrutement"] == a[0]["recrutement"]
+
+
+def test_suivi_un_perimetre_d_ecole_n_a_pas_de_quota_retenu():
+    p, a = _annees_chainees()
+    quotas = [{"annee": "N+1", "territoire": "Centre", "sous_systeme": "francophone", "retenu": 9, "statut": "ajuste"}]
+    s = appliquer_suivi(a, {"ecole": "E1"}, quotas=quotas, nominations=[], mouvements=[], recrutements_supposes=True)
+    assert s[0]["quota_retenu"] is None and s[0]["recrutement"] == a[0]["recrutement"]

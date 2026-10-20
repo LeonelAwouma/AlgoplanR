@@ -316,7 +316,7 @@ def fiabilite_indicateurs(ligne: dict, par_sous_systeme: bool) -> List[dict]:
     lignes = [
         ("effectif_debut", "bonne", "Enseignants des écoles, après les mouvements retenus et les recrutements supposés."),
         ("departs_retraite", retraite, f"Âge connu pour {pct(ligne['taux_date_naissance'])} des enseignants."),
-        ("departs_attrition", "partielle", "Taux d'autres départs du modèle M1 du rapport DRH, à confirmer."),
+        ("departs_attrition", "partielle", "Taux d'autres départs des hypothèses de planification (par défaut celui du modèle M1 du rapport DRH), à confirmer."),
         ("besoin", besoin, f"Effectifs d'élèves connus pour {pct(ligne['taux_effectifs_eleves'])} des écoles ; "
                            "inclut la croissance des élèves, l'attrition et les directeurs déchargés."),
         ("ressources_vivier", vivier, "Seules les sources retenues du vivier sont comptées."),

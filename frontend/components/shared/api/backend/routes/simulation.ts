@@ -31,14 +31,12 @@ import {
   versJournal,
   versPool,
   versPreset,
-  versProjections,
   versProposition,
   versScenarioCalcule,
   versVivier,
   type CombinaisonDjango,
   type ControleDjango,
   type JournalDjango,
-  type ProjectionDjango,
   type ScenarioDjango,
   type SyntheseDjango,
 } from '../conversions/simulation'
@@ -353,16 +351,6 @@ export const conversionsSimulation: Record<string, Conversion> = {
       (await acces.lire<{ controles: ControleDjango[] }>(`jeux/${p.jeu}/scenarios/${p.scenario}/invariants/`))
         .controles,
     ),
-
-  [`GET ${S}/projections/`]: async (_, acces, p) => {
-    const [lignes, ecoles, resultat, settings] = await Promise.all([
-      acces.toutes<ProjectionDjango>(`jeux/${p.jeu}/scenarios/${p.scenario}/projections/`),
-      source.diagnosticsParId(acces, p.jeu),
-      source.resultat(acces, p.jeu, p.scenario),
-      source.parametres(acces, p.jeu),
-    ])
-    return versProjections(lignes.lignes, ecoles, resultat, settings)
-  },
 
   [`GET ${S}/recrutes/`]: async (_, acces, p): Promise<ResultatRecrutes | null> => {
     const [recrues, r, ecoles] = await Promise.all([

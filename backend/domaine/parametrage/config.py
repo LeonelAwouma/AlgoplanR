@@ -51,7 +51,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "phase2_proximite_iaeb": True,
         "phase2_proximite_departement": True,
         "phase3_extension_regionale": True,
-        "phase4_vivier_recrutement": True,
         # Un enseignant n'est affecté que dans sa région : les autres restent dans le vivier (commission d'arbitrage).
         "regions_etanches": True,
     },
@@ -62,8 +61,8 @@ GROUPES_POIDS = ("poids_bareme_individuel", "poids_score_appariement")
 
 
 # Réglages supprimés du moteur, encore présents dans des configurations enregistrées : ignorés sans erreur.
-# (Aucun aujourd'hui : `bonification_ciblee` a été retirée puis rétablie.)
-CLES_ABANDONNEES: tuple = ()
+# `phase4_vivier_recrutement` n'était lue par aucun calcul : le vivier de recrutement relève de la planification.
+CLES_ABANDONNEES: tuple = (("regles_dreb", "phase4_vivier_recrutement"),)
 
 
 def sans_cles_abandonnees(surcharge: Dict[str, Any] | None) -> Dict[str, Any]:

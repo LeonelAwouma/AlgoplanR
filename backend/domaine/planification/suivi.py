@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from ..commun.texte import norm
+from .rapport import stock_fin
 
 
 def dans(lieu: Optional[Dict[str, str]], p: Dict[str, Optional[str]]) -> bool:
@@ -32,7 +33,7 @@ def dans(lieu: Optional[Dict[str, str]], p: Dict[str, Optional[str]]) -> bool:
 
 
 def quota_retenu(annee: str, p: Dict[str, Optional[str]], quotas: List[dict]) -> Optional[int]:
-    if p.get("departement") or p.get("commune") or p.get("iaeb"):
+    if p.get("departement") or p.get("commune") or p.get("iaeb") or p.get("ecole"):
         return None
     retenus = [q for q in quotas if q["annee"] == annee
                and (not p.get("region") or norm(q["territoire"]) == norm(p["region"]))
@@ -54,10 +55,18 @@ def appliquer_suivi(annees: List[dict], p: Dict[str, Optional[str]], *, quotas: 
         compte_m = lambda statut: sum(1 for m in mouvements  # noqa: E731
                                       if m["type"] != "nomination" and m["annee"] == a["annee"]
                                       and m["statut"] == statut and dans(m["lieu"], p))
-        ligne = {**a, "effectif_debut": max(0, a["effectif_debut"] + ecart), "quota_retenu": retenu,
+        debut = max(0, a["effectif_debut"] + ecart)
+        # Recrues de l'année : celles du scénario de calcul, ou le quota retenu quand l'administration l'a fixé.
+        recrutement = a.get("recrutement", 0)
+        if recrutements_supposes and retenu is not None:
+            recrutement = retenu
+        ligne = {**a, "effectif_debut": debut, "quota_retenu": retenu, "recrutement": recrutement,
                  "nominations_prevues": compte_n("validee"), "nominations_realisees": compte_n("mise_en_oeuvre"),
                  "deploiements_prevus": compte_m("prevu"), "deploiements_realises": compte_m("realise"),
                  "besoin_restant": max(0, a["besoin"] - a["ressources_vivier"] - (retenu or 0))}
+        ligne["effectif_fin"] = stock_fin(ligne)
+        if a.get("eleves"):                   # REM projeté : élèves de l'année ÷ effectif au début de l'année (ajusté)
+            ligne["rem"] = round(a["eleves"] / debut, 1) if debut > 0 else None
         if recrutements_supposes and retenu is not None:
             ecart += retenu - a["quota_calcule"]
         sortie.append(ligne)

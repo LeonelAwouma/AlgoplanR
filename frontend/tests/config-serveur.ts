@@ -40,7 +40,6 @@ export const CONFIG: ConfigDjango = {
     phase2_proximite_iaeb: true,
     phase2_proximite_departement: true,
     phase3_extension_regionale: true,
-    phase4_vivier_recrutement: true,
     regions_etanches: true,
   },
 }

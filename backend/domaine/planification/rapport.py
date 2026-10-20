@@ -348,11 +348,12 @@ def limites(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], hyp: d
                    f"sont imputés à la première année (CORR_60), soit {_fr(_pct(agents_age_atteint, quota1))} % de "
                    "ses retraites : à confirmer par la DRH (en activité, prorogés ou non radiés).")
     methode = {"taux_unique": f"taux unique de {a['taux_unique']} % par an",
-               "par_region": "taux régionaux du rapport DRH moins la part des retraites",
-               "par_sous_systeme": "taux par sous-système"}[a["methode"]]
+               "par_region": "taux propres à chaque région",
+               "par_sous_systeme": "taux propres à chaque sous-système"}[a["methode"]]
+    source = f" — source : {a['source']}" if a.get("source") else ""
     out += [
-        f"Attrition hors retraite : {methode}, repris du modèle M1 du rapport DRH (SIGE 2018-2025) et non estimé "
-        "sur le jeu ; mutations, abandons et décès ne sont pas distingués.",
+        f"Attrition hors retraite : {methode} (hypothèses de planification{source}) ; mutations, abandons et décès "
+        "ne sont pas distingués.",
         f"Croissance des élèves de {drh['G_PRI_PCT']} % par an appliquée à toutes les écoles.",
         f"Directeurs : {drh['DIR_NOM_AN']} prises de fonction par an, dont {drh['DIR_H_PRI_PCT']} % sans classe "
         "(paramètres nationaux rapportés au périmètre) ; le jeu ne renseigne ni la fonction ni la date de prise de "

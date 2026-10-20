@@ -7,7 +7,9 @@
  * - École : `nbClasses` (qui valait BMAX) → `capaciteMaitres`, `nombreClassesOuvertes: null`, `sallesRenseignees` ;
  * - diagnostic : `nbClasses` supprimé ; `priorite.rang` ajouté ;
  * - vœu examiné : `bonification` et `poidsExamen` supprimés, `ajustementsContextuels` et `composantes` ajoutés ;
- * - règles : `bonificationMotif` et `classementCandidats` (ancien modèle S = A + Z + B) supprimés.
+ * - règles : `bonificationMotif` et `classementCandidats` (ancien modèle S = A + Z + B) supprimés ;
+ * - règles : le bloc `recrutement` (taux d'attrition du moteur) supprimé : l'attrition ne relève plus que des
+ *   hypothèses de planification ; projection héritée N+1 à N+3 du résultat de scénario supprimée.
  *
  * Idempotent : relancé, il ne change plus rien.
  *
@@ -33,6 +35,28 @@ function migrer(noeud) {
       delete noeud[cle]
       modifications++
     }
+  }
+
+  // Règles : le taux d'attrition n'est plus un réglage du moteur.
+  if (
+    noeud.recrutement &&
+    typeof noeud.recrutement === 'object' &&
+    Object.keys(noeud.recrutement).join() === 'tauxAttritionHorsRetraite'
+  ) {
+    delete noeud.recrutement
+    modifications++
+  }
+  // Routes de la projection héritée N+1 à N+3 : retirées de l'API du frontend.
+  for (const cle of cles) {
+    if (/\/scenarios\/[^/]+\/projections\/$/.test(cle)) {
+      delete noeud[cle]
+      modifications++
+    }
+  }
+  // Résultat de scénario : la projection héritée N+1 à N+3 n'existe plus.
+  if ('projectionPluriannuelle' in noeud && 'syntheseAvant' in noeud) {
+    delete noeud.projectionPluriannuelle
+    modifications++
   }
 
   // Diagnostic d'une école : le nombre de classes ne s'y trouve plus.

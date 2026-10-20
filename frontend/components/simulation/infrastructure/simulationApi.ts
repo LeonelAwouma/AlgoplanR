@@ -10,7 +10,7 @@
  *   GET  …/{scenario}/resultat/                …/affectations/                  …/affectations/{matricule}/explication/
  *        …/{scenario}/encadrement/
  *        …/non-affectes/  …/vivier/  …/postes/  …/postes-non-couverts/  …/candidatures/  …/combinaisons/
- *        …/journal/  …/invariants/  …/projections/  …/recrutes/  …/flux/
+ *        …/journal/  …/invariants/  …/recrutes/  …/flux/
  *   GET  jeux/{jeu}/comparaison/               PUT  jeux/{jeu}/scenario-retenu/
  *
  * Les résultats sont restreints par le serveur au territoire demandé
@@ -42,7 +42,6 @@ import {
   type Page,
   type PoolTeacher,
   type PresetScenario,
-  type ProjectionsScenario,
   type ProposedAssignment,
   type RedeploymentPool,
   type ResultatRecrutes,
@@ -75,7 +74,6 @@ const ROUTES = {
   combinaisons: route<CombinaisonArbitrage[]>()('GET', `${S}/combinaisons/`),
   journal: route<JournalSimulation>()('GET', `${S}/journal/`),
   invariants: route<InvariantCheck[]>()('GET', `${S}/invariants/`),
-  projections: route<ProjectionsScenario>()('GET', `${S}/projections/`),
   recrutes: route<ResultatRecrutes | null>()('GET', `${S}/recrutes/`),
   flux: route<FluxTerritorial>()('GET', `${S}/flux/`),
   comparaison: route<ComparaisonScenarios>()('GET', 'jeux/{jeu}/comparaison/'),
@@ -253,16 +251,6 @@ export function lireJournal(ref: RefScenario, signal?: AbortSignal): Promise<Jou
 /** Contrôles métier vérifiés après le calcul. */
 export function lireInvariants(ref: RefScenario, signal?: AbortSignal): Promise<InvariantCheck[]> {
   return appeler(ROUTES.invariants, { params: { ...ref }, signal })
-}
-
-/**
- * Projection N+1 → N+3 du scénario.
- *
- * @deprecated remplacée par la planification sur cinq ans (`contextes/planification`) ;
- *   conservée tant que le backend sert les deux.
- */
-export function lireProjections(ref: RefScenario, signal?: AbortSignal): Promise<ProjectionsScenario> {
-  return appeler(ROUTES.projections, { params: { ...ref }, signal })
 }
 
 /** Déploiement des recrues sur les postes restés vacants, `null` sans recrue importée. */

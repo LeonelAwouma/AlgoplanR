@@ -383,6 +383,8 @@ def lancer_affectation(ecoles: List[Ecole], enseignants: List[Enseignant], cfg: 
     stats_phase = dict(Counter(a["phase"] for a in toutes).most_common())
     nb_prince = len(mouvements_prince)
     # Les arrivées du Prince sont déjà dans l'effectif des écoles : seules les affectations ordinaires s'y ajoutent.
+    # OBSOLÈTE : conservé pour la parité avec le moteur d'origine ; attrition fixe (TAUX_ATTRITION). Les projections
+    # pluriannuelles de production sont celles de domaine/planification (hypothèses versionnées).
     projections = generer_projections_n3(ecoles, vivier, ordinaires)
 
     # Enseignants sans poste dans leur région alors qu'un poste libre existe ailleurs : la règle des régions

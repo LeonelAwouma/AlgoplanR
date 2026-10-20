@@ -55,7 +55,6 @@ export const REGLAGES_NON_APPLIQUES: readonly CheminReglage[] = [
   ['mobilite', 'regleZoneRouge'],
   ['mobilite', 'projectionN2'],
   ['mobilite', 'departageFeminin'],
-  ['recrutement', 'tauxAttritionHorsRetraite'],
 ]
 
 /**

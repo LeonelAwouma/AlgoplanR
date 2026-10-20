@@ -19,9 +19,6 @@ import type {
   NatureMouvement,
   PoolTeacher,
   PresetScenario,
-  ProjectionEcole,
-  ProjectionsScenario,
-  ProjectionTerritoire,
   ProposedAssignment,
   ProximityLevel,
   RedeploymentPool,
@@ -34,6 +31,7 @@ import type {
   TeachingPost,
   VoeuExamine,
 } from '../../contrat'
+import type { HypotheseAttrition } from '../moteur/attrition'
 import { syntheseTerritoriale } from '../moteur/synthese'
 import { versTeacher, type EnseignantDjango } from './enseignants'
 import { versEngineSettings, type ConfigDjango } from './parametres'
@@ -166,8 +164,6 @@ export interface CombinaisonDjango {
   nb_postes_compatibles: number
 }
 
-export type ProjectionDjango = Record<string, string | number>
-
 // --- Libellés ---------------------------------------------------------------------------------
 
 /** Libellé lisible d'une phase du moteur. */
@@ -264,6 +260,8 @@ export function versScenarioCalcule(
 export interface DonneesResultat {
   scenario: ScenarioDjango
   settings: EngineSettings
+  /** Attrition hors retraite : hypothèses de planification du jeu. */
+  attrition: HypotheseAttrition
   synthese: SyntheseDjango
   affectations: AffectationDjango[]
   /** Vivier complet, avec l'indicateur `affecte`. */
@@ -721,9 +719,8 @@ export function versResultat(d: DonneesResultat): SimulationResult {
     postesProjetesN2: 0,
     recrutes: null,
     arbitrages: [],
-    syntheseAvant: syntheseTerritoriale(diagnostics, d.settings),
-    syntheseApres: syntheseTerritoriale(diagnostics, d.settings, effectifs),
-    projectionPluriannuelle: { ecoles: [], territoire: [] },
+    syntheseAvant: syntheseTerritoriale(diagnostics, d.attrition),
+    syntheseApres: syntheseTerritoriale(diagnostics, d.attrition, effectifs),
     postesZoneRougeNonPourvus: uncoveredPosts.filter(p => p.priorite.zoneRouge).length,
     before: situation(diagnostics, new Map()),
     after: situation(diagnostics, couverts),
@@ -732,80 +729,4 @@ export function versResultat(d: DonneesResultat): SimulationResult {
     logs: versJournal(d.journal, d.scenario.calcule_le).logs,
     computedAt: d.scenario.calcule_le ?? '',
   }
-}
-
-// --- Projections ------------------------------------------------------------------------------
-
-const ANNEES = ['N+1', 'N+2', 'N+3'] as const
-
-/** Projections N à N+3 du serveur → projections école par école et par sous-système. */
-export function versProjections(
-  lignes: ProjectionDjango[],
-  ecoles: Map<string, SchoolDiagnostic>,
-  resultat: SimulationResult,
-  settings: EngineSettings,
-): ProjectionsScenario {
-  const arrivants = new Map<string, string[]>()
-  const sortants = new Map<string, string[]>()
-  for (const a of resultat.assignments) {
-    arrivants.set(a.schoolDestinationId, [...(arrivants.get(a.schoolDestinationId) ?? []), a.teacherId])
-    if (a.schoolOrigineId) sortants.set(a.schoolOrigineId, [...(sortants.get(a.schoolOrigineId) ?? []), a.teacherId])
-  }
-  const tau = Math.max(0, settings.recrutement.tauxAttritionHorsRetraite)
-
-  const ecolesProjetees: ProjectionEcole[] = lignes.map(l => {
-    const id = String(l.Identifiant_Ecole)
-    const d = ecoles.get(id)
-    const entrent = arrivants.get(id) ?? []
-    const partent = sortants.get(id) ?? []
-    let effectif = (d?.calcul.enseignantsRetenus ?? 0) + entrent.length - partent.length
-    const besoins = [l['Besoin_Projete_N+1'], l['Quota_Recrutement_Estime_N+2'], l['Quota_Recrutement_Estime_N+3']]
-    return {
-      schoolId: id,
-      nomEtab: d?.school.nom ?? id,
-      sousSysteme: sousSysteme(l.Sous_Systeme),
-      region: d?.school.region ?? '',
-      departement: d?.school.departement ?? '',
-      commune: d?.school.commune ?? '',
-      indicePriorite: nombre(l['Poids_Du_Poste (Up)']),
-      bmax: nombre(l['Capacite_Physique (BMAX)']),
-      dotation: nombre(l['Dotation_Theorique (De)']),
-      cible: d?.calcul.cible ?? 0,
-      besoinAvantPlan: nombre(l['Besoin_Ouvert_N (be)']),
-      excedentAvantPlan: nombre(l['Excedent_Mobilisable_N (xe)']),
-      arrivants: entrent,
-      sortants: partent,
-      sallesManquantes: nombre(l['Salles_Manquantes_N (se)']),
-      annees: ANNEES.map((annee, i) => {
-        const departs = nombre(l[`Departs_Retraite_${annee}`])
-        effectif = Math.max(0, effectif - departs)
-        return { annee, departsRetraite: departs, effectif, besoin: nombre(besoins[i]), excedent: 0 }
-      }),
-    }
-  })
-
-  const territoire = new Map<string, ProjectionTerritoire>()
-  for (const e of ecolesProjetees) {
-    for (const a of e.annees) {
-      const ss = e.sousSysteme ?? 'non_renseigne'
-      const cle = `${a.annee}|${ss}`
-      const t = territoire.get(cle) ?? {
-        annee: a.annee,
-        sousSysteme: ss,
-        effectif: 0,
-        departsRetraite: 0,
-        attrition: 0,
-        besoin: 0,
-        excedent: 0,
-        recrutementAPrevoir: 0,
-      }
-      t.effectif += a.effectif
-      t.departsRetraite += a.departsRetraite
-      t.besoin += a.besoin
-      t.recrutementAPrevoir += a.besoin
-      territoire.set(cle, t)
-    }
-  }
-  for (const t of territoire.values()) t.attrition = Math.ceil((tau * t.effectif) / 100)
-  return { ecoles: ecolesProjetees, territoire: [...territoire.values()] }
 }

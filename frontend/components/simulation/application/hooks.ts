@@ -30,7 +30,6 @@ import {
   lireFlux,
   lireInvariants,
   lireJournal,
-  lireProjections,
   lireRecrutes,
   lireResultat,
   lireScenario,
@@ -201,11 +200,6 @@ export function useJournalSimulation(jeu: IdJeu | null, scenario: string | null)
 /** Contrôles métier du résultat. */
 export function useInvariants(jeu: IdJeu | null, scenario: string | null) {
   return useSectionScenario(jeu, scenario, 'invariants', [], lireInvariants)
-}
-
-/** Projection N+1 → N+3 du scénario (remplacée par la planification sur cinq ans). */
-export function useProjectionsScenario(jeu: IdJeu | null, scenario: string | null) {
-  return useSectionScenario(jeu, scenario, 'projections', [], lireProjections)
 }
 
 /** Déploiement des recrues du scénario. */

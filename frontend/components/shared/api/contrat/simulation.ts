@@ -169,12 +169,6 @@ export interface ReglesMobilite {
   departageFeminin: boolean
 }
 
-/** Recrutement à prévoir (§2.6). */
-export interface ReglesRecrutement {
-  /** τ* : taux d'attrition annuel hors départs à la retraite, en %. */
-  tauxAttritionHorsRetraite: number
-}
-
 /**
  * Paramètres complets du produit. Une simulation en conserve une copie figée,
  * pour que ses résultats restent reproductibles.
@@ -188,7 +182,6 @@ export interface EngineSettings {
   seuilsSeverite: { faible: number; important: number }
   priorite: ReglesPriorite
   mobilite: ReglesMobilite
-  recrutement: ReglesRecrutement
   scoring: ScoringConfig
 }
 
@@ -500,50 +493,6 @@ export interface SyntheseTerritoriale {
   degreAlea: number | null
 }
 
-/** Situation projetée d'une école pour une rentrée donnée. */
-export interface ProjectionAnnee {
-  annee: 'N+1' | 'N+2' | 'N+3'
-  /** Départs à la retraite pendant l'année qui précède cette rentrée (0 pour la rentrée du plan). */
-  departsRetraite: number
-  effectif: number
-  besoin: number
-  excedent: number
-}
-
-/** Projection pluriannuelle d'une école, de la rentrée du plan à N+3. */
-export interface ProjectionEcole {
-  schoolId: string
-  nomEtab: string
-  sousSysteme: SousSysteme | null
-  region: string
-  departement: string
-  commune: string
-  indicePriorite: number
-  bmax: number | null
-  dotation: number
-  cible: number
-  besoinAvantPlan: number
-  excedentAvantPlan: number
-  arrivants: string[]
-  sortants: string[]
-  sallesManquantes: number
-  annees: ProjectionAnnee[]
-}
-
-/** Totaux projetés par sous-système, avec l'attrition appliquée au niveau du territoire. */
-export interface ProjectionTerritoire {
-  annee: 'N+1' | 'N+2' | 'N+3'
-  sousSysteme: SousSysteme | 'non_renseigne'
-  effectif: number
-  departsRetraite: number
-  /** Départs imprévisibles attendus pendant l'année précédente : ⌈τ* × effectif ÷ 100⌉. */
-  attrition: number
-  besoin: number
-  excedent: number
-  /** max(0 ; B − X) + attrition cumulée depuis la rentrée du plan, sans recrutement intermédiaire. */
-  recrutementAPrevoir: number
-}
-
 /** Décision d'une commission sur une proposition ou une affectation (§3.10). */
 export interface DecisionArbitrage {
   id: string
@@ -643,8 +592,6 @@ export interface SimulationResult {
 
   syntheseAvant: SyntheseTerritoriale
   syntheseApres: SyntheseTerritoriale
-  /** Projection N+1 → N+3, école par école et par sous-système. */
-  projectionPluriannuelle: { ecoles: ProjectionEcole[]; territoire: ProjectionTerritoire[] }
   /** Postes en zone rouge restés sans maître : volontariat, primes ou recrutement. */
   postesZoneRougeNonPourvus: number
 

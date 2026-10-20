@@ -138,8 +138,12 @@ def estimer_attrition(jeu) -> dict:
     h, _ = hypotheses_courantes(jeu)
     legal = h["retraite"]["age_legal"]
     actualisations = list(jeu.actualisations.all())
-    m1 = (f"À défaut, le modèle M1 du rapport DRH retient {h['drh']['A_AUT_PRI_PCT']} % d'autres départs "
-          "par an au primaire.")
+    a = h["attrition"]
+    en_vigueur = {"taux_unique": f"un taux unique de {a['taux_unique']} % par an",
+                  "par_region": f"un taux par région (repli : {a['taux_unique']} % par an)",
+                  "par_sous_systeme": f"un taux par sous-système (repli : {a['taux_unique']} % par an)"}[a["methode"]]
+    m1 = (f"Les hypothèses en vigueur retiennent {en_vigueur} ; pour mémoire, le modèle M1 du rapport DRH retient "
+          f"{h['drh']['A_AUT_PRI_PCT']} % d'autres départs par an au primaire.")
     if not actualisations:
         return {"taux_propose": None, "methode": "Comparaison des effectifs entre deux actualisations successives",
                 "base": "Une seule photographie des effectifs est disponible pour ce jeu.",
