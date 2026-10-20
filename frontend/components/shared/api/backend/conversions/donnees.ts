@@ -15,8 +15,9 @@ import type {
   StatutJeu,
   TypeColonnes,
   TypeFichier,
+  TypeFichierEnvoi,
 } from '../../contrat'
-import { ANNEE_SCOLAIRE } from './parametres'
+import { anneeScolaireCourante } from '../../../kernel/annee'
 
 // --- Jeux -------------------------------------------------------------------------------------
 
@@ -26,12 +27,16 @@ export interface JeuDjango {
   nom: string
   source: 'import' | 'demonstration' | string
   cree_le: string
+  /** Rentrée que prépare le jeu (« 2026-2027 »), saisie à sa création. */
+  annee_scolaire?: string
   nb_etablissements: number
   nb_enseignants: number
   nb_scenarios: number
   nb_faits_prince: number
   nb_arbitrages: number
   nb_recrues: number
+  /** Données que les fichiers ne donnent pas (le calcul garde 0, ou 35 ans pour l'âge). */
+  donnees_manquantes?: { ecoles_sans_effectif: number; ecoles_sans_salles: number; enseignants_sans_age: number }
   /** Portée fixée par le serveur : un jeu régional n'est ouvert qu'au délégué de sa région. */
   portee?: PorteeJeu | ''
   region?: string | null
@@ -53,14 +58,16 @@ export function versJeu(j: JeuDjango): JeuDeDonnees {
       etablissements: j.fichiers_source?.etablissements ?? (demonstration ? null : j.nom),
       enseignants: j.fichiers_source?.enseignants ?? null,
     },
-    anneeScolaire: ANNEE_SCOLAIRE,
+    anneeScolaire: j.annee_scolaire ?? anneeScolaireCourante(),
     statut: j.statut ?? 'brouillon',
     nbEtablissements: j.nb_etablissements,
     nbEnseignants: j.nb_enseignants,
     nbUnitesCalcul: j.nb_etablissements,
     scenarioRetenuId: j.scenario_retenu_id ?? null,
     nbFaitsPrinceActifs: j.nb_faits_prince,
-    donneesElevesDisponibles: true,
+    donneesElevesDisponibles: j.donnees_manquantes
+      ? j.donnees_manquantes.ecoles_sans_effectif < j.nb_etablissements
+      : true,
     nom: j.nom,
     portee: j.portee || undefined,
     region: j.region ?? null,
@@ -224,11 +231,29 @@ const COLONNES: Record<TypeColonnes, Record<string, Colonne>> = {
     },
     Motif_Bonification: {
       label: 'Motif de bonification',
-      consequence: 'Aucune bonification ciblée n’est accordée.',
+      consequence:
+        'Aucune bonification ciblée n’est accordée. Le motif doit citer l’école visée parmi les vœux (rapprochement de conjoint, suivi médical).',
       alias: ['motif', 'bonification'],
     },
     nom: { label: 'Nom', consequence: 'Le matricule sert de libellé.', alias: ['nom'] },
     prenom: { label: 'Prénom', consequence: 'Le prénom n’est pas affiché.', alias: ['prenom'] },
+  },
+  prince: {
+    Matricule_Enseignant: {
+      label: 'Matricule',
+      consequence: 'Sans matricule, la décision est écartée.',
+      alias: ['matricule', 'id_enseignant', 'id_ens'],
+    },
+    Identifiant_Ecole: {
+      label: "Code de l'école imposée",
+      consequence: 'Sans école, la décision est écartée.',
+      alias: ['id_ecole', 'code_ecole', 'ecole', 'identifiant', 'id_etab', 'code_etablissement'],
+    },
+    Motif: {
+      label: 'Motif de la décision',
+      consequence: 'Le motif par défaut « Décision de l’autorité (Effet de prince) » est enregistré.',
+      alias: ['motif_decision', 'observation', 'justification', 'raison'],
+    },
   },
   recrues: {
     id_recrue: {
@@ -260,6 +285,7 @@ const COLONNES: Record<TypeColonnes, Record<string, Colonne>> = {
 const REQUISES: Record<TypeColonnes, string[]> = {
   etablissements: ['Identifiant_Ecole'],
   enseignants: ['Matricule_Enseignant'],
+  prince: ['Matricule_Enseignant', 'Identifiant_Ecole'],
   recrues: ['id_recrue'],
 }
 
@@ -281,7 +307,7 @@ export function colonnesAttendues(type: TypeColonnes): ColonneAttendue[] {
 /** Classeur reçu, tel que le décrit le serveur (`views._fichier_dict`). */
 export interface FichierDjango {
   id: string
-  type: TypeFichier
+  type: TypeFichierEnvoi
   nom_fichier: string
   feuille: string
   feuilles: string[]
@@ -339,6 +365,22 @@ export interface QualiteDjango {
   erreurs: { code: string; gravite: string; message: string }[]
   avertissements: { code: string; gravite: string; message: string }[]
   statistiques: { nb_etablissements: number; nb_enseignants: number; nb_erreurs: number; nb_avertissements: number }
+  reconciliation_effectifs?: {
+    ecoles_comparees: number
+    ecoles_en_ecart: number
+    ecoles_sans_effectif_declare: number
+    ecart_total: number
+    ecart_absolu_total: number
+    ecoles: {
+      id_ecole: string
+      nom_ecole: string
+      enseignants_declares: number
+      matricules_rattaches: number
+      ecart: number
+    }[]
+    liste_tronquee: boolean
+    regle: string
+  } | null
 }
 
 /**
@@ -394,5 +436,23 @@ export function versRapportQualite(q: QualiteDjango, ecoles: SchoolDiagnostic[])
     enseignantsLus: q.statistiques.nb_enseignants,
     donneesElevesDisponibles: ecoles.some(d => d.school.effectifTotalEleves != null),
     detailScore,
+    reconciliationEffectifs: q.reconciliation_effectifs
+      ? {
+          ecolesComparees: q.reconciliation_effectifs.ecoles_comparees,
+          ecolesEnEcart: q.reconciliation_effectifs.ecoles_en_ecart,
+          ecolesSansEffectifDeclare: q.reconciliation_effectifs.ecoles_sans_effectif_declare,
+          ecartTotal: q.reconciliation_effectifs.ecart_total,
+          ecartAbsoluTotal: q.reconciliation_effectifs.ecart_absolu_total,
+          ecoles: q.reconciliation_effectifs.ecoles.map(e => ({
+            ecole: e.id_ecole,
+            nomEcole: e.nom_ecole,
+            enseignantsDeclares: e.enseignants_declares,
+            matriculesRattaches: e.matricules_rattaches,
+            ecart: e.ecart,
+          })),
+          listeTronquee: q.reconciliation_effectifs.liste_tronquee,
+          regle: q.reconciliation_effectifs.regle,
+        }
+      : null,
   }
 }

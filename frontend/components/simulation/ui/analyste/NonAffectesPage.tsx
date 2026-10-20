@@ -4,7 +4,7 @@
 
 import { SANS_PAGINATION, type PoolTeacher } from '@shared/api'
 import { useSession } from '@shared/session'
-import { DataTable, Notice, Panel, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
+import { DataTable, Notice, Panel, Pill, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
 import { EtatRequetes } from '@shared/ui/etats'
 
 import { useNonAffectes } from '../../application/hooks'
@@ -24,6 +24,17 @@ const COLONNES: Colonne<PoolTeacher>[] = [
     tri: p => p.teacher.departementAttache,
   },
   { cle: 'bareme', entete: 'Barème', numerique: true, rendu: p => fmtDec(p.bareme, 2), tri: p => p.bareme },
+  {
+    cle: 'motif',
+    entete: 'Suite',
+    rendu: p =>
+      p.horsRegion ? (
+        <Pill tone="warn">Poste libre hors région : commission d’arbitrage</Pill>
+      ) : (
+        <Pill tone="neutral">Vivier</Pill>
+      ),
+    tri: p => (p.horsRegion ? 1 : 0),
+  },
 ]
 
 /** Page « Non affectés » (vue analyste). */
@@ -43,7 +54,8 @@ export function NonAffectesPage() {
     <div className="stack">
       <Notice tone="neutral" title="Pourquoi un enseignant reste non affecté.">
         Aucun poste ouvert ne se trouvait dans son périmètre autorisé, ou tous les postes de ce périmètre avaient déjà
-        été pourvus par des enseignants mieux classés.
+        été pourvus par des enseignants mieux classés. Un enseignant n’est affecté que dans sa région : quand il ne
+        reste de poste libre qu’ailleurs, il reste dans le vivier et son dossier passe en commission d’arbitrage.
       </Notice>
       <Panel kicker="Vivier" title={`${fmt(nonAffectes.data.total)} enseignants non affectés`} flush>
         <DataTable

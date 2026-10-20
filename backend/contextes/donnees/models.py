@@ -2,6 +2,8 @@ import uuid
 
 from django.db import models
 
+from domaine.donnees.annee_scolaire import annee_scolaire_courante
+
 
 class JeuDeDonnees(models.Model):
     """Agrégat racine : un import (établissements + enseignants). Sa suppression est en cascade.
@@ -13,6 +15,8 @@ class JeuDeDonnees(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nom = models.CharField(max_length=200)
     source = models.CharField(max_length=20, default="import")  # import | demonstration | consolidation
+    # Rentrée que prépare le jeu (« 2026-2027 »), saisie à la création : elle date les projections et les rapports.
+    annee_scolaire = models.CharField(max_length=9, default=annee_scolaire_courante)
     cree_le = models.DateTimeField(auto_now_add=True)
     portee = models.CharField(max_length=20, blank=True, default="", db_index=True)  # regional | national | national_herite
     region = models.CharField(max_length=30, null=True, blank=True, db_index=True)
@@ -88,6 +92,9 @@ class Etablissement(models.Model):
     type_etab = models.CharField(max_length=30, default="ECOLE")
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
+    effectif_connu = models.BooleanField(default=True)
+    salles_connues = models.BooleanField(default=True)
+    classes_ouvertes = models.FloatField(null=True, blank=True)
     ordre = models.IntegerField(default=0)
 
     class Meta:
@@ -114,6 +121,7 @@ class Enseignant(models.Model):
     voeu_2 = models.CharField(max_length=100, blank=True, default="")
     voeu_3 = models.CharField(max_length=100, blank=True, default="")
     motif_bonification = models.CharField(max_length=255, blank=True, default="")
+    age_connu = models.BooleanField(default=True)
     ordre = models.IntegerField(default=0)
 
     class Meta:

@@ -129,6 +129,13 @@ def fiabilite(request, jeu):
     return Response(pl.fiabilite(_ctx(request, jeu), perimetre(request)))
 
 
+@extend_schema(parameters=PERIMETRE, responses=OBJ,
+               summary="Degré d'aléa (1 − R² enseignants ~ élèves) national et par région")
+@api_view(["GET"])
+def alea(request, jeu):
+    return Response(pl.alea(_ctx(request, jeu), perimetre(request)))
+
+
 RAPPORT = PERIMETRE + [OpenApiParameter("horizon", int), OpenApiParameter("seuil_cohorte", float)]
 
 

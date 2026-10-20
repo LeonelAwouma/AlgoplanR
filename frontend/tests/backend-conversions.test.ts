@@ -78,12 +78,21 @@ const CONFIG: ConfigDjango = {
     bonification_ciblee: 20,
   },
   vulnerabilite: { t1: 0.3, t2: 0.7 },
+  besoin: {
+    norme_eleves_par_maitre: 60,
+    effectif_premiere_section: 20,
+    nombre_niveaux: 6,
+    niveaux_par_maitre_multigrade: 2,
+    minimum_selon_multigrades: true,
+    double_flux_autorise: true,
+  },
   regles_dreb: {
     phase1_voeux_actif: true,
     phase2_proximite_iaeb: true,
     phase2_proximite_departement: true,
     phase3_extension_regionale: true,
     phase4_vivier_recrutement: true,
+    regions_etanches: true,
   },
 }
 

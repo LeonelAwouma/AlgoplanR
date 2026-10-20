@@ -203,7 +203,10 @@ def contexte(jeu, scenario_id: Optional[str] = None, *, avec_etat: bool = True) 
         _PROJECTIONS.move_to_end(cle)
         ecoles, departs = _PROJECTIONS[cle]
     else:
-        ecoles, departs = projeter_ecoles(prep.ecoles, prep.enseignants.values(), prep.cfg, hyp,
+        # Bases d'origine : les affectations du résultat contiennent déjà les mouvements du Prince, qui rejouent
+        # le départ et l'arrivée de chaque agent. Partir des bases après Prince les compterait deux fois.
+        avant = prep.avant()
+        ecoles, departs = projeter_ecoles(avant.ecoles, avant.enseignants.values(), prep.cfg, hyp,
                                           affectations=res["affectations"])
         _PROJECTIONS[cle] = (ecoles, departs)
         while len(_PROJECTIONS) > _MAX:
@@ -384,6 +387,14 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
                          seuil_cohorte=_seuil_cohorte(seuil_cohorte),
                          agents_age_atteint=age_atteint if ctx.hyp["drh"].get("CORR_60", True) else 0)
     return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **out}
+
+
+def alea(ctx: Contexte, p: dict) -> dict:
+    """Degré d'aléa (1 − R² enseignants ~ élèves) du périmètre et de chacune de ses régions.
+
+    Calculé sur les effectifs après les mouvements du scénario du contexte, comme le rapport prévisionnel.
+    """
+    return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **rap.alea_par_region(ecoles_de(ctx, p))}
 
 
 def listes_rapport(ctx: Contexte, p: dict, seuil_cohorte=5) -> dict:

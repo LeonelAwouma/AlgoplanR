@@ -8,7 +8,7 @@
 import { Download } from 'lucide-react'
 
 import type { DepartRetraitePrevu, IdJeu } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { LIBELLE_SOUS_SYSTEME } from '@shared/kernel'
 import { DataTable, fmt, type Colonne } from '@shared/ui/commun'
 import { EtatRequetes } from '@shared/ui/etats'
@@ -47,14 +47,14 @@ export function PlanDepartsPanel({ jeu, requete }: { jeu: IdJeu; requete: Requet
           type="button"
           className="btn btn-sm"
           onClick={() =>
-            exporterCSV(
-              'plan-des-departs.csv',
+            void exporterTableauXLSX(
+              'plan-des-departs.xlsx',
               ['Année', 'Matricule', 'Enseignant', 'École', 'Date de naissance', 'Âge au départ'],
               retraites.map(d => [d.annee, d.matricule, d.nom, d.nomEtab, d.dateNaissance, d.ageAuDepart]),
             )
           }
         >
-          <Download size={13} aria-hidden="true" /> Exporter les départs (CSV)
+          <Download size={13} aria-hidden="true" /> Exporter les départs (Excel)
         </button>
       </div>
 

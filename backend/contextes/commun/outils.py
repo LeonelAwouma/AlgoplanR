@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from typing import Iterable, List
 
+from django.http import HttpResponse
+from rest_framework.negotiation import BaseContentNegotiation
+
 from domaine.commun.pagination import paginer, trier
 from domaine.diagnostic.territoires import Perimetre
 
@@ -31,3 +34,23 @@ def bool_param(request, nom: str, defaut: bool = False) -> bool:
     if v is None:
         return defaut
     return v.strip().lower() in ("1", "true", "oui", "yes")
+
+
+MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+class SansNegociation(BaseContentNegotiation):
+    """Une vue qui renvoie un fichier accepte n'importe quel type demandé par le client."""
+
+    def select_parser(self, request, parsers):
+        return parsers[0]
+
+    def select_renderer(self, request, renderers, format_suffix=None):
+        return (renderers[0], renderers[0].media_type)
+
+
+def reponse_excel(octets: bytes, nom_fichier: str) -> HttpResponse:
+    """Réponse de téléchargement d'un classeur Excel."""
+    rep = HttpResponse(octets, content_type=MIME_XLSX)
+    rep["Content-Disposition"] = f'attachment; filename="{nom_fichier}"'
+    return rep

@@ -23,6 +23,8 @@ export interface EnseignantDjango {
   Sous_Systeme_Formation: string
   Ecole_Attache_Actuelle: string
   Age: number | null
+  /** Âge renseigné dans le fichier : faux quand la colonne est absente (35 ans supposés) ou la cellule vide. */
+  age_connu?: boolean
   Anciennete_Carriere: number
   Anciennete_Poste_Actuel: number
   Annees_Zone_Difficulte_1: number
@@ -47,6 +49,8 @@ export interface EnseignantDjango {
   exclu_du_calcul?: string
   /** Vivier d'un scénario seulement. */
   affecte?: boolean
+  /** Vivier d'un scénario seulement : `hors_region` si seul un poste libre d'une autre région subsiste. */
+  motif_non_affectation?: string
 }
 
 /** Détail d'un barème ou d'un score tel que le sert le serveur. */
@@ -84,6 +88,14 @@ export function versBreakdown(d: DetailDjango | null | undefined): ScoreBreakdow
   }
 }
 
+/**
+ * Somme écrite d'une décomposition : « Z1 · Barème individuel (22.75 × 0.25 = 5.6875) + … ».
+ * Quatre décimales : à deux, la somme des termes affichés ne retomberait pas sur le total.
+ */
+export function formuleSomme(b: ScoreBreakdown): string {
+  return b.components.map(c => `${c.label} (${c.valeur} × ${c.poids} = ${c.contribution.toFixed(4)})`).join(' + ')
+}
+
 /** Enseignant du contrat. `ligne` : rang de l'enseignant dans le fichier (à partir de 1). */
 export function versTeacher(t: EnseignantDjango, ligne = 0): Teacher {
   return {
@@ -91,7 +103,7 @@ export function versTeacher(t: EnseignantDjango, ligne = 0): Teacher {
     nom: texte(t.nom),
     prenom: texte(t.prenom),
     dateNaissance: null,
-    age: nombreOuNull(t.Age),
+    age: t.age_connu === false ? null : nombreOuNull(t.Age),
     idEtabAttache: texte(t.Ecole_Attache_Actuelle),
     communeAttache: texte(t.commune_attache),
     departementAttache: texte(t.departement_attache),

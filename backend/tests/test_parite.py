@@ -1,4 +1,4 @@
-"""Parité stricte avec le moteur d'origine (tests/reference/app_algoplanr_origine.py)."""
+"""Parité stricte avec le moteur d'origine (tests/reference/app_algoplanr_origine.py), hors faits du Prince."""
 import copy
 import importlib.util
 import os
@@ -26,10 +26,15 @@ def legacy():
 
 def _comparer(legacy, graine, nb_e, nb_n, prince=None, cfg=None):
     cfg = cfg or defaut()
+    cfg["regles_dreb"]["regions_etanches"] = False   # le moteur d'origine ne connaît pas la règle des régions
     e, n = construire_jeu_demonstration(graine, nb_e, nb_n)
     mien = lancer_affectation([construire_ecole(x) for x in e], [construire_enseignant(x) for x in n],
                               copy.deepcopy(cfg), faits_prince=prince)
-    ref = legacy.run_affectation(pd.DataFrame(e), pd.DataFrame(n), copy.deepcopy(cfg), affectations_prince=prince)
+    # Le moteur d'origine bonifie encore le motif saisi (bonification_ciblee) ; le nouveau ne le fait plus. La parité
+    # n'est donc conservée qu'à bonification nulle : on la fournit à 0 dans la copie de configuration de référence.
+    cfg_ref = copy.deepcopy(cfg)
+    cfg_ref["ajustements_contextuels"]["bonification_ciblee"] = 0
+    ref = legacy.run_affectation(pd.DataFrame(e), pd.DataFrame(n), cfg_ref, affectations_prince=prince)
     la = ref["affectations"]
     a_ref = [(a.id_ens, a.id_poste, a.phase, a.score_affectation) for a in la.itertuples()] if len(la) else []
     a_moi = [(a["id_ens"], a["id_poste"], a["phase"], a["score_affectation"]) for a in mien.affectations]
@@ -47,16 +52,9 @@ def test_parite_sans_prince(legacy, graine):
     _comparer(legacy, graine, 80, 900)
 
 
-def test_parite_avec_faits_du_prince(legacy):
-    e, n = construire_jeu_demonstration(5, 80, 900)
-    cfg = defaut()
-    base = lancer_affectation([construire_ecole(x) for x in e], [construire_enseignant(x) for x in n], cfg)
-    vivier = [v["Matricule_Enseignant"] for v in base.vivier][:4]
-    prince = [{"id_ens": vivier[0], "id_etab": "ECO001", "motif": "Test"},
-              {"id_ens": vivier[1], "id_etab": "ECO002", "motif": "Test"},
-              {"id_ens": "INCONNU", "id_etab": "ECO003", "motif": "x"}]
-    res = _comparer(legacy, 5, 80, 900, prince=prince)
-    assert res.synthese["effet_de_prince"] >= 1
+# Pas de parité avec le moteur d'origine sur les faits du Prince, volontairement : l'ancien moteur calculait les besoins
+# et le vivier sur les données importées puis plaçait les agents en « phase 0 » dans un poste de poids nul ; le nouveau
+# applique d'abord les décisions aux bases (voir tests/test_prince_projection.py).
 
 
 def test_parite_phases_desactivees(legacy):

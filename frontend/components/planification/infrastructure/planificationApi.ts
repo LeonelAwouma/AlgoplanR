@@ -8,7 +8,7 @@
  *   GET  jeux/{jeu}/hypotheses/documentation/   GET jeux/{jeu}/hypotheses/historique/
  *   POST jeux/{jeu}/hypotheses/attrition/estimer/
  *   GET  jeux/{jeu}/planification/  …/territoires/  …/sous-systemes/  …/ecoles/  …/departs/
- *        …/fiabilite/  …/rapport/  …/rapport/listes/  …/etat/  …/versions/  …/versions/{version}/  …/versions/comparer/
+ *        …/fiabilite/  …/alea/  …/rapport/  …/rapport/listes/  …/etat/  …/versions/  …/versions/{version}/  …/versions/comparer/
  *   POST jeux/{jeu}/planification/recalculer/
  *   GET  jeux/{jeu}/quotas/   PUT jeux/{jeu}/quotas/{annee}/{territoire}/
  *   POST jeux/{jeu}/quotas/valider/   GET jeux/{jeu}/quotas/historique/
@@ -29,6 +29,7 @@ import {
   type CorpsAjustementQuota,
   type CorpsHypotheses,
   type CorpsValidationQuotas,
+  type DegreAlea,
   type DemandePage,
   type DetailVersionPlanification,
   type DocumentationHypotheses,
@@ -71,6 +72,7 @@ const ROUTES = {
   ecoles: route<Page<LignePlanificationEcole>>()('GET', `${P}/ecoles/`),
   departs: route<PlanDeparts>()('GET', `${P}/departs/`),
   fiabilite: route<FiabiliteDonnees>()('GET', `${P}/fiabilite/`),
+  alea: route<DegreAlea>()('GET', `${P}/alea/`),
   rapport: route<RapportPrevisionnel>()('GET', `${P}/rapport/`),
   listesRapport: route<ListesRapportPrevisionnel>()('GET', `${P}/rapport/listes/`),
   etat: route<EtatPlanification>()('GET', `${P}/etat/`),
@@ -185,6 +187,15 @@ export function lireFiabilite(
   signal?: AbortSignal,
 ): Promise<FiabiliteDonnees> {
   return appeler(ROUTES.fiabilite, { params: { jeu }, query: query(requete), signal })
+}
+
+/** Degré d'aléa (1 − R² enseignants ~ élèves) national et par région. */
+export function lireDegreAlea(
+  jeu: IdJeu,
+  requete: RequetePlanification = {},
+  signal?: AbortSignal,
+): Promise<DegreAlea> {
+  return appeler(ROUTES.alea, { params: { jeu }, query: query(requete), signal })
 }
 
 /** Options du rapport prévisionnel : horizon (années) et seuil de la cohorte (années au poste). */

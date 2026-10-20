@@ -16,10 +16,11 @@ from ..mobilite.score import detail_score
 
 def proximite(personne: dict, poste: dict) -> str:
     p = poste["_poste"]
+    # Commune et circonscription IAEB forment un seul niveau : l'IAEB est une commune ou la regroupe.
     if personne.get("commune") and norm(personne["commune"]) == norm(p.get(C.COL_ETAB_COMMUNE)):
         return "meme_commune"
     if personne.get("iaeb") and norm(personne["iaeb"]) == norm(p.get(C.COL_ETAB_IAEB)):
-        return "meme_iaeb"
+        return "meme_commune"
     if personne.get("departement") and norm(personne["departement"]) == norm(p.get(C.COL_ETAB_DEPT)):
         return "meme_departement"
     if personne.get("region") and norm(personne["region"]) == norm(p.get(C.COL_ETAB_REGION)):

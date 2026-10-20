@@ -60,7 +60,8 @@ export const gestionnairesDonnees = [
   // --- Classeurs et jeux -----------------------------------------------------------
   http.post(api('fichiers/'), async ({ request }) => {
     const formulaire = await request.formData()
-    const type = formulaire.get('type') as TypeFichier | null
+    const type = formulaire.get('type') as TypeFichier | 'prince' | null
+    if (type === 'prince') return nonSimule('Le fichier des faits du prince')
     if (type !== 'etablissements' && type !== 'enseignants') return refus('Nature de fichier inconnue.')
     return ok(etat().fichiers[type], false, 201)
   }),
@@ -101,6 +102,11 @@ export const gestionnairesDonnees = [
     jeuConnu(params.jeu) ? ok(etat().actualisations) : introuvable(),
   ),
   http.post(api('jeux/:jeu/actualisations/'), () => nonSimule('L’actualisation des données')),
+
+  // --- Encadrement et turnover : calculés par le moteur, pas par le catalogue --------------
+  http.get(api('jeux/:jeu/scenarios/:scenario/encadrement/'), () =>
+    nonSimule('Le taux d’encadrement et le turnover après l’algorithme'),
+  ),
 
   // --- Règles du moteur ------------------------------------------------------------------
   http.get(api('jeux/:jeu/parametres/'), ({ params }) =>

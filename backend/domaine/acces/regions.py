@@ -45,6 +45,16 @@ def region_canonique(texte: Any) -> Optional[str]:
     return _ALIAS.get(_cle(texte))
 
 
+def cle_region(texte: Any) -> str:
+    """Clé de comparaison de deux régions : celle du nom officiel si le texte en désigne un, sinon la clé du texte.
+
+    Vide quand `texte` est vide ; l'appelant décide alors qu'il n'y a pas de région à respecter.
+    """
+    cle = _cle(texte)
+    officielle = _ALIAS.get(cle)
+    return _cle(officielle) if officielle else cle
+
+
 def est_colonne_region(entete: Any) -> bool:
     """Vrai pour un en-tête de colonne « Région », quelle que soit sa graphie (Region, RÉGION, region_ecole…).
 

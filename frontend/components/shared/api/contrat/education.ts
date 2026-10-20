@@ -89,7 +89,15 @@ export interface School {
   zoneBrute: string
   typeEtab: string
 
-  nbClasses: number
+  /**
+   * Capacité en maîtres BMAX = salles simple flux + 2 × salles double flux. Ce n'est pas le nombre de classes ouvertes :
+   * 0 quand les salles ne sont pas renseignées (voir `sallesRenseignees`).
+   */
+  capaciteMaitres: number
+  /** Classes réellement ouvertes (colonne optionnelle Classes_Ouvertes), `null` tant que le fichier ne la donne pas. */
+  nombreClassesOuvertes: number | null
+  /** Le fichier renseigne les salles : sinon la capacité est inconnue, et non nulle. */
+  sallesRenseignees: boolean
   /** Salles de classe utilisables S (simple et double flux), `null` si non renseigné. */
   nbSallesClasse: number | null
   /** Parmi elles, salles fonctionnant en double flux (S^DF), `null` si non renseigné. */
@@ -169,7 +177,7 @@ export interface Teacher {
   /** Écoles sollicitées, par ordre de préférence (codes d'établissement). Vide : pas de demande. */
   voeux: string[]
   motifDemande: MotifDemande | null
-  /** École visée par un motif justifié (santé, regroupement familial), qui reçoit la bonification. */
+  /** École visée par un motif justifié (santé, regroupement familial), qui reçoit la bonification ciblée. */
   ecoleMotif: string | null
   /** Années de service en école de niveau de difficulté 1, puis 2 (dossier de carrière). */
   anneesZoneNiveau1: number
@@ -207,7 +215,6 @@ export interface DiagnosticReason {
 export interface SchoolDiagnostic {
   school: School
 
-  nbClasses: number
   enseignantsEtat: number
 
   /**
@@ -325,7 +332,8 @@ export interface TerritorialTotals {
   ecolesAvecExcedent: number
   ecolesSatisfaisantes: number
 
-  classes: number
+  /** Classes ouvertes des écoles qui les renseignent, `null` si aucune école ne les renseigne. */
+  classes: number | null
   enseignantsEtat: number
   autresEnseignants: number | null
 
@@ -342,6 +350,7 @@ export interface TerritorialTotals {
 
   effectifTotalEleves: number | null
   elevesParEnseignantEtat: number | null
+  /** Élèves ÷ classes ouvertes, sur les seules écoles qui donnent les deux ; `null` sinon. */
   elevesParClasse: number | null
 
   classesMultigrades: number

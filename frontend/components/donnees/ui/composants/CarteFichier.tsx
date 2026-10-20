@@ -4,14 +4,14 @@
 
 import { Check, RefreshCw, Upload, X } from 'lucide-react'
 
-import type { FichierImporte, TypeFichier } from '@shared/api'
+import type { FichierImporte, TypeFichierEnvoi } from '@shared/api'
 import { Notice, Pill, fmt } from '@shared/ui/commun'
 
 import { DESCRIPTION_FICHIER, FORMATS_ACCEPTES, nombreDeColonnesReconnues } from '../../domain/correspondances'
 import { ColonnesAttendues } from './ColonnesAttendues'
 
 export interface ProprietesCarteFichier {
-  type: TypeFichier
+  type: TypeFichierEnvoi
   /** Fichier déjà lu par le serveur, `null` tant qu'aucun n'a été envoyé. */
   fichier: FichierImporte | null
   /** Message d'erreur de la dernière lecture. */
@@ -32,7 +32,7 @@ export function CarteFichier({ type, fichier, erreur, enLecture, desactive, onFi
     <div className="upload-card" data-state={etat}>
       <div className="upload-card-entete">
         <div>
-          <p className="eyebrow">Fichier requis</p>
+          <p className="eyebrow">{type === 'prince' ? 'Fichier facultatif' : 'Fichier requis'}</p>
           <h2>{description.titre}</h2>
         </div>
         {etat === 'ready' && (

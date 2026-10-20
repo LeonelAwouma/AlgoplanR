@@ -12,11 +12,12 @@ import { useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
 
 import { SANS_PAGINATION, type EnseignantResume } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { correspondRecherche } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { DataTable, Notice, Panel, Pill, SearchField, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
 import { EtatRequetes } from '@shared/ui/etats'
+import { BandeauPrince } from '@components/prince'
 import { useScenarioAffiche } from '@components/simulation'
 
 import { useEnseignants } from '../application/hooks'
@@ -37,10 +38,10 @@ function commentairePointsSituation(ligne: EnseignantResume): string {
   return teacher.situationFamiliale.trim() ? 'valeur non reconnue : 0 point' : 'non renseignée : 0 point'
 }
 
-/** Exporte la liste affichée en CSV. */
+/** Exporte la liste affichée en Excel. */
 function exporterListe(lignes: EnseignantResume[]) {
-  exporterCSV(
-    'enseignants.csv',
+  void exporterTableauXLSX(
+    'enseignants.xlsx',
     [
       'Matricule',
       'Nom',
@@ -221,6 +222,7 @@ export function EnseignantsPage() {
 
   return (
     <div className="stack">
+      <BandeauPrince />
       <Notice tone="neutral" title="Mobilisable ne veut pas dire muté.">
         Un enseignant n’est considéré comme mobilisable que si son départ ne crée pas de déficit dans son établissement
         d’origine. Cette information décrit une possibilité arithmétique, pas une décision.
@@ -247,7 +249,7 @@ export function EnseignantsPage() {
         </div>
         <div className="filter-bar-actions">
           <button type="button" className="btn btn-sm" onClick={() => exporterListe(lignes)}>
-            <Download size={13} aria-hidden="true" /> Exporter (CSV)
+            <Download size={13} aria-hidden="true" /> Exporter (Excel)
           </button>
         </div>
       </div>

@@ -17,12 +17,21 @@ import type { SessionAcces } from '@components/acces'
 import { WelcomePage } from '@components/bienvenue'
 import { useOptionsFiltres } from '@components/diagnostic'
 import { useJeu, useSupprimerJeu } from '@components/donnees'
+import { useFaitsPrince } from '@components/prince'
 import { SANS_SCENARIO, useScenarioAffiche } from '@components/simulation'
 import { ApiError, FILTRES_VIDES } from '@shared/api'
 import { LIBELLE_SCOPE, selectionLabel } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { Notice } from '@shared/ui/commun'
-import { EtapesRubrique, FilterBar, PageHeader, Sidebar, TerritoryBreadcrumb, Topbar } from '@shared/ui/coquille'
+import {
+  BoutonContinuer,
+  EtapesRubrique,
+  FilterBar,
+  PageHeader,
+  Sidebar,
+  TerritoryBreadcrumb,
+  Topbar,
+} from '@shared/ui/coquille'
 import { CameroonFlagRail } from '@shared/ui/coquille/CameroonFlagRail'
 import { BandeauMiseAJour, useMiseAJour } from '@shared/ui/coquille/MiseAJour'
 import { pageAnalysteSeule, pageReserveeAuDrh, type PageKey } from '@shared/ui/coquille/navigation'
@@ -92,6 +101,9 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
   } = useSession()
 
   const meta = useJeu(jeu)
+  // Le Fait de Prince est facultatif : « Continuer » le saute tant qu'aucune décision n'est enregistrée.
+  const faitsPrince = useFaitsPrince(utilisateur.role === 'drh' ? jeu : null)
+  const sansFaitPrince = utilisateur.role !== 'drh' || (!!faitsPrince.data && faitsPrince.data.length === 0)
   const affiche = useScenarioAffiche()
   const options = useOptionsFiltres(jeu, filtres.territoire)
   const suppression = useSupprimerJeu()
@@ -190,6 +202,15 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
                 role={utilisateur.role}
                 donneesChargees={donneesChargees}
                 simulationPrete={simulationPrete}
+              />
+              <BoutonContinuer
+                page={page}
+                onNavigate={setPage}
+                mode={mode}
+                role={utilisateur.role}
+                donneesChargees={donneesChargees}
+                simulationPrete={simulationPrete}
+                ignorer={sansFaitPrince ? ['prince'] : []}
               />
 
               <div className="stack">

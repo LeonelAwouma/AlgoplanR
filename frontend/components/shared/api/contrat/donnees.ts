@@ -8,12 +8,16 @@ import type { IdJeu } from './commun'
 import type { School, SchoolDiagnostic, Teacher } from './education'
 import type { ColumnMappingReport, DataQualityReport } from './qualite'
 import type { ScoreBreakdown } from './simulation'
+import type { BilanImportPrince } from './decisions'
 
 /** Nature d'un classeur importé. */
 export type TypeFichier = 'etablissements' | 'enseignants'
 
-/** Classeurs dont le serveur publie les colonnes attendues : les deux fichiers de base et celui des recrues. */
-export type TypeColonnes = TypeFichier | 'recrues'
+/** Classeur qui peut être envoyé au serveur : les deux fichiers de base, ou celui des faits du Prince. */
+export type TypeFichierEnvoi = TypeFichier | 'prince'
+
+/** Classeurs dont le serveur publie les colonnes attendues : les fichiers envoyés et celui des recrues. */
+export type TypeColonnes = TypeFichierEnvoi | 'recrues'
 
 /** Colonne que le serveur cherche dans un classeur (dictionnaire de reconnaissance). */
 export interface ColonneAttendue {
@@ -32,7 +36,7 @@ export interface ColonneAttendue {
 /** Classeur reçu par le serveur, prêt à être rattaché à un jeu (`POST fichiers/`). */
 export interface FichierImporte {
   id: string
-  type: TypeFichier
+  type: TypeFichierEnvoi
   nomFichier: string
   /** Feuilles du classeur ; une seule pour un CSV. */
   feuilles: string[]
@@ -50,7 +54,7 @@ export interface FichierImporte {
 /** Envoi d'un classeur (formulaire multipart). */
 export interface CorpsEnvoiFichier {
   [champ: string]: string | Blob | undefined
-  type: TypeFichier
+  type: TypeFichierEnvoi
   fichier: Blob
   /** Feuille à lire ; la première par défaut. */
   feuille?: string
@@ -70,8 +74,12 @@ export interface CorpsCorrespondances {
 export interface CorpsCreationJeu {
   etablissements: string
   enseignants: string
+  /** Faits du Prince (DRH) : appliqués avant l'algorithme, qui calcule ensuite normalement le reste. */
+  prince?: string
   /** Date de référence des âges (ISO 8601), aujourd'hui par défaut. */
   dateReference?: string
+  /** Rentrée que prépare le jeu, « AAAA-AAAA » : l'année en cours par défaut. */
+  anneeScolaire?: string
 }
 
 /** Statut d'un jeu : il ne sert de référence aux projections qu'une fois validé. */
@@ -119,6 +127,8 @@ export interface QualiteJeu {
 export interface JeuCree {
   jeu: JeuDeDonnees
   qualite: DataQualityReport
+  /** Bilan du fichier des faits du Prince, absent quand aucun n'a été joint. */
+  prince?: BilanImportPrince
 }
 
 /** Contrôle effectué avant de valider un jeu comme référence. */

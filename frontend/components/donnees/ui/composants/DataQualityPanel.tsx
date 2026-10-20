@@ -128,6 +128,45 @@ export function DataQualityPanel({ rapport, compact = false }: { rapport: DataQu
             </details>
           )}
 
+          {rapport.reconciliationEffectifs && rapport.reconciliationEffectifs.ecolesEnEcart > 0 && (
+            <details className="advanced">
+              <summary>
+                Écarts d’effectif ({fmt(rapport.reconciliationEffectifs.ecolesEnEcart)} école(s) sur{' '}
+                {fmt(rapport.reconciliationEffectifs.ecolesComparees)})
+              </summary>
+              <p className="hint">{rapport.reconciliationEffectifs.regle}</p>
+              <table className="compare-table" style={{ marginTop: 8 }}>
+                <thead>
+                  <tr>
+                    <th>École</th>
+                    <th className="num">Déclarés</th>
+                    <th className="num">Matricules rattachés</th>
+                    <th className="num">Écart</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rapport.reconciliationEffectifs.ecoles.slice(0, 50).map(e => (
+                    <tr key={e.ecole}>
+                      <th scope="row" style={{ fontWeight: 500 }}>
+                        {e.nomEcole} <span className="mono hint">{e.ecole}</span>
+                      </th>
+                      <td className="num">{fmt(e.enseignantsDeclares)}</td>
+                      <td className="num">{fmt(e.matriculesRattaches)}</td>
+                      <td className="num">{e.ecart > 0 ? `+${fmt(e.ecart)}` : fmt(e.ecart)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="hint">
+                {rapport.reconciliationEffectifs.ecoles.length > 50 || rapport.reconciliationEffectifs.listeTronquee
+                  ? 'Les 50 plus grands écarts sont affichés. '
+                  : ''}
+                Sur l’ensemble : écart net {fmt(rapport.reconciliationEffectifs.ecartTotal)}, écart absolu{' '}
+                {fmt(rapport.reconciliationEffectifs.ecartAbsoluTotal)}.
+              </p>
+            </details>
+          )}
+
           <details className="advanced">
             <summary>Comment ce score est-il obtenu ?</summary>
             <table className="compare-table" style={{ marginTop: 8 }}>

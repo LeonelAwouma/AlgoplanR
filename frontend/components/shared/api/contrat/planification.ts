@@ -195,6 +195,8 @@ export interface LigneTableauRapport {
 export interface RecrutementsRegion extends Record<ScenarioRecrutement, number> {
   region: string
   remBase: number | null
+  /** Degré d'aléa (1 − R²) de la région, `null` quand il n'est pas calculable. */
+  alea: number | null
   remFinal: { min: number | null; besoin: number | null; plafond: number | null }
 }
 
@@ -287,6 +289,32 @@ export interface ListesRapportPrevisionnel {
     anciennetePoste: number
     statutEcole: StatutEcoleRedeploiement
   }[]
+}
+
+/**
+ * Degré d'aléa d'un territoire : 1 − R² de la régression du nombre d'enseignants sur le nombre d'élèves,
+ * école par école (0 = les enseignants suivent parfaitement les effectifs, 1 = aucun alignement linéaire).
+ * Ne pas confondre avec le taux de déséquilibre des dotations, (B + X) ÷ ΣK, des simulations.
+ */
+export interface LigneAlea {
+  /** Région, ou « National » pour la ligne d'ensemble. */
+  region: string
+  /** `null` quand l'aléa n'est pas calculable ; `raison` en donne alors le motif. */
+  alea: number | null
+  raison: string | null
+  ecoles: number
+  /** Écoles dont l'effectif d'élèves est connu : seules elles entrent dans la régression. */
+  ecolesAvecEleves: number
+  /** Écart à l'aléa national (points), `null` si l'une des deux valeurs manque. */
+  ecartNational: number | null
+}
+
+/** Degré d'aléa national et par région (`GET jeux/{jeu}/planification/alea/`). */
+export interface DegreAlea {
+  perimetre: string
+  scenarioId: string
+  national: LigneAlea
+  regions: LigneAlea[]
 }
 
 /** Disponibilité des données qui fondent les projections. */

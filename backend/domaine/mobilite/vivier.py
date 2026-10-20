@@ -1,7 +1,7 @@
 """Nettoyage, enrichissement des enseignants, constitution du vivier et des postes."""
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from ..donnees.modeles import Ecole, Enseignant, Poste
 from .bareme import calculer_bareme
@@ -55,9 +55,14 @@ def construire_postes(ecoles: Iterable[Ecole]) -> List[Poste]:
     return postes
 
 
-def construire_vivier(ens: Iterable[Enseignant], ecoles: Iterable[Ecole], cfg: dict) -> List[Enseignant]:
-    """Vivier = pour chaque école excédentaire, ses xe meilleurs agents (ancienneté au poste >= seuil)."""
+def construire_vivier(ens: Iterable[Enseignant], ecoles: Iterable[Ecole], cfg: dict, *,
+                      exclus: Optional[Iterable[str]] = None) -> List[Enseignant]:
+    """Vivier = pour chaque école excédentaire, ses xe meilleurs agents (ancienneté au poste >= seuil).
+
+    `exclus` : matricules écartés de la mobilité ordinaire, comme les agents déjà déplacés par un fait du Prince.
+    """
     ens = list(ens)
+    ecartes = set(exclus or ())
     for e in ens:
         e.bareme = calculer_bareme(e, cfg)
     seuil = int(cfg["seuils"]["anciennete_poste_recevabilite_ans"])
@@ -69,6 +74,8 @@ def construire_vivier(ens: Iterable[Enseignant], ecoles: Iterable[Ecole], cfg: d
 
     par_ecole: Dict[str, List[Enseignant]] = {}
     for e in ens:
+        if e.matricule in ecartes:
+            continue
         if float(e.anciennete_poste or 0) >= seuil:
             par_ecole.setdefault(e.ecole_attache, []).append(e)
 

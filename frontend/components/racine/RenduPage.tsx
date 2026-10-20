@@ -15,6 +15,7 @@ import { MethodologiePage } from '@components/methodologie/pages'
 import { MouvementsPage, NominationsPage, VivierPage } from '@components/nominations/pages'
 import { MoteurPage, ReferentielPage } from '@components/parametrage/pages'
 import {
+  AleaPage,
   HypothesesPage,
   IndicateursPage,
   PlanificationPage,
@@ -44,7 +45,7 @@ import type { PageKey } from '@shared/ui/coquille/navigation'
  */
 export function RenduPage({ page }: { page: PageKey }) {
   switch (page) {
-    // Collecter
+    // Importer
     case 'import':
       return <ImportPage />
     case 'validation':
@@ -53,6 +54,8 @@ export function RenduPage({ page }: { page: PageKey }) {
     // Analyser
     case 'overview':
       return <VueEnsemblePage />
+    case 'alea':
+      return <AleaPage />
     case 'diagnostic':
       return <SituationNationalePage />
     case 'territoires':

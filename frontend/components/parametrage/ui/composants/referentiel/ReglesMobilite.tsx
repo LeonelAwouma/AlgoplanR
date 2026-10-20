@@ -51,6 +51,12 @@ const INTERRUPTEURS: { cle: RegleBooleenne; titre: string; texte: string }[] = [
       'Aucun poste en zone rouge n’est proposé hors vœux ni imposé : il n’est pourvu que par des volontaires ou par le recrutement.',
   },
   {
+    cle: 'regionsEtanches',
+    titre: 'Affecter chaque enseignant dans sa région',
+    texte:
+      'Une affectation hors de la région de l’enseignant n’est pas retenue : l’enseignant reste dans le vivier et passe en commission d’arbitrage. Les décisions du prince et de la commission peuvent traverser les régions.',
+  },
+  {
     cle: 'projectionN2',
     titre: 'Projeter le vivier sur l’année N+2',
     texte:
@@ -120,20 +126,6 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
             >
               <option value="voeux">dans l’ordre choisi par l’enseignant (par défaut)</option>
               <option value="poids">de l’école la plus difficile à la plus facile (variante)</option>
-            </select>
-          </Regle>
-          <Regle
-            enonce="Un poste départage les candidats qui le demandent selon"
-            precision="La note retient le score d’appariement Score(e, p) = Z1 × barème + Z2 × poids du poste + Z3 × proximité + Z4 × ajustements : à poste égal, le poids de l’individu l’emporte. Le score de priorité S = A + Z + B de l’ancien référentiel reste disponible en variante ; dans les deux cas l’appariement est l’acceptation différée."
-            htmlFor="r-classement"
-          >
-            <select
-              id="r-classement"
-              value={m.classementCandidats}
-              onChange={e => mobilite('classementCandidats', e.target.value as Regles['classementCandidats'])}
-            >
-              <option value="score_appariement">le score d’appariement Score(e, p) (note, par défaut)</option>
-              <option value="score_priorite">le score de priorité S = A + Z + B (variante)</option>
             </select>
           </Regle>
           <Regle enonce="Un enseignant est considéré proche de la retraite à moins de" htmlFor="r-proche">

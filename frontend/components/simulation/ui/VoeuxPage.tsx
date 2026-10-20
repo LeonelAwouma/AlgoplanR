@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
 
 import { SANS_PAGINATION, SELECTION_NATIONALE, type Candidature, type IssueCandidature } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { LIBELLE_ISSUE, LIBELLE_MOTIF, LIBELLE_STATUT_VOEU, correspondRecherche } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { DataTable, KpiCard, Notice, Panel, Pill, SearchField, fmt, type Colonne, type Tone } from '@shared/ui/commun'
@@ -33,10 +33,10 @@ const TON_ISSUE: Record<IssueCandidature, Tone> = {
 /** Nom complet du demandeur. */
 const nomDe = (c: Candidature) => `${c.teacher.nom} ${c.teacher.prenom}`.trim()
 
-/** Exporte la synthèse des vœux en CSV, dans l'ordre du classement. */
+/** Exporte la synthèse des vœux en Excel, dans l'ordre du classement. */
 function exporterSynthese(candidatures: Candidature[]) {
-  exporterCSV(
-    'synthese-des-voeux.csv',
+  void exporterTableauXLSX(
+    'synthese-des-voeux.xlsx',
     [
       'Rang',
       'Matricule',
@@ -146,9 +146,11 @@ export function VoeuxPage() {
           {x.voeux.map(v => (
             <small key={v.rang} className="bloc">
               {v.rang}. {v.nomEtab} —{' '}
-              {v.statut === 'examine'
-                ? `S = ${fmt(v.score)}${v.bonification ? ` (dont ${fmt(v.bonification)} de bonification)` : ''}`
-                : LIBELLE_STATUT_VOEU[v.statut]}
+              {v.statut !== 'examine'
+                ? LIBELLE_STATUT_VOEU[v.statut]
+                : v.score === null
+                  ? 'aucun poste ouvert, pas de score'
+                  : `S = ${fmt(v.score)} (dont ${fmt(v.ajustementsContextuels ?? 0)} d’ajustements contextuels)`}
             </small>
           ))}
         </span>
@@ -171,8 +173,9 @@ export function VoeuxPage() {
     <div className="stack">
       <Notice tone="info" title="Synthèse des vœux (§3.2 et §3.3).">
         Une demande est recevable si l’enseignant compte la stabilité minimale au poste et si son école d’attache est
-        excédentaire. Le rang suit le classement unique : score A + Z décroissant, puis ancienneté générale, âge et rang
-        de tirage. Une école retient ensuite les candidats de plus fort score S = A + Z + B.
+        excédentaire. Le rang suit le barème individuel décroissant. Le score S d’un vœu est le score d’appariement
+        calculé par le serveur contre un poste de l’école visée : barème, poids du poste, proximité et ajustements
+        contextuels (âge, structure, zone, et bonification ciblée quand le motif cite l’école visée).
       </Notice>
 
       <div className="kpi-row">
@@ -211,7 +214,7 @@ export function VoeuxPage() {
         flush
         actions={
           <button type="button" className="btn btn-sm" onClick={() => exporterSynthese(toutes)}>
-            <Download size={13} aria-hidden="true" /> Exporter (CSV)
+            <Download size={13} aria-hidden="true" /> Exporter (Excel)
           </button>
         }
       >

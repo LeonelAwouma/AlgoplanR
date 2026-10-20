@@ -4,13 +4,15 @@
  *
  * Le serveur ne règle qu'une partie des paramètres de l'interface : âges,
  * pondérations du barème et du score, points de proximité et de situation
- * familiale, ajustements, coefficients de vulnérabilité et phase des vœux. Les
- * autres règles y sont fixées dans le code (norme de 60 élèves avec une
- * tolérance de 20, seuils de difficulté 30 et 15, tranches de REM…) : elles
- * sont lues ici telles que le serveur les applique, et une modification de
- * l'interface ne leur est pas transmise.
+ * familiale, ajustements, coefficients de vulnérabilité, phase des vœux et
+ * règles du besoin (norme, première section, regroupement multigrade, double
+ * flux). Les autres règles y sont fixées dans le code (seuils de difficulté 30
+ * et 15, tranches de REM, barème C1 à C5…) : elles sont lues ici telles que le
+ * serveur les applique, et une modification de l'interface ne leur est pas
+ * transmise — l'interface les montre alors comme « non appliquées ».
  */
 
+import { anneeScolaireCourante } from '../../../kernel/annee'
 import type { EngineSettings, MiseAJourParametres } from '../../contrat'
 
 /** Configuration telle que la sert le serveur. */
@@ -44,27 +46,33 @@ export interface ConfigDjango {
     bonification_ciblee: number
   }
   vulnerabilite: { t1: number; t2: number }
+  besoin: {
+    norme_eleves_par_maitre: number
+    effectif_premiere_section: number
+    nombre_niveaux: number
+    niveaux_par_maitre_multigrade: number
+    minimum_selon_multigrades: boolean
+    double_flux_autorise: boolean
+  }
   regles_dreb: {
     phase1_voeux_actif: boolean
     phase2_proximite_iaeb: boolean
     phase2_proximite_departement: boolean
     phase3_extension_regionale: boolean
     phase4_vivier_recrutement: boolean
+    regions_etanches: boolean
   }
 }
 
 /** Situations familiales que le serveur accepte : une autre clé est refusée (422). */
 const SITUATIONS_DJANGO = ['celibataire', 'divorce', 'veuf', 'marie']
 
-/** Année scolaire du plan : le serveur ne la gère pas. */
-export const ANNEE_SCOLAIRE = '2026-2027'
-
 /**
  * Règles du moteur de référence que le serveur ne paramètre pas. Celles qu'il
  * applique en dur sont alignées sur son code (domaine/diagnostic/indicateurs.py).
  */
 const REGLES_FIXES: Omit<EngineSettings, 'scoring'> & { scoring: Omit<EngineSettings['scoring'], 'seuils'> } = {
-  anneeScolaire: ANNEE_SCOLAIRE,
+  anneeScolaire: '',
   besoin: {
     elevesParMaitre: 60,
     toleranceArrondi: 20,
@@ -102,16 +110,15 @@ const REGLES_FIXES: Omit<EngineSettings, 'scoring'> & { scoring: Omit<EngineSett
     pointsAnneeNiveau1: 2,
     pointsAnneeNiveau2: 1,
     plancherZoneDifficile: 10,
-    bonificationMotif: 10,
     nombreMaxVoeux: 3,
     ordreExamen: 'voeux',
-    classementCandidats: 'score_appariement',
     phaseVoeux: true,
     stabilitePourObligatoire: true,
     protegerProchesRetraite: true,
     solutionProche: true,
     redeploiementObligatoire: true,
     regleZoneRouge: true,
+    regionsEtanches: true,
     projectionN2: true,
     departageFeminin: false,
   },
@@ -142,16 +149,26 @@ const REGLES_FIXES: Omit<EngineSettings, 'scoring'> & { scoring: Omit<EngineSett
 }
 
 /** Configuration du serveur → paramètres du contrat. */
-export function versEngineSettings(c: ConfigDjango): EngineSettings {
+export function versEngineSettings(c: ConfigDjango, anneeScolaire: string = anneeScolaireCourante()): EngineSettings {
   const f = REGLES_FIXES
   return {
     ...f,
-    besoin: { ...f.besoin, ageRetraite: c.seuils.age_retraite_ans },
+    anneeScolaire,
+    besoin: {
+      ...f.besoin,
+      ageRetraite: c.seuils.age_retraite_ans,
+      elevesParMaitre: c.besoin.norme_eleves_par_maitre,
+      toleranceArrondi: c.besoin.effectif_premiere_section,
+      niveauxParMaitre: c.besoin.niveaux_par_maitre_multigrade,
+      minimumSelonMultigrades: c.besoin.minimum_selon_multigrades,
+      doubleFluxAutorise: c.besoin.double_flux_autorise,
+    },
     priorite: { ...f.priorite, coefAccessibilite: c.vulnerabilite.t1, coefSecurite: c.vulnerabilite.t2 },
     mobilite: {
       ...f.mobilite,
       stabiliteMinimaleAns: c.seuils.anciennete_poste_recevabilite_ans,
       phaseVoeux: c.regles_dreb.phase1_voeux_actif,
+      regionsEtanches: c.regles_dreb.regions_etanches,
     },
     scoring: {
       ...f.scoring,
@@ -242,8 +259,14 @@ export function versConfigDjango(p: MiseAJourParametres): Partial<ConfigDjango> 
   poser(c, ['ajustements_contextuels', 'transition_rural_urbain'], a?.transitionRuralUrbain)
   poser(c, ['ajustements_contextuels', 'bonification_ciblee'], a?.bonificationCiblee)
 
+  poser(c, ['besoin', 'norme_eleves_par_maitre'], p.besoin?.elevesParMaitre)
+  poser(c, ['besoin', 'effectif_premiere_section'], p.besoin?.toleranceArrondi)
+  poser(c, ['besoin', 'niveaux_par_maitre_multigrade'], p.besoin?.niveauxParMaitre)
+  poser(c, ['besoin', 'minimum_selon_multigrades'], p.besoin?.minimumSelonMultigrades)
+  poser(c, ['besoin', 'double_flux_autorise'], p.besoin?.doubleFluxAutorise)
   poser(c, ['vulnerabilite', 't1'], p.priorite?.coefAccessibilite)
   poser(c, ['vulnerabilite', 't2'], p.priorite?.coefSecurite)
   poser(c, ['regles_dreb', 'phase1_voeux_actif'], p.mobilite?.phaseVoeux)
+  poser(c, ['regles_dreb', 'regions_etanches'], p.mobilite?.regionsEtanches)
   return c as Partial<ConfigDjango>
 }

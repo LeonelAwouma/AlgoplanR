@@ -160,3 +160,29 @@ def test_rapport_drh(c, jeu):
         c, f"jeux/{jeu}/planification/rapport/", seuil_cohorte=2)["redeploiement"]["national"]["cohorte"]
     r = c.get(B + f"jeux/{jeu}/planification/rapport/", {"horizon": 9})
     assert r.status_code == 422
+
+
+def test_degre_alea_national_et_par_region(c, jeu):
+    """Aléa = 1 − R² (enseignants ~ élèves) : mêmes valeurs que le rapport, avec le motif quand il est incalculable."""
+    retenir(c, jeu)
+    alea = get(c, f"jeux/{jeu}/planification/alea/")
+    rapport = get(c, f"jeux/{jeu}/planification/rapport/")
+    assert alea["national"]["alea"] == rapport["scenarios_regions"]["national"]["alea"]
+    assert {l["region"]: l["alea"] for l in alea["regions"]} == {
+        l["region"]: l["alea"] for l in rapport["scenarios_regions"]["lignes"]}
+    assert alea["regions"]
+    for ligne in alea["regions"]:
+        assert ligne["ecoles_avec_eleves"] <= ligne["ecoles"]
+        if ligne["alea"] is None:
+            assert ligne["raison"] and ligne["ecart_national"] is None
+        else:
+            assert 0 <= ligne["alea"] <= 1 and ligne["raison"] is None
+            if alea["national"]["alea"] is not None:
+                assert ligne["ecart_national"] == round(ligne["alea"] - alea["national"]["alea"], 2)
+
+
+def test_degre_alea_delegue_limite_a_sa_region(centre):
+    jeu = centre.post(B + "jeux/demonstration/", {"nb_ecoles": 40, "nb_enseignants": 300},
+                      content_type="application/json").json()["id"]
+    alea = get(centre, f"jeux/{jeu}/planification/alea/")
+    assert [l["region"] for l in alea["regions"]] == ["Centre"]

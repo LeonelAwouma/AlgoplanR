@@ -44,7 +44,7 @@ import {
   type SchoolDiagnostic,
   type Teacher,
   type TypeColonnes,
-  type TypeFichier,
+  type TypeFichierEnvoi,
   type ValidationJeu,
 } from '../../shared/api'
 
@@ -91,7 +91,7 @@ export function listerColonnesAttendues(type: TypeColonnes, signal?: AbortSignal
  *   régional de délégué contient une autre région.
  */
 export function envoyerFichier(
-  type: TypeFichier,
+  type: TypeFichierEnvoi,
   fichier: Blob,
   feuille?: string,
   baseNationale = false,

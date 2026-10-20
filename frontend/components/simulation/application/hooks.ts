@@ -24,6 +24,7 @@ import {
   creerScenario,
   executerScenario,
   expliquerAffectation,
+  lireEncadrement,
   lireComparaison,
   lireFlux,
   lireInvariants,
@@ -136,6 +137,11 @@ export function useExplication(jeu: IdJeu | null, scenario: string | null, matri
     (ref, signal) => expliquerAffectation(ref, matricule ?? '', signal),
     matricule !== null,
   )
+}
+
+/** Taux d'encadrement et turnover, avant et après le scénario. */
+export function useEncadrementScenario(jeu: IdJeu | null, scenario: string | null) {
+  return useSectionScenario(jeu, scenario, 'encadrement', [], lireEncadrement)
 }
 
 /** Enseignants du vivier restés sans affectation. */

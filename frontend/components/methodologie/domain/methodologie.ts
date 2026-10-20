@@ -31,8 +31,9 @@ export const NOTIONS: NotionMethodologique[] = [
   {
     titre: 'Norme — de combien de maîtres les élèves ont besoin',
     explication:
-      "La note de cadrage retient un maître pour 60 élèves, arrondi à l'entier supérieur : 250 élèves demandent 5 maîtres. Une école ne descend cependant jamais sous un minimum pédagogique, qui dépend de ses niveaux ouverts : une école complète de 6 niveaux, regroupés deux à deux en classes multigrades, a besoin d'au moins 3 maîtres.",
-    formule: 'P = ⌈N ÷ 60⌉ ; m = max(⌈niveaux ÷ 2⌉ ; niveaux − classes multigrades) ; dotation D = max(P ; m)',
+      "Le moteur retient un maître pour la première section (jusqu'à 20 élèves), puis un maître par tranche de 60 élèves au-delà, arrondi à l'entier supérieur : 250 élèves demandent ⌈(250 − 20) ÷ 60⌉ = 4 maîtres. La note de cadrage, elle, parle d'un maître pour 60 élèves : cet écart est à faire valider par la DRH. Une école ne descend cependant jamais sous un minimum pédagogique, qui dépend de ses niveaux ouverts : une école complète de 6 niveaux, regroupés deux à deux en classes multigrades, a besoin d'au moins 3 maîtres.",
+    formule:
+      'P = 1 si N ≤ 20, sinon ⌈(N − 20) ÷ 60⌉ ; m = 6 niveaux, ou 3 si l’école a des classes multigrades ; dotation D = max(P ; m)',
     parametrable:
       "Quand le fichier renseigne les classes multigrades, le minimum pédagogique se calcule école par école : sans multigrade, un maître par niveau ouvert (6 pour une école complète) ; avec multigrades, chaque classe multigrade économise un maître, jusqu'au regroupement deux à deux (3 maîtres). La norme, la tolérance d'arrondi et le regroupement sont des paramètres à valider par la DRH. Sans effectif d'élèves, l'application se replie sur « une classe, un maître » et le signale.",
   },
@@ -92,7 +93,7 @@ export const NOTIONS: NotionMethodologique[] = [
   {
     titre: 'Score d’appariement (étage 2) — quel maître pour quel poste',
     explication:
-      "Pour un enseignant e et un poste p, le score d'appariement combine le barème de l'enseignant, le poids du poste, la proximité géographique (même commune 60 points, même département 30, sinon 0) et des ajustements contextuels : jeune enseignant (≤ 35 ans) vers une école à classes multigrades + 15 ; senior (≥ 50 ans) ou raison de santé vers une structure d'encadrement + 15 ; senior vers une classe standard monolingue non multigrade + 8 ; transition du rural vers l'urbain après 5 ans au poste + 12 ; bonification ciblée sur l'école visée par un motif justifié + 20.",
+      "Pour un enseignant e et un poste p, le score d'appariement combine le barème de l'enseignant, le poids du poste, la proximité géographique (même commune 60 points, même département 30, sinon 0) et des ajustements contextuels : jeune enseignant (≤ 35 ans) vers une école à classes multigrades + 15 ; senior (≥ 50 ans) vers une structure d'encadrement (IAEB, DREB, délégation) + 15 ; senior vers une classe standard monolingue non multigrade + 8 ; transition du rural vers l'urbain après 5 ans au poste + 12 ; bonification ciblée (rapprochement de conjoint, suivi médical) : + 20 uniquement sur l'école visée, qui doit être citée dans le motif parmi les écoles demandées (sans école identifiée, aucun point).",
     formule: 'Score(e, p) = Z1 × barème + Z2 × Up + Z3 × proximité + Z4 × ajustements (Z1 = Z2 = Z3 = Z4 = 0,25)',
     parametrable:
       'Les poids Z1 à Z4, les points de proximité et les ajustements se règlent dans la configuration du moteur.',
@@ -107,12 +108,12 @@ export const NOTIONS: NotionMethodologique[] = [
   {
     titre: 'Solutions proches, combinaisons et redéploiement obligatoire',
     explication:
-      "Un candidat recevable dont aucun vœu n'est satisfait reçoit le poste ouvert le plus proche de ses vœux (commune, puis IAEB, puis département, puis région), jamais en zone rouge et jamais s'il est à moins de 5 ans de la retraite. Les écoles encore non couvertes sont présentées à la commission avec des combinaisons : redéploiement direct, chaîne de mouvements, permutation. En dernier recours, le redéploiement obligatoire déplace un maître d'une école excédentaire du même sous-système, par passes successives — même commune, même IAEB, même département, même région, puis hors région au niveau central — et, à proximité égale, le maître au meilleur score d'appariement ; les postes en zone rouge n'en font jamais l'objet.",
+      "Un candidat recevable dont aucun vœu n'est satisfait reçoit le poste ouvert le plus proche de ses vœux (commune, puis IAEB, puis département, puis région), jamais en zone rouge et jamais s'il est à moins de 5 ans de la retraite. Les écoles encore non couvertes sont présentées à la commission avec des combinaisons : redéploiement direct, chaîne de mouvements, permutation. En dernier recours, le redéploiement obligatoire déplace un maître d'une école excédentaire du même sous-système, par passes successives — même commune, même IAEB, même département, puis même région ; hors région, l'enseignant reste dans le vivier et passe en commission d'arbitrage — et, à proximité égale, le maître au meilleur score d'appariement ; les postes en zone rouge n'en font jamais l'objet.",
   },
   {
     titre: 'Niveau régional et niveau central',
     explication:
-      "Les vœux à l'intérieur de la région sont traités au niveau régional. Les vœux interrégionaux et les besoins qu'aucune école de la région ne peut couvrir sont traités au niveau central, dans le scénario étendu.",
+      "Les vœux à l'intérieur de la région sont traités au niveau régional. Un enseignant n'est affecté que dans sa région : les vœux interrégionaux et les besoins qu'aucune école de la région ne peut couvrir ne sont pas traités automatiquement ; ils restent dans le vivier et vont en commission d'arbitrage, qui peut décider un mouvement entre régions.",
   },
   {
     titre: 'Nouveaux recrutés',
@@ -133,10 +134,10 @@ export const NOTIONS: NotionMethodologique[] = [
       'E(N+k) = E(N+k−1) − retraites ; besoin = max(0 ; K − E) ; recrutement à prévoir = Σ max(0 ; B − X) + attrition cumulée',
   },
   {
-    titre: 'Agrégation, recrutement à prévoir et degré d’aléa',
+    titre: 'Agrégation, recrutement à prévoir et déséquilibre des dotations',
     explication:
-      "Les résultats des écoles sont additionnés séparément pour chaque sous-système, après écrêtage à zéro : l'excédent d'une école n'annule pas le déficit d'une autre. Le recrutement à prévoir ajoute au besoin restant après redéploiement les départs imprévisibles attendus. Le degré d'aléa mesure la part de la dotation mal répartie entre les écoles d'un territoire ; il tombe à zéro quand besoin et excédent s'annulent.",
-    formule: 'R = Σ max(0 ; B − X) par sous-système ; REC = R + ⌈τ* × E ÷ 100⌉ ; aléa = (B + X) ÷ Σ K',
+      "Les résultats des écoles sont additionnés séparément pour chaque sous-système, après écrêtage à zéro : l'excédent d'une école n'annule pas le déficit d'une autre. Le recrutement à prévoir ajoute au besoin restant après redéploiement les départs imprévisibles attendus. Le taux de déséquilibre des dotations mesure la part de la dotation mal répartie entre les écoles d'un territoire ; il tombe à zéro quand besoin et excédent s'annulent. Il se distingue du degré d'aléa du tableau de bord (1 − R²), qui mesure si le nombre d'enseignants des écoles suit leur nombre d'élèves.",
+    formule: 'R = Σ max(0 ; B − X) par sous-système ; REC = R + ⌈τ* × E ÷ 100⌉ ; déséquilibre = (B + X) ÷ Σ K',
     parametrable: "Le taux d'attrition hors retraite τ* se règle dans le Référentiel.",
   },
   {

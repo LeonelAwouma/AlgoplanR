@@ -31,6 +31,7 @@ import {
   libelleZoneSecurite,
 } from '../../../shared/kernel'
 import type { CellValue } from '../../../shared/exports/export-csv'
+import { classeurEnOctets, type FeuilleXlsx } from '../../../shared/exports/export-xlsx'
 
 const SEVERITE_LABEL: Record<SchoolDiagnostic['severite'], string> = {
   excedent: 'Excédent mobilisable',
@@ -65,7 +66,7 @@ function lignesTerritoriales(arbre: TerritorialSummary): CellValue[][] {
         noeud.totals.ecolesAnalysees,
         noeud.totals.ecolesEnDeficit,
         noeud.totals.ecolesAvecExcedent,
-        noeud.totals.classes,
+        noeud.totals.classes ?? '',
         noeud.totals.enseignantsEtat,
         noeud.totals.postesNecessaires,
         noeud.totals.postesDeclares ?? '',
@@ -81,13 +82,10 @@ function lignesTerritoriales(arbre: TerritorialSummary): CellValue[][] {
 }
 
 export async function exporterClasseurComplet(input: ExcelExportInput): Promise<Uint8Array> {
-  const XLSX = await import('xlsx')
-  const wb = XLSX.utils.book_new()
-
+  const feuilles: FeuilleXlsx[] = []
+  // Mise en forme (en-têtes, filtre, formats, noms d'onglets de 31 caractères au plus) : export-xlsx.ts.
   const ajouter = (nom: string, entetes: string[], lignes: CellValue[][]) => {
-    const feuille = XLSX.utils.aoa_to_sheet([entetes, ...lignes])
-    // Excel limite les noms d'onglets à 31 caractères.
-    XLSX.utils.book_append_sheet(wb, feuille, nom.slice(0, 31))
+    feuilles.push({ nom, entetes, lignes })
   }
 
   const { ecoles: diagnostics, parametres, arbre, qualite, resultat, comparaison, rapport } = input
@@ -105,7 +103,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         `Établissements en ${LIBELLE_ZONE_SECURITE[z].toLowerCase()}`,
         diagnostics.filter(d => (d.school.zoneSecurite ?? 'verte') === z).length,
       ]),
-      ['Classes', t.classes],
+      ['Classes ouvertes', t.classes ?? 'Non renseigné'],
       ["Enseignants payés par l'État", t.enseignantsEtat],
       ['Postes nécessaires (besoin calculé)', t.postesNecessaires],
       ['Postes officiellement déclarés', t.postesDeclares ?? 'Non renseigné'],
@@ -130,8 +128,9 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Zone de sécurité',
       'Type',
       'Sous-système',
-      'Classes',
-      'Groupes pédagogiques',
+      'Salles',
+      'Classes ouvertes',
+      'Capacité en maîtres (BMAX)',
       'Élèves N',
       'Maîtres en poste',
       'Départs connus',
@@ -169,7 +168,8 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       d.school.typeEtab,
       d.school.sousSysteme ?? '',
       d.school.nbSallesClasse ?? '',
-      d.nbClasses,
+      d.school.nombreClassesOuvertes ?? '',
+      d.school.sallesRenseignees ? d.school.capaciteMaitres : 'Inconnue',
       d.calcul.eleves ?? '',
       d.calcul.enseignantsEnPoste,
       d.calcul.departsConnus,
@@ -193,7 +193,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       d.priorite.niveauDifficulte,
       d.priorite.pointsBesoin,
       d.priorite.indice,
-      d.calcul.methode === 'norme_eleves' ? 'Norme élèves' : 'Repli : une classe = un maître',
+      d.calcul.methode === 'norme_eleves' ? 'Norme élèves' : 'Repli : effectif d’élèves inconnu',
       SEVERITE_LABEL[d.severite],
     ]),
   )
@@ -416,7 +416,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         'Salles manquantes',
         'Effectif E',
         'Recrutement à prévoir',
-        "Degré d'aléa",
+        'Taux de déséquilibre des dotations',
       ],
       (['avant', 'apres'] as const).flatMap(moment => {
         const s = moment === 'avant' ? resultat.syntheseAvant : resultat.syntheseApres
@@ -879,5 +879,5 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
     ajouter('Rapport_Decisionnel', ['Section', 'Contenu'], lignes)
   }
 
-  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as Uint8Array
+  return classeurEnOctets(feuilles)
 }

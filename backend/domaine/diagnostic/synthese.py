@@ -7,15 +7,18 @@ from ..donnees import colonnes as C
 from .territoires import Perimetre, filtrer_lignes
 
 
-def totaux_diagnostic(ecoles: List[dict], besoin_prince_par_ecole: Optional[Dict[str, int]] = None) -> dict:
-    """Totaux du diagnostic. `besoin_prince_par_ecole` : postes déjà consommés par des faits de Prince."""
-    pr = besoin_prince_par_ecole or {}
+def totaux_diagnostic(ecoles: List[dict]) -> dict:
+    """Totaux du diagnostic des lignes données (bases après, ou avant, les faits du Prince selon l'appelant).
+
+    `besoin_postes_avant_prince` : besoin des mêmes écoles avant les faits du Prince, quand les lignes le portent.
+    """
     besoin = sum(int(e.get("nb_postes_ouverts", 0) or 0) for e in ecoles)
-    besoin_net = sum(max(0, int(e.get("nb_postes_ouverts", 0) or 0) - pr.get(e[C.COL_ETAB_ID], 0)) for e in ecoles)
+    avant = sum(int(e.get("Besoin_Avant_Prince", e.get("nb_postes_ouverts", 0)) or 0) for e in ecoles)
     return {
         "nb_ecoles": len(ecoles),
         "besoin_postes": besoin,
-        "besoin_postes_apres_prince": besoin_net,
+        "besoin_postes_avant_prince": avant,
+        "besoin_postes_apres_prince": besoin,
         "excedent_enseignants": int(sum(float(e.get("xe", 0) or 0) for e in ecoles)),
         "nb_ecoles_necessiteuses": sum(1 for e in ecoles if e.get("est_necessiteuse")),
         "nb_ecoles_excedentaires": sum(1 for e in ecoles if e.get("est_excedentaire")),
@@ -99,7 +102,7 @@ def points_attention(synthese: dict, ecoles: List[dict]) -> List[dict]:
                     "message": f"{manquantes} salle(s) de classe manquante(s) limitent la dotation effective."})
     if synthese.get("effet_de_prince", 0) > 0:
         pts.append({"code": "PRINCE", "gravite": "info",
-                    "message": f"{synthese['effet_de_prince']} affectation(s) dérogatoire(s) (effet de prince)."})
+                    "message": f"{synthese['effet_de_prince']} mouvement(s) du Prince appliqués aux bases avant l'algorithme."})
     return pts
 
 
@@ -107,6 +110,6 @@ def texte_narratif(synthese: dict, perimetre_titre: str) -> str:
     b, a = synthese.get("besoin_total", 0), synthese.get("affectes", 0)
     couv = f"{a / b:.0%}" if b else "n/a"
     return (f"Périmètre {perimetre_titre} : {b} poste(s) à pourvoir pour {synthese.get('disponibles', 0)} "
-            f"enseignant(s) mobilisable(s). {a} affectation(s) réalisée(s) (couverture {couv}), dont "
-            f"{synthese.get('effet_de_prince', 0)} par effet de prince. {synthese.get('postes_non_pourvus', 0)} "
-            f"poste(s) restent à pourvoir par recrutement.")
+            f"enseignant(s) mobilisable(s), après les {synthese.get('effet_de_prince', 0)} mouvement(s) du Prince "
+            f"appliqués aux bases. {a} affectation(s) réalisée(s) (couverture {couv}). "
+            f"{synthese.get('postes_non_pourvus', 0)} poste(s) restent à pourvoir par recrutement.")

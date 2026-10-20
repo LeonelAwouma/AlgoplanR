@@ -177,12 +177,22 @@ def scenario_du_jeu(jeu, sid: int) -> Scenario:
     return get_object_or_404(Scenario, pk=sid, jeu=jeu)
 
 
-def resume_scenario(sc: Scenario) -> dict:
+def est_obsolete(sc: Scenario) -> bool:
+    """Scénario à recalculer : paramètres modifiés depuis, ou résultat calculé avant la règle des régions étanches."""
+    if sc.obsolete:
+        return True
     try:
-        r = sc.resultat
-        calcule = r.calcule_le
+        return "regions_etanches" not in (sc.resultat.config.get("regles_dreb") or {})
+    except ResultatSimulation.DoesNotExist:
+        return False
+
+
+def resume_scenario(sc: Scenario) -> dict:
+    obsolete = est_obsolete(sc)
+    try:
+        calcule = sc.resultat.calcule_le
     except ResultatSimulation.DoesNotExist:
         calcule = None
     return {"id": sc.pk, "code": sc.code, "nom": sc.nom, "description": sc.description,
-            "geographique": sc.geographique, "obsolete": sc.obsolete, "parametres": sc.parametres,
+            "geographique": sc.geographique, "obsolete": obsolete, "parametres": sc.parametres,
             "cree_le": sc.cree_le, "calcule_le": calcule}

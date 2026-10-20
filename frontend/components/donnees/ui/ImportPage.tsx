@@ -19,14 +19,15 @@ import { FlaskConical, Play, RefreshCw, ShieldCheck } from 'lucide-react'
 
 import { useUtilisateur } from '@components/acces'
 import {
-  ApiError,
   messageErreur,
+  type BilanImportPrince,
   type DataQualityReport,
   type FichierImporte,
   type IdJeu,
   type TypeFichier,
+  type TypeFichierEnvoi,
 } from '@shared/api'
-import { MENTION_DEMONSTRATION } from '@shared/kernel'
+import { MENTION_DEMONSTRATION, anneeScolaireCourante, anneeScolaireValide } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { Notice, Panel, fmt } from '@shared/ui/commun'
 
@@ -42,7 +43,7 @@ import { TYPES_FICHIER, colonnesRequisesManquantes } from '../domain/corresponda
 import { estClasseur, repartir, type ClasseurLu } from '../domain/triDossier'
 import { CarteFichier } from './composants/CarteFichier'
 import { ChoixDossier, type BilanDossier } from './composants/ChoixDossier'
-import { ChoixOrigine, type OrigineFichiers } from './composants/ChoixOrigine'
+import { ChoixFaitsPrince } from './composants/ChoixFaitsPrince'
 import { DataQualityPanel } from './composants/DataQualityPanel'
 import { JeuxEnregistres } from './composants/JeuxEnregistres'
 import { SuiviAnalyse, type AvancementEtape, type CleEtape, type EtatEtape } from './composants/SuiviAnalyse'
@@ -50,14 +51,16 @@ import { TableCorrespondance } from './composants/TableCorrespondance'
 
 /** Délai laissé pour lire le bilan avant d'ouvrir la vue d'ensemble. */
 const DELAI_OUVERTURE_MS = 1200
+/** Délai plus long quand des décisions du prince ont été refusées : l'utilisateur doit pouvoir les lire. */
+const DELAI_OUVERTURE_REFUS_MS = 8000
 
 type FichiersEnvoyes = Record<TypeFichier, FichierImporte | null>
 
 /**
  * Page « Ajouter les données ». Le DRH importe le fichier de la base nationale
  * (jeu national). Un délégué
- * importe les classeurs de sa région, ou la base nationale dont le serveur ne
- * retient que sa région. Dans tous les cas, un dossier entier peut être choisi.
+ * importe les classeurs de sa région, ou la base nationale : le serveur la
+ * reconnaît seul et n'en retient que sa région. Dans tous les cas, un dossier entier peut être choisi.
  */
 export function ImportPage() {
   const utilisateur = useUtilisateur()
@@ -75,11 +78,19 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
 
   const [fichiers, setFichiers] = useState<FichiersEnvoyes>({ etablissements: null, enseignants: null })
   const [erreurs, setErreurs] = useState<Partial<Record<TypeFichier, string>>>({})
-  const [enLecture, setEnLecture] = useState<TypeFichier | null>(null)
+  const [enLecture, setEnLecture] = useState<TypeFichierEnvoi | null>(null)
   const [avancement, setAvancement] = useState<Partial<Record<CleEtape, AvancementEtape>>>({})
   const [blocage, setBlocage] = useState<string | null>(null)
   const [echec, setEchec] = useState<string | null>(null)
   const [qualite, setQualite] = useState<DataQualityReport | null>(null)
+  // Rentrée que prépare le jeu ; vide = l'année en cours, fixée par le serveur.
+  const [anneeScolaire, setAnneeScolaire] = useState('')
+  const anneeInvalide = anneeScolaire.trim() !== '' && !anneeScolaireValide(anneeScolaire)
+  /** Réponse au menu « fichier des faits du prince » ; `null` tant que le DRH n'a pas répondu. */
+  const [souhaitePrince, setSouhaitePrince] = useState<boolean | null>(null)
+  const [fichierPrince, setFichierPrince] = useState<FichierImporte | null>(null)
+  const [erreurPrince, setErreurPrince] = useState<string | null>(null)
+  const [bilanPrince, setBilanPrince] = useState<BilanImportPrince | null>(null)
   /** Jeu créé par la dernière analyse, ouvert après un court délai. */
   const [jeuCree, setJeuCree] = useState<IdJeu | null>(null)
 
@@ -88,37 +99,26 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
   const [triEnCours, setTriEnCours] = useState(false)
   const [bilanDossier, setBilanDossier] = useState<BilanDossier | null>(null)
   const [erreurDossier, setErreurDossier] = useState<string | null>(null)
-  /** Délégué : fichiers de sa région, ou base nationale dont seule sa région est retenue. */
-  const [origine, setOrigine] = useState<OrigineFichiers>('regionale')
-  /** Le DRH importe toujours la base nationale, entière. */
-  const baseNationale = estDrh || origine === 'nationale'
 
   const enCours = creation.isPending
   const complet = !!fichiers.etablissements && !!fichiers.enseignants
+  // Le menu du prince n'est proposé qu'au DRH, une fois les deux bases chargées.
+  const proposePrince = estDrh && complet
+  const princeAttendu = proposePrince && souhaitePrince === true
+  const prete =
+    complet && !anneeInvalide && (!proposePrince || souhaitePrince !== null) && (!princeAttendu || !!fichierPrince)
 
-  // Laisse le bilan visible un instant, puis ouvre le jeu créé.
+  // Laisse le bilan visible un instant, puis ouvre le jeu créé : sur le Fait de Prince quand un fichier de décisions a
+  // été joint (on y voit ce qu'elles changent aux bases), sinon sur le tableau de bord.
   useEffect(() => {
     if (!jeuCree) return
-    const minuteur = window.setTimeout(() => ouvrirJeu(jeuCree), DELAI_OUVERTURE_MS)
+    const delai = bilanPrince && bilanPrince.refus.length > 0 ? DELAI_OUVERTURE_REFUS_MS : DELAI_OUVERTURE_MS
+    const minuteur = window.setTimeout(() => ouvrirJeu(jeuCree, bilanPrince ? 'prince' : undefined), delai)
     return () => window.clearTimeout(minuteur)
-  }, [jeuCree, ouvrirJeu])
+  }, [jeuCree, bilanPrince, ouvrirJeu])
 
   function marquer(cle: CleEtape, etat: EtatEtape, detail?: string) {
     setAvancement(courant => ({ ...courant, [cle]: { etat, detail } }))
-  }
-
-  /** Change l'origine des classeurs : fixée à l'envoi, elle oblige à redéposer les fichiers. */
-  function changerOrigine(nouvelle: OrigineFichiers) {
-    if (nouvelle === origine) return
-    setOrigine(nouvelle)
-    setFichiers({ etablissements: null, enseignants: null })
-    setErreurs({})
-    setBilanDossier(null)
-    setErreurDossier(null)
-    setAvancement({})
-    setBlocage(null)
-    setEchec(null)
-    setQualite(null)
   }
 
   /** Envoie un classeur au serveur, qui le lit et reconnaît ses colonnes. */
@@ -127,16 +127,26 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
     setErreurs(courantes => ({ ...courantes, [type]: undefined }))
     setQualite(null)
     try {
-      const lu = await envoi.mutateAsync({ type, fichier, baseNationale })
+      // Le serveur reconnaît seul un fichier national et en extrait la région du délégué.
+      const lu = await envoi.mutateAsync({ type, fichier, baseNationale: estDrh })
       setFichiers(courants => ({ ...courants, [type]: lu }))
     } catch (erreur) {
-      let message = messageErreur(erreur)
-      if (!baseNationale && erreur instanceof ApiError && erreur.code === 'region_non_autorisee') {
-        message +=
-          ' S’il s’agit du fichier de la base nationale, choisissez « Base nationale » ci-dessus : seules les lignes de votre région seront retenues.'
-      }
-      setErreurs(courantes => ({ ...courantes, [type]: message }))
+      setErreurs(courantes => ({ ...courantes, [type]: messageErreur(erreur) }))
       setFichiers(courants => ({ ...courants, [type]: null }))
+    } finally {
+      setEnLecture(null)
+    }
+  }
+
+  /** Envoie le fichier des faits du prince ; ses colonnes sont reconnues comme celles des deux autres classeurs. */
+  async function choisirFichierPrince(fichier: File) {
+    setEnLecture('prince')
+    setErreurPrince(null)
+    try {
+      setFichierPrince(await envoi.mutateAsync({ type: 'prince', fichier }))
+    } catch (erreur) {
+      setErreurPrince(messageErreur(erreur))
+      setFichierPrince(null)
     } finally {
       setEnLecture(null)
     }
@@ -185,12 +195,15 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
   }
 
   /** Corrige une correspondance ; le serveur renvoie la table à jour. */
-  function corrigerCorrespondance(type: TypeFichier, champ: string, enTete: string | null) {
-    const fichier = fichiers[type]
+  function corrigerCorrespondance(type: TypeFichierEnvoi, champ: string, enTete: string | null) {
+    const fichier = type === 'prince' ? fichierPrince : fichiers[type]
     if (!fichier) return
     correction.mutate(
       { fichier: fichier.id, correspondances: { [champ]: enTete } },
-      { onSuccess: misAJour => setFichiers(courants => ({ ...courants, [type]: misAJour })) },
+      {
+        onSuccess: misAJour =>
+          type === 'prince' ? setFichierPrince(misAJour) : setFichiers(courants => ({ ...courants, [type]: misAJour })),
+      },
     )
   }
 
@@ -202,18 +215,22 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
     setBlocage(null)
     setEchec(null)
     setQualite(null)
+    setBilanPrince(null)
     setAvancement({})
 
     marquer(
       'lecture',
       'faite',
       `${fmt(etablissements.lignes)} établissements et ${fmt(enseignants.lignes)} enseignants lus` +
-        (baseNationale && region ? ` dans la base nationale ; seule la région ${region} sera retenue.` : '.'),
+        (region && (etablissements.baseNationale || enseignants.baseNationale)
+          ? ` dans la base nationale ; seule la région ${region} sera retenue.`
+          : '.'),
     )
 
     const manquants = [
       ...colonnesRequisesManquantes(etablissements.correspondances),
       ...colonnesRequisesManquantes(enseignants.correspondances),
+      ...(princeAttendu && fichierPrince ? colonnesRequisesManquantes(fichierPrince.correspondances) : []),
     ]
     if (manquants.length > 0) {
       marquer('colonnes', 'bloquee', `${manquants.length} information(s) indispensable(s) introuvable(s).`)
@@ -234,8 +251,14 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
     marquer('diagnostic', 'encours')
     marquer('simulation', 'encours')
     try {
-      const cree = await creation.mutateAsync({ etablissements: etablissements.id, enseignants: enseignants.id })
+      const cree = await creation.mutateAsync({
+        etablissements: etablissements.id,
+        enseignants: enseignants.id,
+        ...(princeAttendu && fichierPrince ? { prince: fichierPrince.id } : {}),
+        ...(anneeScolaire.trim() ? { anneeScolaire: anneeScolaire.trim() } : {}),
+      })
       setQualite(cree.qualite)
+      setBilanPrince(cree.prince ?? null)
       marquer('qualite', 'faite', `Qualité ${cree.qualite.score} sur 100 (${cree.qualite.appreciation.toLowerCase()}).`)
       marquer('diagnostic', 'faite', `${fmt(cree.jeu.nbUnitesCalcul)} établissements analysés.`)
       marquer('simulation', 'faite', 'Scénarios de référence calculés.')
@@ -270,8 +293,8 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
         ) : (
           <p className="import-consigne">
             Choisissez le dossier qui contient vos classeurs, ou déposez le fichier des établissements et celui des
-            enseignants (ceux de votre région, ou ceux de la base nationale), puis lancez l’analyse : contrôle qualité,
-            diagnostic et scénarios de référence s’enchaînent sur le serveur.
+            enseignants (ceux de votre région, ou ceux de la base nationale : seule votre région est alors retenue),
+            puis lancez l’analyse : contrôle qualité, diagnostic et scénarios de référence s’enchaînent sur le serveur.
           </p>
         ))}
 
@@ -288,13 +311,11 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
         <SuiviAnalyse avancement={avancement} enCours={enCours} interrompue={!!blocage || !!echec} />
       )}
 
-      {region && (
-        <ChoixOrigine
-          region={region}
-          origine={origine}
-          desactive={occupe || triEnCours || enLecture !== null}
-          onChange={changerOrigine}
-        />
+      {region && (fichiers.etablissements?.baseNationale || fichiers.enseignants?.baseNationale) && !occupe && (
+        <Notice tone="info" title="Base nationale reconnue.">
+          Seules les écoles de la région {region} et les enseignants qui y sont rattachés seront retenus ; les autres
+          régions sont écartées automatiquement.
+        </Notice>
       )}
 
       <ChoixDossier
@@ -319,11 +340,54 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
         ))}
       </div>
 
+      {!occupe && (
+        <div className="field">
+          <label htmlFor="import-annee">Année scolaire du jeu</label>
+          <input
+            id="import-annee"
+            type="text"
+            inputMode="numeric"
+            placeholder={anneeScolaireCourante()}
+            value={anneeScolaire}
+            aria-invalid={anneeInvalide}
+            onChange={e => setAnneeScolaire(e.target.value)}
+          />
+          <span className="hint">
+            {anneeInvalide
+              ? 'Saisissez deux années consécutives, par exemple 2026-2027.'
+              : 'La rentrée que prépare ce jeu ; l’année en cours si vous laissez vide. Elle ne se modifie plus ensuite.'}
+          </span>
+        </div>
+      )}
+
+      {proposePrince && !jeuCree && (
+        <ChoixFaitsPrince
+          souhaite={souhaitePrince}
+          onChoix={setSouhaitePrince}
+          fichier={fichierPrince}
+          erreur={erreurPrince}
+          enLecture={enLecture === 'prince'}
+          desactive={occupe || triEnCours}
+          onFichier={fichier => void choisirFichierPrince(fichier)}
+        />
+      )}
+
+      {bilanPrince && (
+        <Notice
+          tone={bilanPrince.refus.length > 0 ? 'warn' : 'info'}
+          title={`Faits du prince : ${fmt(bilanPrince.acceptees)} décision(s) appliquée(s) avant l’algorithme.`}
+        >
+          {bilanPrince.refus.length > 0
+            ? `${fmt(bilanPrince.refus.length)} ligne(s) refusée(s) : ${bilanPrince.refus.join(' ; ')}`
+            : 'Toutes les lignes du fichier ont été retenues.'}
+        </Notice>
+      )}
+
       <div className="topbar-actions">
         <button
           type="button"
           className="btn btn-primary"
-          disabled={!complet || occupe || enLecture !== null}
+          disabled={!prete || occupe || enLecture !== null}
           onClick={() => void lancerAnalyse()}
         >
           {enCours ? (
@@ -365,8 +429,8 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
           <Notice tone="alert" title="Information indispensable manquante.">
             {blocage}
           </Notice>
-          {TYPES_FICHIER.map(type => {
-            const fichier = fichiers[type]
+          {[...TYPES_FICHIER, ...(princeAttendu ? (['prince'] as const) : [])].map(type => {
+            const fichier = type === 'prince' ? fichierPrince : fichiers[type]
             if (!fichier) return null
             return (
               <TableCorrespondance

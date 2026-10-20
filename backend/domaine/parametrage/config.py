@@ -34,17 +34,44 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "bonification_ciblee": 20,
     },
     "vulnerabilite": {"t1": 0.30, "t2": 0.70},
+    # Besoin d'une école (formules du guide MINEDUB, lues par domaine/diagnostic/indicateurs.py) :
+    #   P = max(1 ; ceil((N - effectif_premiere_section) / norme_eleves_par_maitre)),
+    #   m = nombre_niveaux (ou ceil(nombre_niveaux / niveaux_par_maitre_multigrade) pour une école multigrade),
+    #   BMAX = salles simple flux + 2 x salles double flux (1 x si le double flux n'est pas autorisé).
+    "besoin": {
+        "norme_eleves_par_maitre": 60,
+        "effectif_premiere_section": 20,
+        "nombre_niveaux": 6,
+        "niveaux_par_maitre_multigrade": 2,
+        "minimum_selon_multigrades": True,
+        "double_flux_autorise": True,
+    },
     "regles_dreb": {
         "phase1_voeux_actif": True,
         "phase2_proximite_iaeb": True,
         "phase2_proximite_departement": True,
         "phase3_extension_regionale": True,
         "phase4_vivier_recrutement": True,
+        # Un enseignant n'est affecté que dans sa région : les autres restent dans le vivier (commission d'arbitrage).
+        "regions_etanches": True,
     },
 }
 
 # Groupes dont la somme des poids est attendue égale à 1 (avertissement, jamais bloquant).
 GROUPES_POIDS = ("poids_bareme_individuel", "poids_score_appariement")
+
+
+# Réglages supprimés du moteur, encore présents dans des configurations enregistrées : ignorés sans erreur.
+# (Aucun aujourd'hui : `bonification_ciblee` a été retirée puis rétablie.)
+CLES_ABANDONNEES: tuple = ()
+
+
+def sans_cles_abandonnees(surcharge: Dict[str, Any] | None) -> Dict[str, Any]:
+    res = copy.deepcopy(surcharge or {})
+    for groupe, cle in CLES_ABANDONNEES:
+        if isinstance(res.get(groupe), dict):
+            res[groupe].pop(cle, None)
+    return res
 
 
 class ParametresInvalides(ValueError):
@@ -95,7 +122,8 @@ def _inconnues(modele: Dict[str, Any], valeur: Dict[str, Any], chemin: str = "")
 
 def valider(surcharge: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     """Valide une surcharge partielle. Retourne (config complète, avertissements). Lève ParametresInvalides."""
-    erreurs = _inconnues(DEFAULT_CONFIG, surcharge or {})
+    surcharge = sans_cles_abandonnees(surcharge)
+    erreurs = _inconnues(DEFAULT_CONFIG, surcharge)
     if erreurs:
         raise ParametresInvalides(erreurs)
     cfg = fusionner(DEFAULT_CONFIG, surcharge)
@@ -108,6 +136,13 @@ def valider(surcharge: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     v = cfg["vulnerabilite"]
     if v["t1"] < 0 or v["t2"] < 0:
         erreurs.append("Les coefficients de vulnérabilité doivent être positifs")
+    b = cfg["besoin"]
+    if b["norme_eleves_par_maitre"] <= 0:
+        erreurs.append("besoin.norme_eleves_par_maitre doit être strictement positif")
+    if not (0 <= b["effectif_premiere_section"] < max(b["norme_eleves_par_maitre"], 1)):
+        erreurs.append("besoin.effectif_premiere_section doit être compris entre 0 et la norme (exclue)")
+    if b["nombre_niveaux"] < 1 or b["niveaux_par_maitre_multigrade"] < 1:
+        erreurs.append("besoin.nombre_niveaux et besoin.niveaux_par_maitre_multigrade doivent valoir au moins 1")
     for g in GROUPES_POIDS:
         if any(p < 0 for p in cfg[g].values()):
             erreurs.append(f"{g} : poids négatif interdit")

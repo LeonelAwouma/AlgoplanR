@@ -36,8 +36,8 @@ import { appliquerFiltres, construireArbreTerritorial } from './moteur/territoir
 /** Paramètres de calcul du jeu. */
 export function parametres(acces: Acces, jeu: string): Promise<EngineSettings> {
   return acces.memo(jeu, 'parametres', async a => {
-    const r = await a.lire<{ parametres: ConfigDjango }>(`jeux/${jeu}/parametres/`)
-    return versEngineSettings(r.parametres)
+    const r = await a.lire<{ parametres: ConfigDjango; annee_scolaire?: string }>(`jeux/${jeu}/parametres/`)
+    return versEngineSettings(r.parametres, r.annee_scolaire)
   })
 }
 

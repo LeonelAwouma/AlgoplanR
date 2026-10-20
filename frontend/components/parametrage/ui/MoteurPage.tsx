@@ -4,8 +4,9 @@
  * Configuration du moteur — Vue analyste uniquement.
  *
  * Les barèmes chiffrés de la note : le barème individuel (C1 à C5), le score
- * d'appariement Score(e, p) qui classe les candidats à un poste, et les points
- * du score de priorité S = A + Z + B gardé en variante. Ces réglages modifient le classement des
+ * d'appariement Score(e, p) qui classe les candidats à un poste, et les points par
+ * situation matrimoniale. Seuls les champs que le serveur applique sont modifiables
+ * (voir domain/champsMoteur.ts). Ces réglages modifient le classement des
  * enseignants : ils n'ont de sens que si la méthodologie correspondante a été
  * validée. Comme le Référentiel, ils sont saisis puis enregistrés en une fois.
  */
@@ -19,7 +20,6 @@ import { EtatRequetes } from '@shared/ui/etats'
 import { useSituationsFamiliales } from '../application/hooks'
 import { BarreEnregistrement } from './composants/BarreEnregistrement'
 import { Ponderations } from './composants/moteur/Ponderations'
-import { ScorePriorite } from './composants/moteur/ScorePriorite'
 import { SituationsFamiliales } from './composants/moteur/SituationsFamiliales'
 import { useBrouillonParametres } from './useBrouillonParametres'
 
@@ -66,7 +66,6 @@ export function MoteurPage() {
         </button>
       </Panel>
 
-      <ScorePriorite parametres={brouillon.parametres} maj={brouillon.maj} />
       <Ponderations parametres={brouillon.parametres} maj={brouillon.maj} />
       <SituationsFamiliales
         parametres={brouillon.parametres}

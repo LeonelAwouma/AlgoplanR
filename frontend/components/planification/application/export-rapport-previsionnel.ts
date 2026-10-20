@@ -13,6 +13,7 @@ import type {
   StatutEcoleRedeploiement,
 } from '../../shared/api'
 import { telechargerFichier, type CellValue } from '../../shared/exports/export-csv'
+import { classeurEnOctets, type FeuilleXlsx } from '../../shared/exports/export-xlsx'
 import type { IdJeu } from '../../shared/api'
 import { lireListesRapport, type OptionsRapport, type RequetePlanification } from '../infrastructure/planificationApi'
 
@@ -38,10 +39,10 @@ export async function exporterClasseurRapportPrevisionnel(
   rapport: RapportPrevisionnel,
   listes: ListesRapportPrevisionnel,
 ): Promise<Uint8Array> {
-  const XLSX = await import('xlsx')
-  const wb = XLSX.utils.book_new()
+  const feuilles: FeuilleXlsx[] = []
+  // Mise en forme (en-têtes, filtre, formats, noms d'onglets de 31 caractères au plus) : export-xlsx.ts.
   const ajouter = (nom: string, entetes: string[], lignes: CellValue[][]) => {
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([entetes, ...lignes]), nom.slice(0, 31))
+    feuilles.push({ nom, entetes, lignes })
   }
 
   const n = rapport.national
@@ -186,7 +187,7 @@ export async function exporterClasseurRapportPrevisionnel(
     rapport.limites.map(l => [l]),
   )
 
-  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as Uint8Array
+  return classeurEnOctets(feuilles)
 }
 
 /** Lit les listes nominatives du périmètre, construit le classeur et le télécharge. */

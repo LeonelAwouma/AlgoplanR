@@ -4,7 +4,7 @@
    ALGOPLANR — Système de design
    Langage visuel inspiré d'OpenEMIS : fond gris clair, surfaces blanches, un seul
    bleu d'action, bandeau supérieur blanc, navigation latérale claire regroupée par
-   étape (Collecter, Analyser, Simuler, Restituer), tableaux et formulaires sobres.
+   étape (Importer, Analyser, Simuler, Restituer), tableaux et formulaires sobres.
    Lisible sur un écran d'administration comme sur un ordinateur portable. Contrastes vérifiés
    pour le texte courant (>= 4.5:1) et aucune information portée par la seule
    couleur : chaque état a un libellé, une valeur et une forme distincte.
@@ -827,6 +827,72 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.85;
+}
+
+/* --- Onglets de détail d'un menu, et bouton « Continuer » du parcours ----- */
+
+.onglets-detail {
+  margin: -4px 0 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.etapes + .onglets-detail {
+  margin-top: -8px;
+}
+.onglets-detail .etapes-titre {
+  margin: 0;
+}
+.onglets-detail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.onglets-detail button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.onglets-detail button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--ink);
+}
+.onglets-detail button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.onglets-detail button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.onglets-detail button[aria-current='page'] {
+  background: var(--accent-bg);
+  border-color: var(--primary);
+  color: var(--accent-ink);
+}
+.continuer {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 14px;
+}
+/* « Paramètres avancés » : séparé des cinq menus du parcours. */
+.nav-list-avancee {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
 }
 
 /* --- Fil d'Ariane et filtres --------------------------------------------- */
@@ -2235,6 +2301,10 @@ table.data .num strong {
   background: var(--surface-muted);
   font-weight: 650;
 }
+.report .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 
 /* --- États vides et chargement --------------------------------------------------- */
 
@@ -2647,6 +2717,37 @@ pre.code {
     break-before: avoid;
   }
 
+  /* Tableau complet des propositions : page en paysage, en-tête répété, lignes entières. */
+  @page affectations {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+  .report-affectations {
+    page: affectations;
+    break-before: page;
+  }
+  .report-affectations .table-scroll {
+    overflow: visible;
+  }
+  .report-affectations table {
+    font-size: 8pt;
+  }
+  .report-affectations th,
+  .report-affectations td {
+    padding: 3px 5px;
+    font-size: 8pt;
+  }
+  .report-affectations thead {
+    display: table-header-group;
+  }
+  .report-affectations tr {
+    break-inside: avoid;
+  }
+  .report-affectations th {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* L'alternative textuelle des graphiques fait double emploi sur papier :
      le graphique imprimé porte déjà ses valeurs chiffrées. */
   .report details.advanced {
@@ -2733,6 +2834,12 @@ pre.code {
 }
 .action-bar .hint {
   margin: 0;
+}
+.action-bar-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 1180px) {
@@ -4183,16 +4290,6 @@ pre.code {
 .import-consigne {
   margin: 0;
   color: var(--ink-soft);
-}
-.origine-fichiers {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-.origine-fichiers .hint {
-  flex-basis: 100%;
-  margin: 0;
 }
 
 /* =====================================================================

@@ -4,12 +4,14 @@
  * Vue d'ensemble — page de pilotage (§6 et §7).
  *
  * Objectif : qu'une personne qui ne connaît ni l'algorithme ni les statistiques
- * comprenne en moins d'une minute combien d'écoles ont un problème de personnel,
- * où elles se trouvent, ce qui peut être couvert par redéploiement, et ce qui
- * resterait à couvrir. Tous les chiffres et toutes les phrases viennent du serveur.
+ * comprenne en moins d'une minute combien d'écoles ont besoin d'enseignants,
+ * combien d'enseignants peuvent être redéployés, quelles affectations sont
+ * recommandées et combien il faudra encore recruter. Chaque indicateur dit à
+ * quelle situation il se rapporte et ouvre son détail. Tous les chiffres et
+ * toutes les phrases viennent du serveur.
  */
 
-import { ArrowRight, RefreshCw } from 'lucide-react'
+import { ArrowRight, FileText, RefreshCw, Upload } from 'lucide-react'
 
 import type { SchoolDiagnostic, SchoolSeverity } from '@shared/api'
 import {
@@ -23,12 +25,11 @@ import {
 } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { DataTable, KpiCard, Notice, Panel, fmt, fmtDec, fmtPct, type Colonne } from '@shared/ui/commun'
-import { premiereEtapeAccessible, rubriquesVisibles } from '@shared/ui/coquille/navigation'
 import { EtatRequetes } from '@shared/ui/etats'
 import { AvantApres, Combo, CouvertureParScenario, Repartition } from '@shared/ui/graphiques'
 import { SeveritePill } from '@shared/ui/pastilles'
-import { useUtilisateur } from '@components/acces'
 import { useParametres } from '@components/parametrage'
+import { useDegreAlea, useHypotheses, useTableauPlanification } from '@components/planification'
 import {
   useCalculerScenariosDeBase,
   useComparaison,
@@ -38,6 +39,7 @@ import {
 } from '@components/simulation'
 
 import { useDiagnostic, usePriorites, useSynthese } from '../application/hooks'
+import { LIBELLE_ETAPE, construireKpis, type Kpi } from '../application/kpis'
 import { EnoncesSynthese } from './composants/EnoncesSynthese'
 import { NuageEcoles } from './composants/NuageEcoles'
 import { PointsAttention } from './composants/PointsAttention'
@@ -78,8 +80,7 @@ const SEGMENTS: {
 export function VueEnsemblePage() {
   const { jeu, filtres, setFiltres, setPage, mode, ouvrirEcole, explorerTerritoire } = useSession()
   const { scenario, detail, calcules } = useScenarioAffiche()
-  /** Raccourcis vers les rubriques ouvertes au rôle connecté (par défaut, les moins étendues). */
-  const roleRaccourcis = useUtilisateur()?.role ?? 'delegue'
+  const analyste = mode === 'analyste'
 
   const diagnostic = useDiagnostic(jeu, filtres)
   const synthese = useSynthese(jeu, filtres, scenario)
@@ -89,6 +90,17 @@ export function VueEnsemblePage() {
   const parametres = useParametres(jeu)
   const scenarios = useScenarios(jeu)
   const calculBase = useCalculerScenariosDeBase(jeu)
+  const hypotheses = useHypotheses(jeu)
+  // L'aléa et le quota N+1 reposent sur un scénario calculé : sans lui, ils s'affichent « — ».
+  const requetePlan = {
+    niveau: selectionLevel(filtres.territoire),
+    region: filtres.territoire.region,
+    departement: filtres.territoire.departement,
+    commune: filtres.territoire.commune,
+    scenario: scenario ?? undefined,
+  }
+  const alea = useDegreAlea(calcules.length > 0 ? jeu : null, requetePlan)
+  const planification = useTableauPlanification(calcules.length > 0 ? jeu : null, requetePlan)
 
   if (!diagnostic.data || !synthese.data) return <EtatRequetes requetes={[diagnostic, synthese]} />
 
@@ -140,6 +152,27 @@ export function VueEnsemblePage() {
     { cle: 'severite', entete: 'Situation', rendu: d => <SeveritePill severite={d.severite} /> },
   ]
 
+  const { principaux, secondaires } = construireKpis({
+    totals,
+    ecolesDuJeu: diagnostic.data.ecolesDuJeu,
+    resultat: affiche,
+    hypotheses: hypotheses.data ?? null,
+    alea: alea.data ?? null,
+    anneePlan: planification.data?.annees[0] ?? null,
+  })
+
+  const carte = (k: Kpi) => (
+    <KpiCard
+      key={k.cle}
+      label={k.label}
+      value={k.valeur}
+      hint={`${k.hint} (${LIBELLE_ETAPE[k.etape]})`}
+      lien={k.disponible ? 'Voir le détail' : undefined}
+      tone={k.ton}
+      onClick={k.disponible ? () => setPage(k.cible) : undefined}
+    />
+  )
+
   return (
     <div className="stack">
       <Notice tone="info" title="Simulation d’aide à la décision.">
@@ -160,131 +193,42 @@ export function VueEnsemblePage() {
         </Notice>
       )}
 
-      <nav className="module-tiles" aria-label="Variables de la planification">
-        {rubriquesVisibles(mode, roleRaccourcis)
-          .filter(rubrique => rubrique.id !== 'accueil')
-          .map(rubrique => {
-            const cible = premiereEtapeAccessible(rubrique, mode, roleRaccourcis, {
-              donneesChargees: true,
-              simulationPrete: calcules.length > 0,
-            })
-            const Icone = rubrique.icon
-            return (
-              <button
-                type="button"
-                className="module-tile"
-                key={rubrique.id}
-                disabled={!cible}
-                onClick={cible ? () => setPage(cible.id) : undefined}
-              >
-                <span className="module-tile-icon" aria-hidden="true">
-                  <Icone size={20} />
-                </span>
-                <span>
-                  <strong>{rubrique.label}</strong>
-                  <small>{rubrique.sousTitre}</small>
-                </span>
-              </button>
-            )
-          })}
-      </nav>
-
       <div className="action-bar">
         <p className="hint">
-          Scénario affiché : <strong>{detail?.scenario.nom ?? 'Situation actuelle'}</strong>
+          Scénario affiché : <strong>{detail?.scenario.nom ?? 'Situation actuelle'}</strong>. Les indicateurs « Après
+          effets du Prince » décrivent la situation effective ; ceux « Après simulation » dépendent du scénario affiché.
         </p>
-        {calculBase.isPending ? (
-          <span className="busy">
-            <RefreshCw size={15} className="spin" aria-hidden="true" /> Calcul des scénarios…
-          </span>
-        ) : resultatsComparaison.length === 0 ? (
-          <button type="button" className="btn btn-primary" onClick={() => calculBase.mutate()}>
-            Calculer les scénarios de redéploiement
+        <div className="action-bar-boutons">
+          <button type="button" className="btn" onClick={() => setPage('import')}>
+            <Upload size={15} aria-hidden="true" /> Importer
           </button>
-        ) : (
-          <button type="button" className="btn" onClick={() => setPage('comparison')}>
-            Comparer les scénarios <ArrowRight size={14} aria-hidden="true" />
+          {calculBase.isPending ? (
+            <span className="busy">
+              <RefreshCw size={15} className="spin" aria-hidden="true" /> Calcul des scénarios…
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={resultatsComparaison.length === 0 ? 'btn btn-primary' : 'btn'}
+              onClick={() => calculBase.mutate()}
+            >
+              Calculer
+            </button>
+          )}
+          <button type="button" className="btn" onClick={() => setPage('reports')}>
+            <FileText size={15} aria-hidden="true" /> Rapport
           </button>
-        )}
+        </div>
       </div>
 
-      <div className="kpi-row">
-        <KpiCard
-          label="Écoles analysées"
-          value={fmt(totals.ecolesAnalysees)}
-          hint="Établissements exploitables du périmètre sélectionné."
-          lien="Voir la liste"
-          onClick={() => setPage('schools')}
-        />
-        <KpiCard
-          label="Écoles en déficit"
-          value={fmt(totals.ecolesEnDeficit)}
-          hint="Il y manque au moins un enseignant au regard de la norme paramétrée."
-          lien="Voir les priorités"
-          tone={totals.ecolesEnDeficit > 0 ? 'alert' : 'ok'}
-          onClick={() => setPage('priorites')}
-        />
-        <KpiCard
-          label="Écoles avec excédent"
-          value={fmt(totals.ecolesAvecExcedent)}
-          hint="Elles peuvent libérer des enseignants sans descendre sous leur minimum."
-          lien="Voir les écoles"
-          tone="info"
-          onClick={() => voirEcoles({ severites: ['excedent'] })}
-        />
-        <KpiCard
-          label="Enseignants payés par l’État"
-          value={fmt(totals.enseignantsEtat)}
-          hint="Effectif déclaré dans les établissements du périmètre."
-          lien="Voir les enseignants"
-          onClick={() => setPage('teachers')}
-        />
-      </div>
+      <div className="kpi-row">{principaux.map(carte)}</div>
 
-      <div className="kpi-row">
-        <KpiCard
-          label="Postes nécessaires"
-          value={fmt(totals.postesNecessaires)}
-          hint="Nombre d’enseignants manquants, calculé école par école."
-          lien="Comprendre le calcul"
-          tone="warn"
-          onClick={() => setPage('methodology')}
-        />
-        <KpiCard
-          label="Enseignants potentiellement redéployables"
-          value={fmt(totals.excedentMobilisable)}
-          hint="Ils peuvent quitter leur école sans la mettre en déficit et ont l’ancienneté de poste requise."
-          lien="Voir les écoles sources"
-          tone="info"
-          onClick={() => setPage(mode === 'analyste' ? 'pool' : 'schools')}
-        />
-        <KpiCard
-          label="Postes couverts par simulation"
-          value={affiche ? fmt(affiche.postesCouverts) : '—'}
-          hint={affiche ? `Scénario : ${affiche.scenarioNom}.` : 'Aucun scénario n’est encore sélectionné.'}
-          lien={affiche ? 'Voir les propositions' : undefined}
-          tone="ok"
-          onClick={affiche ? () => setPage('simulations') : undefined}
-        />
-        <KpiCard
-          label="Besoin résiduel"
-          value={affiche ? fmt(affiche.besoinResiduel) : '—'}
-          hint="Postes qui resteraient à pourvoir après redéploiement."
-          lien={affiche ? 'Voir le détail' : undefined}
-          tone="alert"
-          onClick={affiche ? () => setPage('comparison') : undefined}
-        />
-      </div>
+      <h2 className="titre-section">Autres indicateurs</h2>
+      <div className="kpi-row">{secondaires.map(carte)}</div>
 
       <Panel kicker="Synthèse" title="Ce que disent les données" id="synthese">
-        <EnoncesSynthese enonces={s.syntheseTableauDeBord} afficherRegles={mode === 'analyste'} />
+        <EnoncesSynthese enonces={s.syntheseTableauDeBord} afficherRegles={analyste} />
       </Panel>
-
-      <ZonesSecuritePanel
-        zones={s.parZoneSecurite}
-        parametres={parametres.data ?? null}
-        onVoirEcoles={zone => voirEcoles({ zonesSecurite: [zone] })}
-      />
 
       <div className="grid-main">
         <Panel
@@ -315,53 +259,6 @@ export function VueEnsemblePage() {
           />
         </Panel>
 
-        <Panel
-          kicker="Diagnostic"
-          title="Situation des écoles"
-          hint="Répartition des établissements selon l’ampleur de leur déficit."
-        >
-          <Repartition
-            titre="Répartition des établissements par situation"
-            segments={SEGMENTS.map(seg => ({
-              cle: seg.severite,
-              label: LIBELLE_SEVERITE[seg.severite],
-              valeur: s.parSeverite[seg.severite],
-              couleur: seg.couleur,
-              motif: seg.motif,
-              definition: seg.definition(seuils),
-              onSelect: () => setFiltres({ ...filtres, severites: [seg.severite] }),
-            }))}
-          />
-        </Panel>
-      </div>
-
-      <div className="grid-main">
-        <Panel
-          kicker="Scénarios"
-          title="Couverture par scénario"
-          hint="Ce que chaque périmètre géographique permettrait de couvrir. Aucun scénario n’est présenté comme préférable."
-          actions={
-            resultatsComparaison.length > 0 ? (
-              <button type="button" className="btn btn-sm" onClick={() => setPage('comparison')}>
-                Tableau comparatif
-              </button>
-            ) : undefined
-          }
-        >
-          <CouvertureParScenario
-            scenarios={resultatsComparaison.map(r => ({
-              cle: r.scenarioId,
-              label: LIBELLE_SCOPE[r.scope],
-              couverts: r.postesCouverts,
-              residuel: r.besoinResiduel,
-              taux: r.tauxCouverture,
-            }))}
-          />
-          {resultatsComparaison.some(r => r.scope === 'etendu') && (
-            <p className="hint">{AVERTISSEMENT_SCENARIO_ETENDU}</p>
-          )}
-        </Panel>
-
         <Panel kicker="Simulation" title="Avant / Après" hint="Effet du scénario sélectionné sur le périmètre affiché.">
           {affiche ? (
             <>
@@ -389,12 +286,6 @@ export function VueEnsemblePage() {
         </Panel>
       </div>
 
-      <NuageEcoles
-        ecoles={diagnostic.data.ecoles}
-        elevesParMaitre={parametres.data?.besoin.elevesParMaitre ?? null}
-        onOuvrirEcole={ouvrirEcole}
-      />
-
       <PointsAttention points={s.pointsAttention} />
 
       <Panel
@@ -421,6 +312,71 @@ export function VueEnsemblePage() {
           <EtatRequetes requetes={[priorites]} />
         )}
       </Panel>
+
+      {analyste && (
+        <>
+          <h2 className="titre-section">Détail technique (Vue analyste)</h2>
+
+          <ZonesSecuritePanel
+            zones={s.parZoneSecurite}
+            parametres={parametres.data ?? null}
+            onVoirEcoles={zone => voirEcoles({ zonesSecurite: [zone] })}
+          />
+
+          <div className="grid-main">
+            <Panel
+              kicker="Diagnostic"
+              title="Situation des écoles"
+              hint="Répartition des établissements selon l’ampleur de leur déficit."
+            >
+              <Repartition
+                titre="Répartition des établissements par situation"
+                segments={SEGMENTS.map(seg => ({
+                  cle: seg.severite,
+                  label: LIBELLE_SEVERITE[seg.severite],
+                  valeur: s.parSeverite[seg.severite],
+                  couleur: seg.couleur,
+                  motif: seg.motif,
+                  definition: seg.definition(seuils),
+                  onSelect: () => setFiltres({ ...filtres, severites: [seg.severite] }),
+                }))}
+              />
+            </Panel>
+
+            <Panel
+              kicker="Scénarios"
+              title="Couverture par scénario"
+              hint="Ce que chaque périmètre géographique permettrait de couvrir. Aucun scénario n’est présenté comme préférable."
+              actions={
+                resultatsComparaison.length > 0 ? (
+                  <button type="button" className="btn btn-sm" onClick={() => setPage('comparison')}>
+                    Tableau comparatif
+                  </button>
+                ) : undefined
+              }
+            >
+              <CouvertureParScenario
+                scenarios={resultatsComparaison.map(r => ({
+                  cle: r.scenarioId,
+                  label: LIBELLE_SCOPE[r.scope],
+                  couverts: r.postesCouverts,
+                  residuel: r.besoinResiduel,
+                  taux: r.tauxCouverture,
+                }))}
+              />
+              {resultatsComparaison.some(r => r.scope === 'etendu') && (
+                <p className="hint">{AVERTISSEMENT_SCENARIO_ETENDU}</p>
+              )}
+            </Panel>
+          </div>
+
+          <NuageEcoles
+            ecoles={diagnostic.data.ecoles}
+            elevesParMaitre={parametres.data?.besoin.elevesParMaitre ?? null}
+            onOuvrirEcole={ouvrirEcole}
+          />
+        </>
+      )}
     </div>
   )
 }

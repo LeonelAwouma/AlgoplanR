@@ -1,14 +1,14 @@
 'use client'
 
 /**
- * Fait du Prince — redéploiements décidés par la DRH.
+ * Fait du Prince — redéploiements décidés par la DRH, appliqués aux bases avant l'algorithme.
  *
  * Cette page est la seule de l'application où l'utilisateur décide au lieu de
  * simuler. Une décision enregistrée ici n'est pas une proposition : le serveur
- * l'applique aux données, sans aucun contrôle de l'algorithme. L'impact
- * prévisible est montré avant validation, à titre d'information ; il
- * n'empêche jamais la décision. Une fois enregistrée, la décision devient un
- * fait acquis : le serveur recalcule le diagnostic et toutes les simulations.
+ * l'applique aux données, sans aucun contrôle de l'algorithme, puis recalcule
+ * les besoins, le vivier et les postes ouverts sur les bases corrigées. La page
+ * présente l'effet des décisions (avant / après), permet de prévisualiser un
+ * fichier avant de le valider, et donne accès aux bases obtenues.
  */
 
 import { useState } from 'react'
@@ -17,6 +17,8 @@ import { useSession } from '@shared/session'
 import { Notice } from '@shared/ui/commun'
 import { ChargementEnCours } from '@shared/ui/etats'
 
+import { ApplicationAuxBases } from './composants/ApplicationAuxBases'
+import { BasesApresPrince } from './composants/BasesApresPrince'
 import { ImportFaitsPrince } from './composants/ImportFaitsPrince'
 import { ListeFaitsPrince } from './composants/ListeFaitsPrince'
 import { SaisieFaitPrince } from './composants/SaisieFaitPrince'
@@ -31,10 +33,10 @@ export function PrincePage() {
   return (
     <div className="stack">
       <Notice tone="warn" title="Décision, et non simulation.">
-        Un fait de Prince redéploie un enseignant à la seule volonté de la DRH : ni l’ancienneté, ni l’âge, ni le
-        statut, ni l’excédent de l’école d’origine, ni le besoin de l’école de destination ne sont contrôlés. Une fois
-        enregistré, il devient une donnée de départ : le diagnostic et toutes les simulations le prennent en compte, et
-        l’algorithme ne remet jamais cet enseignant en mouvement.
+        Un fait de Prince redéploie un enseignant à la seule volonté de la DRH : le départ de l’école d’origine et
+        l’arrivée dans l’école de destination sont appliqués aux bases avant le calcul des besoins, des excédents et du
+        vivier. L’algorithme ne remet jamais cet enseignant en mouvement. Les alertes signalent ce qui mérite d’être
+        vérifié (école d’origine sans excédent, changement de sous-système, capacité dépassée) sans bloquer la décision.
       </Notice>
 
       {confirmation && (
@@ -43,9 +45,11 @@ export function PrincePage() {
         </Notice>
       )}
 
+      <ApplicationAuxBases jeu={jeu} />
       <SaisieFaitPrince jeu={jeu} onEnregistre={setConfirmation} />
       <ImportFaitsPrince jeu={jeu} />
       <ListeFaitsPrince jeu={jeu} onOuvrirEcole={ouvrirEcole} onAnnule={setConfirmation} />
+      <BasesApresPrince jeu={jeu} onOuvrirEcole={ouvrirEcole} />
     </div>
   )
 }

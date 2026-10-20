@@ -19,7 +19,6 @@ import { ErreurAction } from '@shared/ui/etats'
 import { useActualiserJeu, useCorrigerCorrespondances, useEnvoyerFichier } from '../../application/hooks'
 import { TYPES_FICHIER, colonnesRequisesManquantes } from '../../domain/correspondances'
 import { CarteFichier } from './CarteFichier'
-import { ChoixOrigine, type OrigineFichiers } from './ChoixOrigine'
 import { TableCorrespondance } from './TableCorrespondance'
 
 /** Panneau « Actualiser les données ». */
@@ -37,20 +36,12 @@ export function ActualisationDonnees({ jeu }: { jeu: IdJeu }) {
   const [enLecture, setEnLecture] = useState<TypeFichier | null>(null)
   const utilisateur = useUtilisateur()
   const region = utilisateur?.role === 'delegue' ? utilisateur.region : null
-  const [origine, setOrigine] = useState<OrigineFichiers>('regionale')
-
-  function changerOrigine(nouvelle: OrigineFichiers) {
-    if (nouvelle === origine) return
-    setOrigine(nouvelle)
-    setFichiers({ etablissements: null, enseignants: null })
-    setErreurs({})
-  }
 
   async function choisirFichier(type: TypeFichier, fichier: File) {
     setEnLecture(type)
     setErreurs(courantes => ({ ...courantes, [type]: undefined }))
     try {
-      const lu = await envoi.mutateAsync({ type, fichier, baseNationale: !region || origine === 'nationale' })
+      const lu = await envoi.mutateAsync({ type, fichier, baseNationale: !region })
       setFichiers(courants => ({ ...courants, [type]: lu }))
     } catch (erreur) {
       setErreurs(courantes => ({ ...courantes, [type]: messageErreur(erreur) }))
@@ -80,13 +71,10 @@ export function ActualisationDonnees({ jeu }: { jeu: IdJeu }) {
       title="Actualiser les données de l’exercice"
       hint="Déposez les nouvelles versions des deux classeurs. Les faits du Prince, arbitrages et nominations qui restent valables sont conservés ; les autres sont signalés dans les écarts."
     >
-      {region && (
-        <ChoixOrigine
-          region={region}
-          origine={origine}
-          desactive={actualisation.isPending || enLecture !== null}
-          onChange={changerOrigine}
-        />
+      {region && (etablissements?.baseNationale || enseignants?.baseNationale) && (
+        <Notice tone="info" title="Base nationale reconnue.">
+          Seules les écoles de la région {region} et les enseignants qui y sont rattachés seront retenus.
+        </Notice>
       )}
       <div className="upload-cards">
         {TYPES_FICHIER.map(type => (

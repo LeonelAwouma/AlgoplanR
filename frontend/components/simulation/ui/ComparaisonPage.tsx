@@ -73,7 +73,7 @@ export function ComparaisonPage() {
     { label: 'Vœux satisfaits', actuel: '—', valeur: r => fmt(mouvements(r, 'voeu')) },
     { label: 'Redéploiements obligatoires', actuel: '—', valeur: r => fmt(mouvements(r, 'obligatoire')) },
     {
-      label: "Degré d'aléa",
+      label: 'Taux de déséquilibre des dotations',
       actuel: reference.syntheseAvant.degreAlea == null ? '—' : fmtPct(reference.syntheseAvant.degreAlea),
       valeur: r => (r.syntheseApres.degreAlea == null ? '—' : fmtPct(r.syntheseApres.degreAlea)),
     },

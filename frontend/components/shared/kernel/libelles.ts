@@ -137,19 +137,18 @@ export const DESCRIPTION_SCOPE: Record<GeographicScope, string> = {
     "Les mouvements restent dans la commune de l'enseignant : vœux, solutions proches et redéploiement obligatoire.",
   departement: "Les mouvements restent à l'intérieur du département de rattachement.",
   etendu:
-    "Niveau régional, puis niveau central : les vœux interrégionaux et les besoins qu'aucune école de la région ne peut couvrir sont traités entre régions.",
+    "Toutes les zones hors zone rouge de la région de l'enseignant sont examinées ; ceux pour qui il ne reste de poste qu'ailleurs restent dans le vivier et passent en commission d'arbitrage.",
 }
 
 /** Message obligatoire accompagnant le scénario sans contrainte géographique (§29). */
 export const AVERTISSEMENT_SCENARIO_ETENDU =
-  'Au niveau central, des mouvements entre régions sont proposés : ils supposent l’accord des deux régions et peuvent impliquer des déplacements longs.'
+  'Les mouvements entre régions ne sont pas proposés automatiquement : ils relèvent d’une décision de la commission d’arbitrage ou du prince, avec l’accord des deux régions, et peuvent impliquer des déplacements longs.'
 
 /** Les trois scénarios géographiques de référence, dans l'ordre d'affichage. */
 export const SCENARIOS_GEOGRAPHIQUES: GeographicScope[] = ['commune', 'departement', 'etendu']
 
 export const LIBELLE_PROXIMITE: Record<ProximityLevel, string> = {
-  meme_commune: 'Même commune',
-  meme_iaeb: 'Même IAEB',
+  meme_commune: 'Même commune / IAEB',
   meme_departement: 'Même département',
   meme_region: 'Même région',
   hors_region: 'Hors région',
@@ -200,6 +199,8 @@ export const LIBELLE_MOTIF: Record<MotifDemande, string> = {
 
 export const LIBELLE_STATUT_PRINCE: Record<StatutFaitPrince, string> = {
   applique: 'Appliqué',
+  applique_avec_alerte: 'Appliqué avec alerte',
+  rejete: 'Rejeté',
   enseignant_introuvable: 'Enseignant introuvable',
   ecole_introuvable: 'École introuvable',
   meme_ecole: 'Même école',

@@ -17,6 +17,7 @@ import type {
   DetailVersionPlanification,
   DocumentationHypotheses,
   EducationTerritory,
+  DegreAlea,
   EstimationAttrition,
   EtatPlanification,
   EvenementQuota,
@@ -466,6 +467,8 @@ export const conversionsPlanification: Record<string, Conversion> = {
     )
     return { global: versLigneFiabilite(f.global), parTerritoire: f.par_territoire.map(versLigneFiabilite) }
   },
+  'GET jeux/{jeu}/planification/alea/': async (r, acces, p): Promise<DegreAlea> =>
+    camelProfond(await lire<unknown>(acces, `${P(p.jeu)}alea/`, r.query)),
   // Tableaux du rapport DRH : les clés du serveur sont des noms de champs, jamais des données (régions…).
   'GET jeux/{jeu}/planification/rapport/': async (r, acces, p): Promise<RapportPrevisionnel> =>
     camelProfond(await lire<unknown>(acces, `${P(p.jeu)}rapport/`, r.query)),

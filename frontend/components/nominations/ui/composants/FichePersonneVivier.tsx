@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 
+import { DetailBareme } from '@components/donnees'
 import type { IdJeu, PosteCompatible } from '@shared/api'
 import {
   LIBELLE_DISPONIBILITE,
@@ -35,6 +36,7 @@ export function FichePersonneVivier({ jeu, personne, onFermer }: ProprietesFiche
   const fiche = usePersonneVivier(jeu, personne)
   const postes = usePostesCompatibles(jeu, personne)
   const [posteChoisi, setPosteChoisi] = useState<PosteCompatible | null>(null)
+  const [baremeOuvert, setBaremeOuvert] = useState(false)
 
   const fermer = (
     <button type="button" className="btn btn-sm" onClick={onFermer}>
@@ -62,6 +64,15 @@ export function FichePersonneVivier({ jeu, personne, onFermer }: ProprietesFiche
           {p.note != null ? ` · note ${fmtDec(p.note, 2)}` : ''}
         </span>
       </p>
+      {p.source === 'excedentaire' && p.matricule && p.bareme != null && (
+        <>
+          <button type="button" className="btn-link" onClick={() => setBaremeOuvert(ouvert => !ouvert)}>
+            {baremeOuvert ? 'Masquer' : 'Voir'} le calcul du barème ({fmtDec(p.bareme, 2)})
+          </button>
+          {baremeOuvert && <DetailBareme jeu={jeu} matricule={p.matricule} onFermer={() => setBaremeOuvert(false)} />}
+        </>
+      )}
+
       {p.contraintes.length > 0 && (
         <ul className="reason-list">
           {p.contraintes.map(c => (

@@ -3,7 +3,7 @@
  */
 
 import type { DecisionReport, DecisionReportSection } from '../../contrat'
-import { ANNEE_SCOLAIRE } from '../conversions/parametres'
+import * as source from '../sources'
 import { libellePhase, type SyntheseDjango } from '../conversions/simulation'
 import { valeur } from '../liste'
 import type { Conversion } from '../types'
@@ -41,7 +41,7 @@ function sections(r: RapportDjango): DecisionReportSection[] {
         lignes: [
           ['Postes à pourvoir', s.besoin_total],
           ['Enseignants mobilisables', s.disponibles],
-          ['Affectations proposées', s.affectes],
+          ['Affectations proposées', s.affectes + s.effet_de_prince],
           ['dont faits du Prince', s.effet_de_prince],
           ['Postes non pourvus', s.postes_non_pourvus],
           ['dont en zone rouge', s.postes_rouge_non_pourvus],
@@ -124,6 +124,7 @@ export const conversionsRapports: Record<string, Conversion> = {
       commune: valeur(q.commune),
       scenario: valeur(q.scenario),
     })
-    return { genereLe: r.genere_le, anneeScolaire: ANNEE_SCOLAIRE, perimetre: r.perimetre.titre, sections: sections(r) }
+    const { anneeScolaire } = await source.parametres(acces, p.jeu)
+    return { genereLe: r.genere_le, anneeScolaire, perimetre: r.perimetre.titre, sections: sections(r) }
   },
 }

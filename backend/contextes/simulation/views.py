@@ -7,6 +7,7 @@ from contextes.acces.perimetre import jeu_autorise
 from contextes.arbitrage.models import DecisionArbitrage
 from contextes.commun.erreurs import RefusMetier
 from contextes.commun.outils import perimetre_depuis, reponse_paginee
+from contextes.donnees import depots
 from contextes.donnees.lecteur import ecrire_excel
 from domaine.donnees import colonnes as C
 from domaine.diagnostic.territoires import restreindre_resultat
@@ -135,11 +136,20 @@ def explication(request, jeu, sid, matricule):
     return Response(out)
 
 
+@extend_schema(responses=OBJ, summary="Taux d'encadrement et turnover, avant (fichier d'origine) et après le scénario")
+@api_view(["GET"])
+def encadrement(request, jeu, sid):
+    j = jeu_autorise(request, jeu)
+    sc = sim.scenario_du_jeu(j, sid)
+    return Response({"scenario": sc.pk, **an.comparer_encadrement_turnover(
+        sim.charger_resultat(sc), depots.charger_enseignants(j), sim.config_resultat(sc))})
+
+
 @extend_schema(parameters=PAGE, responses=OBJ, summary="Vœux et leur statut")
 @api_view(["GET"])
 def candidatures(request, jeu, sid):
     _, sc, r = _ctx(request, jeu, sid)
-    lignes = an.candidatures(r)
+    lignes = an.candidatures(r, sim.config_resultat(sc))
     q = request.query_params
     if q.get("statut"):
         lignes = [l for l in lignes if l["statut"] == q["statut"]]
@@ -195,7 +205,7 @@ def comparaison(request, jeu):
     j = jeu_autorise(request, jeu)
     scs = [s for s in j.scenarios.filter(geographique=True)] or sim.creer_scenarios_base(j)
     return Response({"scenarios": comparer({s.code or str(s.pk): sim.charger_resultat(s) for s in scs}),
-                     "obsoletes": [s.pk for s in scs if s.obsolete]})
+                     "obsoletes": [s.pk for s in scs if sim.est_obsolete(s)]})
 
 @extend_schema(request=OBJ, responses=OBJ,
                summary="Retenir le scénario dont les mouvements alimentent la planification et les nominations {scenario}")

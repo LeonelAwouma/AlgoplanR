@@ -78,7 +78,7 @@ export function SituationNationalePage() {
             </div>
             <div>
               <dt>Classes</dt>
-              <dd>{fmt(totals.classes)}</dd>
+              <dd>{renseigne(totals.classes)}</dd>
             </div>
             <div>
               <dt>Enseignants payés par l’État</dt>

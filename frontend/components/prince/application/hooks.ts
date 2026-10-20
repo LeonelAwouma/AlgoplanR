@@ -2,14 +2,20 @@
 
 /** Cas d'usage du contexte « Fait du Prince » : décisions de la DRH appliquées avant tout calcul. */
 
-import type { CorpsFaitPrince, IdJeu } from '../../shared/api'
+import { useMutation } from '@tanstack/react-query'
+
+import type { BaseApresPrince, CorpsFaitPrince, DemandePage, FiltresBaseApresPrince, IdJeu } from '../../shared/api'
 import { useEcritureJeu, useLectureJeu } from '../../shared/requetes'
 import {
+  apercevoirImportFaitsPrince,
   annulerFaitPrince,
   enregistrerFaitPrince,
   importerFaitsPrince,
+  lireApplicationPrince,
+  listerBaseApresPrince,
   listerFaitsPrince,
   simulerImpactFaitPrince,
+  telechargerBaseApresPrince,
 } from '../infrastructure/princeApi'
 
 /** Décisions enregistrées et leur sort au regard des données actuelles. */
@@ -49,4 +55,44 @@ export function useImporterFaitsPrince(jeu: IdJeu | null) {
 /** Annule une décision. */
 export function useAnnulerFaitPrince(jeu: IdJeu | null) {
   return useEcritureJeu(jeu, 'effectifs', (id, fait: string) => annulerFaitPrince(id, fait))
+}
+
+/** Faits actifs appliqués aux bases importées : résumé, avant / après, décisions, écarts d'effectifs. */
+export function useApplicationPrince(jeu: IdJeu | null) {
+  return useLectureJeu(jeu, 'faits-prince', ['application'], lireApplicationPrince)
+}
+
+/**
+ * Essai à blanc d'un fichier. C'est un POST, mais il n'enregistre rien : aucune donnée en cache ne devient
+ * obsolète.
+ */
+export function useApercuImportPrince(jeu: IdJeu | null) {
+  return useMutation({
+    mutationFn: ({ fichier, feuille }: { fichier: Blob; feuille?: string }) => {
+      if (jeu === null) return Promise.reject(new Error('Aucun jeu de données chargé.'))
+      return apercevoirImportFaitsPrince(jeu, fichier, feuille)
+    },
+  })
+}
+
+/** Une page d'une base « après Prince » (établissements, enseignants ou journal des décisions). */
+export function useBaseApresPrince<B extends BaseApresPrince>(
+  jeu: IdJeu | null,
+  base: B,
+  filtres: FiltresBaseApresPrince,
+  page: DemandePage,
+) {
+  return useLectureJeu(jeu, 'faits-prince', ['base', base, filtres, page], (id, signal) =>
+    listerBaseApresPrince(id, base, filtres, page, signal),
+  )
+}
+
+/** Télécharge le classeur d'une base « après Prince ». */
+export function useTelechargerBaseApresPrince(jeu: IdJeu | null) {
+  return useMutation({
+    mutationFn: ({ base, filtres }: { base: BaseApresPrince; filtres: FiltresBaseApresPrince }) => {
+      if (jeu === null) return Promise.reject(new Error('Aucun jeu de données chargé.'))
+      return telechargerBaseApresPrince(jeu, base, filtres)
+    },
+  })
 }

@@ -36,7 +36,8 @@ def scenarios_presets(request):
 def parametres_jeu(request, jeu):
     j = jeu_autorise(request, jeu)
     if request.method == "GET":
-        return Response({"parametres": services.config_jeu(j), "surcharges": services.surcharges_jeu(j)})
+        return Response({"parametres": services.config_jeu(j), "surcharges": services.surcharges_jeu(j),
+                         "annee_scolaire": j.annee_scolaire})
     corps = request.data
     if not isinstance(corps, dict):
         raise RefusMetier("Le corps doit être un objet JSON")
@@ -46,7 +47,7 @@ def parametres_jeu(request, jeu):
     decision(j, "parametres", "remplacement" if request.method == "PUT" else "modification",
              "Règles du moteur modifiées", request=request, declencheur="Modification des règles du moteur",
              objet=("parametres", j.id), avant=avant, apres=services.config_jeu(j))
-    return Response(res)
+    return Response({**res, "annee_scolaire": j.annee_scolaire})
 
 
 @extend_schema(request={"multipart/form-data": OpenApiTypes.OBJECT, "application/json": OpenApiTypes.OBJECT},
@@ -69,7 +70,7 @@ def parametres_import(request, jeu):
     decision(j, "parametres", "import", "Règles du moteur importées", request=request,
              declencheur="Import des règles du moteur", objet=("parametres", j.id), avant=avant,
              apres=services.config_jeu(j))
-    return Response(res)
+    return Response({**res, "annee_scolaire": j.annee_scolaire})
 
 
 @extend_schema(responses=OpenApiTypes.OBJECT, summary="Inventaire des situations familiales du jeu")

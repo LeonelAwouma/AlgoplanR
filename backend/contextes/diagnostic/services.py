@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter, OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional, Tuple
 
 from contextes.donnees import depots
@@ -18,12 +18,19 @@ from domaine.donnees import colonnes as C
 from domaine.donnees.modeles import Ecole, Enseignant
 from domaine.mobilite.bareme import calculer_bareme
 from domaine.mobilite.vivier import construire_vivier, enrichir_enseignants, nettoyer_enseignants
+from domaine.prince.projection import ApplicationPrince, appliquer_effets_prince
 
 from .models import DiagnosticCache
 
 
 @dataclass
 class Preparation:
+    """Bases du jeu, enrichies, **après application des faits du Prince**.
+
+    Les faits actifs sont appliqués avant tout calcul : enseignants rattachés à leur école de destination, effectifs
+    des écoles touchées mis à jour, indicateurs, vivier et besoins recalculés. Les bases d'origine restent
+    disponibles par `avant()` (vérification d'un nouveau fait, projections qui rejouent les mouvements).
+    """
     cfg: dict
     ecoles: List[Ecole]
     ecoles_par_id: Dict[str, Ecole]
@@ -31,9 +38,19 @@ class Preparation:
     exclus: Dict[str, str]                   # matricule -> raison d'exclusion du calcul
     vivier: List[Enseignant]
     ecoles_dicts: List[dict]
+    #: Bases d'origine (sans les faits du Prince), `None` quand aucun fait n'est actif : elles sont alors identiques.
+    origine: Optional["Preparation"] = None
+    application: Optional[ApplicationPrince] = None
     # Construits à la première demande, puis réutilisés tant que le jeu ne change pas.
     lignes_enseignants: Optional[List[dict]] = None
     recherche: Dict[str, Tuple[List[dict], List[List[str]]]] = field(default_factory=dict)
+    ecoles_dicts_origine: Optional[List[dict]] = None
+    #: Lignes des bases « après Prince » (établissements, enseignants, journal), construites à la demande.
+    bases: Dict[str, List[dict]] = field(default_factory=dict)
+
+    def avant(self) -> "Preparation":
+        """Bases d'origine, avant les faits du Prince."""
+        return self.origine or self
 
 
 _PREP: "OrderedDict[tuple, Preparation]" = OrderedDict()
@@ -41,7 +58,7 @@ _PREP: "OrderedDict[tuple, Preparation]" = OrderedDict()
 _ECOLES: "OrderedDict[tuple, List[dict]]" = OrderedDict()
 _MAX_JEUX = 4
 # Version du contenu des écoles enrichies : la changer invalide les caches SQLite déjà écrits.
-_VERSION_ECOLES = 2
+_VERSION_ECOLES = 4
 
 
 def empreinte_jeu(jeu) -> str:
@@ -49,6 +66,32 @@ def empreinte_jeu(jeu) -> str:
                        "ne": jeu.etablissements.count(), "nens": jeu.enseignants.count()},
                       sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(brut.encode()).hexdigest()
+
+
+def _rem(e: Ecole) -> Optional[float]:
+    return round(e.effectif_eleves / e.enseignants_actuels, 2) if e.enseignants_actuels else None
+
+
+def _ligne_ecole(e: Ecole, mobilisables: int, avant: Optional[Ecole] = None, touchee: bool = False) -> dict:
+    """École à plat avec ses indicateurs, et ses valeurs d'avant les faits du Prince (celles de l'école si aucune)."""
+    o = avant or e
+    return {**e.vers_dict(), "mobilisables": mobilisables, "Enseignants_Avant_Prince": o.enseignants_actuels,
+            "Besoin_Avant_Prince": int(o.ind.be), "REM_Avant_Prince": _rem(o), "touche_par_prince": touchee}
+
+
+def _situation(cfg: dict, ecoles: List[Ecole], tous: List[Enseignant], ecartes=()) -> Preparation:
+    """Vivier, exclusions et barèmes d'un couple de bases ; `ecartes` : agents hors mobilité ordinaire."""
+    gardes, exclus = nettoyer_enseignants(tous, cfg)
+    vivier = construire_vivier(gardes, ecoles, cfg, exclus=ecartes)
+    matricules_gardes = {g.matricule for g in gardes}
+    for e in tous:                                   # barème aussi pour les agents exclus (fiche détaillée)
+        if e.matricule not in matricules_gardes:
+            e.bareme = calculer_bareme(e, cfg)
+    mobilisables = Counter(v.ecole_attache for v in vivier)
+    return Preparation(cfg=cfg, ecoles=ecoles, ecoles_par_id={e.id: e for e in ecoles},
+                       enseignants={e.matricule: e for e in tous},
+                       exclus={x["matricule"]: x["raison"] for x in exclus}, vivier=vivier,
+                       ecoles_dicts=[_ligne_ecole(e, mobilisables.get(e.id, 0)) for e in ecoles])
 
 
 def preparer(jeu) -> Preparation:
@@ -59,22 +102,34 @@ def preparer(jeu) -> Preparation:
     cfg = config_jeu(jeu)
     ecoles = enrichir_ecoles(depots.charger_ecoles(jeu), cfg)
     tous = enrichir_enseignants(depots.charger_enseignants(jeu), ecoles)
-    gardes, exclus = nettoyer_enseignants(tous, cfg)
-    vivier = construire_vivier(gardes, ecoles, cfg)
-    # Enseignants réellement mobilisables par école : ceux du vivier (excédent xe, ancienneté de poste suffisante).
-    mobilisables = Counter(v.ecole_attache for v in vivier)
-    matricules_gardes = {g.matricule for g in gardes}
-    for e in tous:                                   # barème aussi pour les agents exclus (fiche détaillée)
-        if e.matricule not in matricules_gardes:
-            e.bareme = calculer_bareme(e, cfg)
-    prep = Preparation(cfg=cfg, ecoles=ecoles, ecoles_par_id={e.id: e for e in ecoles},
-                       enseignants={e.matricule: e for e in tous},
-                       exclus={x["matricule"]: x["raison"] for x in exclus}, vivier=vivier,
-                       ecoles_dicts=[{**e.vers_dict(), "mobilisables": mobilisables.get(e.id, 0)} for e in ecoles])
+    prep = _situation(cfg, ecoles, tous)
+    faits = sim.faits_prince_actifs(jeu)
+    if faits:
+        prep = _apres_prince(prep, faits)
     _PREP[cle] = prep
     while len(_PREP) > _MAX_JEUX:
         _PREP.popitem(last=False)
     return prep
+
+
+def _apres_prince(origine: Preparation, faits: List[dict]) -> Preparation:
+    """Bases après les faits du Prince : écoles touchées recalculées, agents déplacés écartés du vivier ordinaire."""
+    cfg = origine.cfg
+    application = appliquer_effets_prince(origine.ecoles, list(origine.enseignants.values()), faits, cfg)
+    touchees = set(application.ecoles_apres)
+    # Les agents des écoles touchées prennent les attributs recalculés de leur école (excédent, accessibilité…) :
+    # on les copie pour ne rien modifier des bases d'origine, qui restent en cache.
+    tous = [replace(t) if t.ecole_attache in touchees and t.matricule not in application.enseignants_avant else t
+            for t in application.enseignants]
+    enrichir_enseignants(tous, application.ecoles)
+    apres = _situation(cfg, application.ecoles, tous, ecartes=application.deplaces)
+    # Chaque école garde, à côté de ses valeurs actuelles, celles d'avant les faits du Prince.
+    mobilisables = Counter(v.ecole_attache for v in apres.vivier)
+    apres.ecoles_dicts = [_ligne_ecole(e, mobilisables.get(e.id, 0), origine.ecoles_par_id[e.id], e.id in touchees)
+                          for e in apres.ecoles]
+    apres.origine = origine
+    apres.application = application
+    return apres
 
 
 def invalider_cache(jeu) -> None:
@@ -131,14 +186,24 @@ def index_recherche(prep: Preparation, cible: str) -> Tuple[List[dict], List[Lis
     return prep.recherche[cible]
 
 
+def ecoles_dicts_origine(prep: Preparation) -> List[dict]:
+    """Établissements avec indicateurs sur les bases d'origine, avant les faits du Prince."""
+    if prep.origine is None:
+        return prep.ecoles_dicts
+    if prep.ecoles_dicts_origine is None:
+        o = prep.origine
+        mobilisables = Counter(v.ecole_attache for v in o.vivier)
+        prep.ecoles_dicts_origine = [_ligne_ecole(e, mobilisables.get(e.id, 0)) for e in o.ecoles]
+    return prep.ecoles_dicts_origine
+
+
 def diagnostic(jeu, perimetre, *, zone="", securite="", sous_systeme="", type_etab="", seulement="",
                q="", sans_prince=False) -> dict:
-    ecoles = syn.filtrer_ecoles(ecoles_enrichies(jeu), perimetre=perimetre, zone=zone, securite=securite,
+    """Diagnostic du périmètre. Par défaut sur les bases après les faits du Prince ; `sans_prince` : bases importées."""
+    lignes = ecoles_dicts_origine(preparer(jeu)) if sans_prince else ecoles_enrichies(jeu)
+    ecoles = syn.filtrer_ecoles(lignes, perimetre=perimetre, zone=zone, securite=securite,
                                 sous_systeme=sous_systeme, type_etab=type_etab, seulement=seulement, q=q)
-    prince = Counter(f["id_etab"] for f in sim.faits_prince_actifs(jeu))
-    totaux = syn.totaux_diagnostic(ecoles, {} if sans_prince else dict(prince))
-    if sans_prince:
-        totaux["besoin_postes_apres_prince"] = totaux["besoin_postes"]
+    totaux = syn.totaux_diagnostic(ecoles)
     return {"perimetre": perimetre.vers_dict(), "sans_prince": sans_prince, "totaux": totaux, "ecoles": ecoles}
 
 

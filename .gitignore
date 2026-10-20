@@ -14,3 +14,18 @@ out/
 # Système
 .DS_Store
 Thumbs.db
+
+# Environnements Python et artefacts de construction (restent sur le disque, hors du dépôt)
+backend/Lib/
+backend/Scripts/
+backend/.venv/
+backend/pyvenv.cfg
+backend/.lock
+backend/CACHEDIR.TAG
+dist/
+backend/packaging/sortie/
+backend/packaging/travail/
+
+# Classeurs nationaux et jeux « réalistes » : fictifs, générés, volumineux
+*_national*.xlsx
+*_realiste*.xlsx

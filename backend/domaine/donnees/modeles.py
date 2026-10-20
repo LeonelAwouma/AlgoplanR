@@ -51,6 +51,11 @@ class Ecole:
     type_etab: str = "ECOLE"
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    #: Données absentes du fichier (colonne absente ou cellule vide) : le calcul garde 0, mais l'école est signalée.
+    effectif_connu: bool = True          # effectif d'élèves renseigné
+    salles_connues: bool = True          # au moins une des deux colonnes de salles renseignée (sinon BMAX = 0 : inconnu)
+    #: Nombre de classes réellement ouvertes (colonne optionnelle) ; None tant que le fichier ne le donne pas.
+    classes_ouvertes: Optional[float] = None
     ind: Indicateurs = field(default_factory=Indicateurs)
 
     def vers_dict(self) -> Dict[str, Any]:
@@ -63,6 +68,8 @@ class Ecole:
             C.COL_ETAB_SSF: self.salles_simple_flux, C.COL_ETAB_SDF: self.salles_double_flux,
             C.COL_ETAB_ALPHA: self.accessibilite, C.COL_ETAB_SIGMA: self.securite,
             C.COL_ETAB_MULTIGRADE: self.multigrade, "nom_etab": self.nom or self.id, "type_etab": self.type_etab,
+            "effectif_connu": self.effectif_connu, "salles_connues": self.salles_connues,
+            C.COL_ETAB_CLASSES_OUVERTES: self.classes_ouvertes,
             "Pe": i.Pe, "me": i.me, "De": i.De, "BMAX": i.BMAX, "Ke": i.Ke, "be": i.be, "xe": i.xe,
             "se": i.se, "ae": i.ae, "alpha": i.alpha, "sigma": i.sigma, "Wp": i.Wp, "beta": i.beta,
             "Up": i.Up, "niveau_difficulte": i.niveau_difficulte, "nb_postes_ouverts": i.nb_postes_ouverts,
@@ -98,6 +105,8 @@ class Enseignant:
     departement_attache: str = ""
     region_attache: str = ""
     iaeb_attache: str = ""
+    #: Âge renseigné dans le fichier. Sinon l'âge vaut 35 ans par défaut (colonne absente) ou reste vide (cellule vide).
+    age_connu: bool = True
     zone_attache: str = ""
     alpha_attache: float = 0
     sigma_attache: float = 0
@@ -113,7 +122,7 @@ class Enseignant:
             C.COL_ENS_N1: self.annees_zone_1, C.COL_ENS_N2: self.annees_zone_2,
             C.COL_ENS_SITU: self.situation, C.COL_ENS_ENFANTS: self.enfants, C.COL_ENS_FORM: self.formations,
             C.COL_ENS_V1: self.voeux[0], C.COL_ENS_V2: self.voeux[1], C.COL_ENS_V3: self.voeux[2],
-            C.COL_ENS_MOTIF: self.motif_bonification,
+            C.COL_ENS_MOTIF: self.motif_bonification, "age_connu": self.age_connu,
             "commune_attache": self.commune_attache, "departement_attache": self.departement_attache,
             "region_attache": self.region_attache, "iaeb_attache": self.iaeb_attache,
             "zone_attache": self.zone_attache, "etab_attache_excedentaire": self.etab_attache_excedentaire,
@@ -183,6 +192,10 @@ def construire_ecole(ligne: Dict[str, Any]) -> Ecole:
         type_etab=texte(ligne.get("type_etab"), "ECOLE") or "ECOLE",
         latitude=nombre_ou_none(ligne.get("latitude")),
         longitude=nombre_ou_none(ligne.get("longitude")),
+        effectif_connu=nombre_ou_none(ligne.get(C.COL_ETAB_NE)) is not None,
+        salles_connues=(nombre_ou_none(ligne.get(C.COL_ETAB_SSF)) is not None
+                        or nombre_ou_none(ligne.get(C.COL_ETAB_SDF)) is not None),
+        classes_ouvertes=nombre_ou_none(ligne.get(C.COL_ETAB_CLASSES_OUVERTES)),
     )
 
 
@@ -193,7 +206,7 @@ def construire_enseignant(ligne: Dict[str, Any]) -> Enseignant:
     if C.COL_ENS_AGE in ligne:
         age = nombre_ou_none(ligne.get(C.COL_ENS_AGE))
     else:
-        age = 35.0
+        age = 35.0       # colonne absente : 35 ans supposés, signalé par age_connu = False et par le rapport de qualité
     ss = ligne.get(C.COL_ENS_SS) if C.COL_ENS_SS in ligne else "Francophone"
 
     def vide(v) -> str:
@@ -213,6 +226,7 @@ def construire_enseignant(ligne: Dict[str, Any]) -> Enseignant:
         formations=nombre(ligne.get(C.COL_ENS_FORM)),
         voeux=(vide(ligne.get(C.COL_ENS_V1)), vide(ligne.get(C.COL_ENS_V2)), vide(ligne.get(C.COL_ENS_V3))),
         motif_bonification=texte(ligne.get(C.COL_ENS_MOTIF)),
+        age_connu=C.COL_ENS_AGE in ligne and age is not None,
         nom=texte(ligne.get("nom")),
         prenom=texte(ligne.get("prenom")),
     )

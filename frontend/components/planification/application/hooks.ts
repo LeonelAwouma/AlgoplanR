@@ -22,6 +22,7 @@ import {
   ajusterQuota,
   comparerVersionsPlanification,
   estimerAttrition,
+  lireDegreAlea,
   lireDocumentationHypotheses,
   lireEtatPlanification,
   lireEvolutionIndicateurs,
@@ -129,6 +130,11 @@ export function usePlanDeparts(jeu: IdJeu | null, requete: RequetePlanification 
 /** Disponibilité des données qui fondent les projections. */
 export function useFiabilite(jeu: IdJeu | null, requete: RequetePlanification = {}) {
   return useLectureJeu(jeu, 'planification', ['fiabilite', requete], (id, signal) => lireFiabilite(id, requete, signal))
+}
+
+/** Degré d'aléa (1 − R²) national et par région. */
+export function useDegreAlea(jeu: IdJeu | null, requete: RequetePlanification = {}) {
+  return useLectureJeu(jeu, 'planification', ['alea', requete], (id, signal) => lireDegreAlea(id, requete, signal))
 }
 
 /** Tableaux du rapport DRH (§3 à §9) sur le périmètre. */

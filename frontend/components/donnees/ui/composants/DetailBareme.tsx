@@ -6,8 +6,9 @@
  */
 
 import type { IdJeu } from '@shared/api'
-import { Panel, fmtDec } from '@shared/ui/commun'
+import { Panel } from '@shared/ui/commun'
 import { EtatRequetes } from '@shared/ui/etats'
+import { TableauCalcul } from '@shared/ui/TableauCalcul'
 
 import { useEnseignant } from '../../application/hooks'
 
@@ -35,7 +36,7 @@ export function DetailBareme({ jeu, matricule, onFermer }: ProprietesDetailBarem
     )
   }
 
-  const { teacher, detailBareme, bareme } = fiche.data
+  const { teacher, detailBareme } = fiche.data
   return (
     <Panel
       kicker="Barème individuel"
@@ -43,34 +44,12 @@ export function DetailBareme({ jeu, matricule, onFermer }: ProprietesDetailBarem
       hint="Ce barème classe les enseignants d’une même école : il détermine lesquels partiraient en premier."
       actions={fermer}
     >
-      <table className="compare-table">
-        <thead>
-          <tr>
-            <th>Critère</th>
-            <th className="num">Valeur</th>
-            <th className="num">Poids</th>
-            <th className="num">Contribution</th>
-          </tr>
-        </thead>
-        <tbody>
-          {detailBareme.components.map(c => (
-            <tr key={c.label}>
-              <th scope="row" className="th-normal">
-                {c.label}
-              </th>
-              <td className="num">{c.valeur.toLocaleString('fr-FR')}</td>
-              <td className="num">{c.poids}</td>
-              <td className="num">{c.contribution.toLocaleString('fr-FR')}</td>
-            </tr>
-          ))}
-          <tr>
-            <th scope="row">Barème total</th>
-            <td className="num" colSpan={3}>
-              <strong>{fmtDec(bareme, 2)}</strong>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <TableauCalcul
+        breakdown={detailBareme}
+        enteteComposante="Critère"
+        libelleTotal="Barème total (C1 + C2 + C3 + C4 + C5)"
+        legende="Calcul du barème individuel"
+      />
       <p className="hint">Les poids de chaque critère se règlent dans « Configuration du moteur » (Vue analyste).</p>
     </Panel>
   )

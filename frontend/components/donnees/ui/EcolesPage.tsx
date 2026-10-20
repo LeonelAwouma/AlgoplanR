@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
 
 import { SANS_PAGINATION, type SchoolDiagnostic } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import {
   LIBELLE_SEVERITE,
   LIBELLE_ZONE,
@@ -20,6 +20,7 @@ import {
   triClasses,
 } from '@shared/kernel'
 import { useSession } from '@shared/session'
+import { BandeauPrince } from '@components/prince'
 import { useEffetsScenario, useScenarioAffiche } from '@components/simulation'
 import { DataTable, Notice, Panel, SearchField, ZoneSecuritePill, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
 import { EtatRequetes } from '@shared/ui/etats'
@@ -28,10 +29,10 @@ import { SeveritePill } from '@shared/ui/pastilles'
 import { useEtablissements } from '../application/hooks'
 import { FicheEcole } from './FicheEcole'
 
-/** Exporte la liste affichée en CSV. */
+/** Exporte la liste affichée en Excel. */
 function exporterListe(lignes: SchoolDiagnostic[]) {
-  exporterCSV(
-    'etablissements.csv',
+  void exporterTableauXLSX(
+    'etablissements.xlsx',
     [
       'Code',
       'Établissement',
@@ -201,6 +202,7 @@ export function EcolesPage() {
 
   return (
     <div className="stack">
+      <BandeauPrince />
       {scenario && detail ? (
         <Notice tone="info" title={`Scénario affiché : ${detail.scenario.nom}.`}>
           {erreur
@@ -222,7 +224,7 @@ export function EcolesPage() {
         />
         <div className="filter-bar-actions">
           <button type="button" className="btn btn-sm" onClick={() => exporterListe(lignes)}>
-            <Download size={13} aria-hidden="true" /> Exporter la liste (CSV)
+            <Download size={13} aria-hidden="true" /> Exporter la liste (Excel)
           </button>
         </div>
       </div>

@@ -116,6 +116,17 @@ export interface CandidatureDjango {
   statut: 'SATISFAIT' | 'ECOLE_INCONNUE' | 'AUCUN_POSTE' | 'INCOMPATIBLE' | 'NON_RETENU' | string
   motif: string
   bareme: number
+  /** Score d'appariement complet contre un poste de l'école visée ; `null` sans poste ouvert. */
+  detail_score?: {
+    total: number
+    composantes: {
+      Z1_bareme_individu: number
+      Z2_poids_poste_Up: number
+      Z3_proximite: number
+      Z4_ajustements: number
+    }
+    ajustements_contextuels: number
+  } | null
 }
 
 export interface ControleDjango {
@@ -259,15 +270,15 @@ export interface DonneesResultat {
   ecoles: Map<string, SchoolDiagnostic>
 }
 
-const NIVEAUX: ProximityLevel[] = ['meme_commune', 'meme_iaeb', 'meme_departement', 'meme_region', 'hors_region']
+const NIVEAUX: ProximityLevel[] = ['meme_commune', 'meme_departement', 'meme_region', 'hors_region']
 
-function proximite(
+export function proximite(
   origine: { commune: string; iaeb: string; departement: string; region: string },
   destination: { commune: string; iaeb: string; departement: string; region: string },
 ): ProximityLevel {
   const egal = (a: string, b: string) => a !== '' && normaliser(a) === normaliser(b)
-  if (egal(origine.commune, destination.commune)) return 'meme_commune'
-  if (egal(origine.iaeb, destination.iaeb)) return 'meme_iaeb'
+  // Même commune ou même circonscription IAEB : un seul niveau (une IAEB est une commune ou la regroupe).
+  if (egal(origine.commune, destination.commune) || egal(origine.iaeb, destination.iaeb)) return 'meme_commune'
   if (egal(origine.departement, destination.departement)) return 'meme_departement'
   if (egal(origine.region, destination.region)) return 'meme_region'
   return 'hors_region'
@@ -341,6 +352,7 @@ export function versPool(vivier: EnseignantDjango[], ecoles: Map<string, SchoolD
       rangDansEcole: rang,
       protege: false,
       affecte: Boolean(t.affecte),
+      horsRegion: t.motif_non_affectation === 'hors_region',
     }
   })
 }
@@ -464,15 +476,23 @@ export function versCandidatures(
       .sort((a, b) => a.rang_voeu - b.rang_voeu)
       .map(v => {
         const ecole = ecoles.get(v.id_etab)
+        const detail = v.detail_score ?? null
         return {
           rang: v.rang_voeu,
           code: v.id_etab,
           schoolId: ecole ? v.id_etab : null,
           nomEtab: ecole?.school.nom ?? v.id_etab,
           statut: STATUTS_VOEU[v.statut] ?? 'examine',
-          bonification: 0,
-          score: nombre(v.bareme),
-          poidsExamen: 0,
+          score: detail ? nombre(detail.total) : null,
+          ajustementsContextuels: detail ? nombre(detail.ajustements_contextuels) : null,
+          composantes: detail
+            ? {
+                bareme: nombre(detail.composantes.Z1_bareme_individu),
+                poidsPoste: nombre(detail.composantes.Z2_poids_poste_Up),
+                proximite: nombre(detail.composantes.Z3_proximite),
+                ajustements: nombre(detail.composantes.Z4_ajustements),
+              }
+            : null,
           interregional: Boolean(ecole && origine && ecole.school.region !== origine.school.region),
         }
       })

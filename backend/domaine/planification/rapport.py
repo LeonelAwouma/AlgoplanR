@@ -198,20 +198,45 @@ def part_agents_sans_eleves(ecoles: List[ProjectionEcole]) -> float:
     return _pct(sum(e.effectif_initial for e in ecoles if not e.eleves_connus), sum(e.effectif_initial for e in ecoles))
 
 
-def alea(ecoles: List[ProjectionEcole]) -> Optional[float]:
-    """Aléa d'affectation : 1 − R² de la régression du nombre d'enseignants sur le nombre d'élèves."""
+def alea_et_raison(ecoles: List[ProjectionEcole]) -> tuple:
+    """(aléa, raison) : l'aléa est `None` quand il n'est pas calculable, et la raison dit pourquoi."""
     pts = [(e.eleves_initial, float(e.effectif_initial)) for e in ecoles if e.eleves_connus]
     n = len(pts)
     if n < 3:
-        return None
+        return None, "Moins de 3 écoles avec un effectif d'élèves connu"
     mx = sum(x for x, _ in pts) / n
     my = sum(y for _, y in pts) / n
     sxx = sum((x - mx) ** 2 for x, _ in pts)
     syy = sum((y - my) ** 2 for _, y in pts)
     sxy = sum((x - mx) * (y - my) for x, y in pts)
-    if sxx == 0 or syy == 0:
-        return None
-    return round(1 - sxy * sxy / (sxx * syy), 2)
+    if sxx == 0:
+        return None, "Tous les effectifs d'élèves sont identiques"
+    if syy == 0:
+        return None, "Tous les effectifs d'enseignants sont identiques"
+    return round(1 - sxy * sxy / (sxx * syy), 2), None
+
+
+def alea(ecoles: List[ProjectionEcole]) -> Optional[float]:
+    """Aléa d'affectation : 1 − R² de la régression du nombre d'enseignants sur le nombre d'élèves."""
+    return alea_et_raison(ecoles)[0]
+
+
+def alea_par_region(ecoles: List[ProjectionEcole]) -> dict:
+    """Aléa national et de chaque région, avec le nombre d'écoles prises en compte et l'écart à la moyenne nationale."""
+    def ligne(nom: str, liste: List[ProjectionEcole]) -> dict:
+        valeur, raison = alea_et_raison(liste)
+        return {"region": nom, "alea": valeur, "raison": raison, "ecoles": len(liste),
+                "ecoles_avec_eleves": sum(1 for e in liste if e.eleves_connus)}
+
+    national = ligne("National", ecoles)
+    lignes = []
+    for nom, liste in regions(ecoles).items():
+        x = ligne(nom, liste)
+        x["ecart_national"] = (round(x["alea"] - national["alea"], 2)
+                               if x["alea"] is not None and national["alea"] is not None else None)
+        lignes.append(x)
+    national["ecart_national"] = None
+    return {"national": national, "regions": lignes}
 
 
 # --- Priorités -----------------------------------------------------------------------------------------------
@@ -348,11 +373,12 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], hyp
         ret = [l["departs_retraite"] for l in t["min"]]
         retraites_regions.append({"region": r, "annees": ret, "total": sum(ret)})
         scenarios_regions.append({"region": r, **{s: sum(l["recrutement"] for l in t[s]) for s in SCENARIOS},
-                                  "rem_base": rem_base(liste),
+                                  "rem_base": rem_base(liste), "alea": alea(liste),
                                   "rem_final": {s: _rem_final(t[s]) for s in ("min", "besoin", "plafond")}})
     ret_nat = [l["departs_retraite"] for l in traj_nat["min"]]
     nat_scen = {"region": "National", **{s: sum(l["recrutement"] for l in traj_nat[s]) for s in SCENARIOS},
-                "rem_base": rem_base(ecoles), "rem_final": {s: _rem_final(traj_nat[s]) for s in ("min", "besoin", "plafond")}}
+                "rem_base": rem_base(ecoles), "alea": nationaux["alea"],
+                "rem_final": {s: _rem_final(traj_nat[s]) for s in ("min", "besoin", "plafond")}}
 
     fiches = [fiche_region(r, liste, traj_reg[r], hyp, horizon, nationaux) for r, liste in par_region.items()]
     fiches.sort(key=lambda f: (f["priorite"], -(f["rem_base"] or 0)))

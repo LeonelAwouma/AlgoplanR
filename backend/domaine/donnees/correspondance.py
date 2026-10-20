@@ -22,6 +22,7 @@ SYNONYMES = {
     "Accessibilite_Zone": ["accessibilite", "zone", "zone_accessibilite"],
     "Securite_Zone": ["securite", "zone_securite"],
     "Classes_Multigrades": ["multigrade", "multigrades", "classes_multigrade"],
+    "Classes_Ouvertes": ["classes_ouvertes", "nb_classes", "nombre_classes", "classes"],
     "Matricule_Enseignant": ["matricule", "id_enseignant", "id_ens"],
     "Sous_Systeme_Formation": ["sous_systeme_formation", "formation_sous_systeme", "sous_systeme"],
     "Ecole_Attache_Actuelle": ["ecole_actuelle", "ecole_attache", "affectation_actuelle", "ecole"],
@@ -37,13 +38,18 @@ SYNONYMES = {
     "Voeu_2": ["voeu2", "voeu_deux", "choix_2"],
     "Voeu_3": ["voeu3", "voeu_trois", "choix_3"],
     "Motif_Bonification": ["motif", "bonification"],
+    "Motif": ["motif_decision", "observation", "justification", "raison"],
 }
 
 COLONNES_PAR_TYPE = {
     "etablissements": C.COLONNES_ATTENDUES_ETAB + C.COLONNES_OPTIONNELLES_ETAB,
     "enseignants": C.COLONNES_ATTENDUES_ENS + C.COLONNES_OPTIONNELLES_ENS,
+    "prince": C.COLONNES_ATTENDUES_PRINCE,
 }
-OBLIGATOIRES = {"etablissements": C.COLONNES_BLOQUANTES_ETAB, "enseignants": C.COLONNES_BLOQUANTES_ENS}
+OBLIGATOIRES = {"etablissements": C.COLONNES_BLOQUANTES_ETAB, "enseignants": C.COLONNES_BLOQUANTES_ENS,
+                "prince": C.COLONNES_BLOQUANTES_PRINCE}
+#: Colonnes qu'un fichier peut ne pas porter sans qu'on demande de les associer.
+OPTIONNELLES = C.COLONNES_OPTIONNELLES_ETAB + C.COLONNES_OPTIONNELLES_ENS + C.COLONNES_OPTIONNELLES_PRINCE
 
 
 def cle(s: Any) -> str:
@@ -76,7 +82,7 @@ def detecter(type_fichier: str, entetes: List[str]) -> Dict[str, Any]:
         restants = [h for h in entetes if h not in utilises]
         sugg = difflib.get_close_matches(cle(col), [cle(h) for h in restants], n=3, cutoff=0.5)
         suggestions[col] = [h for h in restants if cle(h) in sugg]
-        if col in C.COLONNES_OPTIONNELLES_ETAB + C.COLONNES_OPTIONNELLES_ENS:
+        if col in OPTIONNELLES:
             continue
         a_confirmer.append({"colonne": col, "obligatoire": col in OBLIGATOIRES[type_fichier],
                             "suggestions": suggestions[col]})

@@ -4,7 +4,8 @@
  * Indicateurs de suivi (mémo de synthèse, §3, étape 6) : couverture du besoin,
  * mobilisation du vivier, réalisation des nominations, écart entre prévu et
  * réalisé, besoin résiduel — sur le périmètre sélectionné, et leur évolution
- * d'une version de planification à l'autre.
+ * d'une version de planification à l'autre. Un panneau compare aussi le taux
+ * d'encadrement et le turnover avant (fichier d'origine) et après l'algorithme.
  */
 
 import type { IndicateurSuivi } from '@shared/api'
@@ -13,7 +14,10 @@ import { useSession } from '@shared/session'
 import { KpiCard, Panel, fmt, fmtPct } from '@shared/ui/commun'
 import { ChargementEnCours, EtatRequetes } from '@shared/ui/etats'
 
+import { useEncadrementScenario, useScenarioAffiche } from '@components/simulation'
+
 import { useEvolutionIndicateurs, useIndicateurs } from '../application/hooks'
+import { EncadrementTurnover } from './composants/EncadrementTurnover'
 
 /** Valeur affichée d'un indicateur, selon son unité. */
 function valeurAffichee(indicateur: IndicateurSuivi): string {
@@ -32,6 +36,8 @@ export function IndicateursPage() {
   }
   const indicateurs = useIndicateurs(jeu, perimetre)
   const evolution = useEvolutionIndicateurs(jeu, perimetre)
+  const { scenario, detail } = useScenarioAffiche()
+  const encadrement = useEncadrementScenario(jeu, scenario)
 
   if (!jeu) return <ChargementEnCours />
   if (!indicateurs.data) return <EtatRequetes requetes={[indicateurs]} />
@@ -47,6 +53,18 @@ export function IndicateursPage() {
           ))}
         </div>
       </Panel>
+
+      {scenario === null ? (
+        <Panel kicker="Encadrement et rotation" title="Avant / après l’algorithme">
+          <p className="hint">
+            Aucun scénario calculé : lancez un scénario pour comparer l’encadrement et le turnover.
+          </p>
+        </Panel>
+      ) : encadrement.data ? (
+        <EncadrementTurnover comparaison={encadrement.data} scenarioNom={detail?.scenario.nom ?? 'scénario affiché'} />
+      ) : (
+        <EtatRequetes requetes={[encadrement]} />
+      )}
 
       <Panel kicker="Évolution" title="D’une version de la planification à l’autre">
         {!evolution.data ? (

@@ -39,6 +39,7 @@ import {
   type DetailDjango,
   type EnseignantDjango,
 } from '../conversions/enseignants'
+import { versBilanPrince, type BilanPrinceDjango } from '../conversions/prince'
 import { normaliser } from '../conversions/referentiel'
 import { booleen, paginer, valeur } from '../liste'
 import { aucunFiltreActif } from '../moteur/territoires'
@@ -119,11 +120,20 @@ export const conversionsDonnees: Record<string, Conversion> = {
 
   'POST jeux/': async (r, acces) => {
     const c = r.corps as CorpsCreationJeu
-    const cree = await acces.ecrire<JeuDjango & { qualite: QualiteDjango }>('POST', 'jeux/', {
-      fichier_etablissements: c.etablissements,
-      fichier_enseignants: c.enseignants,
-    })
-    return jeuCree(acces, cree, cree.qualite)
+    const cree = await acces.ecrire<JeuDjango & { qualite: QualiteDjango; prince?: BilanPrinceDjango }>(
+      'POST',
+      'jeux/',
+      {
+        fichier_etablissements: c.etablissements,
+        fichier_enseignants: c.enseignants,
+        ...(c.prince ? { fichier_prince: c.prince } : {}),
+        ...(c.anneeScolaire ? { annee_scolaire: c.anneeScolaire } : {}),
+      },
+    )
+    return {
+      ...(await jeuCree(acces, cree, cree.qualite)),
+      ...(cree.prince ? { prince: versBilanPrince(cree.prince) } : {}),
+    }
   },
 
   'POST jeux/demonstration/': async (_, acces) =>

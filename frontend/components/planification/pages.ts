@@ -6,6 +6,7 @@
  * les dépendances circulaires entre contextes.
  */
 
+export { AleaPage } from './ui/AleaPage'
 export { HypothesesPage } from './ui/HypothesesPage'
 export { IndicateursPage } from './ui/IndicateursPage'
 export { PlanificationPage } from './ui/PlanificationPage'

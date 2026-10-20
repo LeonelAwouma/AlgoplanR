@@ -13,6 +13,7 @@ import type {
   ProjectionTerritoire,
   ProposedAssignment,
   ProximityLevel,
+  ScoreBreakdown,
   SimulationLogEntry,
   SimulationResult,
   SimulationScenario,
@@ -94,6 +95,8 @@ export interface ExplicationProposition {
   titre: string
   lignes: string[]
   proposition: ProposedAssignment
+  /** Détail C1..C5 du barème individuel de l'enseignant (c'est la valeur de Z1 dans le score). */
+  bareme: ScoreBreakdown
 }
 
 /** Comparaison des scénarios calculés sur un périmètre. */

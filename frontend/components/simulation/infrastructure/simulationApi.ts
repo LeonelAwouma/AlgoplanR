@@ -8,6 +8,7 @@
  *   GET  jeux/{jeu}/scenarios/                 POST jeux/{jeu}/scenarios/       POST jeux/{jeu}/scenarios/base/
  *   GET  jeux/{jeu}/scenarios/{scenario}/      DELETE …/{scenario}/             POST …/{scenario}/executer/
  *   GET  …/{scenario}/resultat/                …/affectations/                  …/affectations/{matricule}/explication/
+ *        …/{scenario}/encadrement/
  *        …/non-affectes/  …/vivier/  …/postes/  …/postes-non-couverts/  …/candidatures/  …/combinaisons/
  *        …/journal/  …/invariants/  …/projections/  …/recrutes/  …/flux/
  *   GET  jeux/{jeu}/comparaison/               PUT  jeux/{jeu}/scenario-retenu/
@@ -24,6 +25,7 @@ import {
   route,
   type Candidature,
   type CombinaisonArbitrage,
+  type ComparaisonEncadrement,
   type ComparaisonScenarios,
   type CorpsCreationScenario,
   type CorpsScenarioRetenu,
@@ -63,6 +65,7 @@ const ROUTES = {
   resultat: route<SimulationResult>()('GET', `${S}/resultat/`),
   affectations: route<Page<ProposedAssignment>>()('GET', `${S}/affectations/`),
   explication: route<ExplicationProposition>()('GET', `${S}/affectations/{matricule}/explication/`),
+  encadrement: route<ComparaisonEncadrement>()('GET', `${S}/encadrement/`),
   nonAffectes: route<Page<PoolTeacher>>()('GET', `${S}/non-affectes/`),
   vivier: route<RedeploymentPool>()('GET', `${S}/vivier/`),
   postes: route<Page<TeachingPost>>()('GET', `${S}/postes/`),
@@ -177,6 +180,11 @@ export function expliquerAffectation(
   signal?: AbortSignal,
 ): Promise<ExplicationProposition> {
   return appeler(ROUTES.explication, { params: { ...ref, matricule }, signal })
+}
+
+/** Taux d'encadrement et turnover du scénario, avant (fichier d'origine) et après l'algorithme. */
+export function lireEncadrement(ref: RefScenario, signal?: AbortSignal): Promise<ComparaisonEncadrement> {
+  return appeler(ROUTES.encadrement, { params: { ...ref }, signal })
 }
 
 /** Enseignants du vivier restés sans affectation. */

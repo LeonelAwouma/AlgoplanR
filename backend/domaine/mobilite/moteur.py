@@ -5,14 +5,19 @@ déterministe et ne modifie ni ses entrées ni l'état global.
 """
 from __future__ import annotations
 
+import copy
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from ..acces.regions import cle_region
 from ..commun.horloge import Horloge, horloge_systeme
 from ..commun.texte import est_vide, norm
+from ..diagnostic.indicateurs import calculer_indicateurs, enrichir_ecoles
 from ..donnees import colonnes as C
 from ..donnees.modeles import Ecole, Enseignant, Poste
+from ..prince.projection import ApplicationPrince, appliquer_effets_prince
+from .bareme import calculer_bareme
 from .projection import generer_projections_n3
 from .score import score_enseignant_poste
 from .selection import IndexPostes
@@ -84,10 +89,23 @@ def _filtre_zone_rouge(postes: List[Poste], autoriser: bool) -> List[Poste]:
     return postes if autoriser else [p for p in postes if not p.est_zone_rouge]
 
 
+def _filtre_region(postes: List[Poste], e: Enseignant) -> List[Poste]:
+    """Postes de la région d'attache de l'enseignant ; aucun si cette région est inconnue."""
+    r = cle_region(e.region_attache)
+    return [p for p in postes if cle_region(p.region) == r] if r else []
+
+
+def regions_etanches(cfg: dict) -> bool:
+    """Vrai si l'enseignant ne peut être affecté que dans sa région (sauf décision du prince ou de la commission)."""
+    return bool(cfg["regles_dreb"].get("regions_etanches", True))
+
+
 def choisir_meilleur_poste(e: Enseignant, candidats: List[Poste], cfg: dict, *, contrainte_commune=False,
                            contrainte_dept=False, contrainte_iaeb=False,
-                           autoriser_zone_rouge=False) -> Optional[Poste]:
+                           autoriser_zone_rouge=False, meme_region=False) -> Optional[Poste]:
     cands = _filtre_zone_rouge(_filtre_sous_systeme(candidats, e), autoriser_zone_rouge)
+    if meme_region:
+        cands = _filtre_region(cands, e)
     if contrainte_commune and norm(e.commune_attache):
         c = norm(e.commune_attache)
         cands = [p for p in cands if norm(p.commune) == c]
@@ -130,6 +148,7 @@ def _aff_item(e: Enseignant, p: Poste, cfg: dict, phase: str, motif: str = "", a
 # ---------------------------------------------------------------------------
 
 def _phase1_voeux(et: _Etat, cfg: dict) -> List[dict]:
+    etanche = regions_etanches(cfg)
     candidatures: Dict[str, list] = {}
     for i, e in enumerate(et.vivier):
         if et.affecte[i]:
@@ -140,6 +159,8 @@ def _phase1_voeux(et: _Etat, cfg: dict) -> List[dict]:
                 continue
             libres = [p for p in et.par_etab.get(id_voeu, []) if not p.pourvu]
             libres = _filtre_zone_rouge(_filtre_sous_systeme(libres, e), True)
+            if etanche:
+                libres = _filtre_region(libres, e)
             if not libres:
                 continue
             p = libres[0]
@@ -161,6 +182,7 @@ def _phase1_voeux(et: _Etat, cfg: dict) -> List[dict]:
 
 def _par_proximite(et: _Etat, cfg: dict, phase: str, **contraintes) -> List[dict]:
     res: List[dict] = []
+    etanche = regions_etanches(cfg)
     ordre = sorted(range(len(et.vivier)), key=lambda i: -et.vivier[i].bareme)
     # L'index ne contient que des postes hors zone rouge, comme le veulent les phases 2 et 3.
     rapide = (SELECTION_RAPIDE and not contraintes.get("autoriser_zone_rouge")
@@ -174,9 +196,9 @@ def _par_proximite(et: _Etat, cfg: dict, phase: str, **contraintes) -> List[dict
         e = et.vivier[i]
         if rapide:
             p = et.index.meilleur(e, cfg, contrainte_dept=bool(contraintes.get("contrainte_dept")),
-                                  contrainte_iaeb=bool(contraintes.get("contrainte_iaeb")))
+                                  contrainte_iaeb=bool(contraintes.get("contrainte_iaeb")), meme_region=etanche)
         else:
-            p = choisir_meilleur_poste(e, list(et.libres.values()), cfg, **contraintes)
+            p = choisir_meilleur_poste(e, list(et.libres.values()), cfg, meme_region=etanche, **contraintes)
         if p is None:
             continue
         et.affecte[i] = True
@@ -185,43 +207,38 @@ def _par_proximite(et: _Etat, cfg: dict, phase: str, **contraintes) -> List[dict
     return res
 
 
-def _phase0_prince(et: _Etat, ecoles_par_id: Dict[str, Ecole], faits: List[dict], cfg: dict,
-                   horloge: Horloge, journal: List[dict], deja: int) -> List[dict]:
+def _mouvements_prince(application: ApplicationPrince, cfg: dict, horloge: Horloge,
+                       journal: List[dict]) -> List[dict]:
+    """Mouvements des faits du Prince déjà appliqués aux bases (affectations de phase `effet_de_prince`).
+
+    L'enseignant est présenté tel qu'il était avant la décision (école d'origine, barème) ; le « poste » est celui que
+    la décision lui donne dans l'école de destination recalculée. Ces mouvements ne consomment aucun poste ouvert :
+    l'effectif de l'école de destination les contient déjà, donc son besoin en tient compte.
+    """
     res: List[dict] = []
-    for item in faits:
-        ens_id = str(item.get("id_ens", "")).strip()
-        etab_id = str(item.get("id_etab", "")).strip()
-        motif = item.get("motif") or "Décision de l'autorité (Effet de prince)"
-        if not ens_id or not etab_id:
+    for d in application.decisions:
+        base = {"timestamp": horloge(), "phase": "effet_de_prince", "id_ens": d.id_ens, "id_etab": d.id_destination}
+        if not d.appliquee:
+            journal.append({**base, "statut": "REJETE", "motif": " ; ".join(d.rejets)})
             continue
-        idx = next((k for k, e in enumerate(et.vivier) if e.matricule.strip() == ens_id), None)
-        base = {"timestamp": horloge(), "phase": "effet_de_prince", "id_ens": ens_id, "id_etab": etab_id}
-        if idx is None:
-            journal.append({**base, "statut": "REJETE", "motif": f"Enseignant introuvable dans le vivier ({motif})"})
-            continue
-        if et.affecte[idx]:
-            journal.append({**base, "statut": "REJETE", "motif": "Enseignant déjà affecté"})
-            continue
-        e = et.vivier[idx]
-        libres = [p for p in et.par_etab.get(etab_id, []) if not p.pourvu]
-        if libres:
-            poste = libres[0]
-            et.pourvoir(poste)
-        else:
-            ec = ecoles_par_id.get(etab_id)
-            poste = Poste(
-                id_poste=f"{etab_id}_P_PRINCE_{deja + len(res) + 1}", id_etab=etab_id,
-                nom_etab=ec.id if ec else "", commune=ec.commune if ec else "",
-                departement=ec.departement if ec else "", region=ec.region if ec else "",
-                iaeb=ec.iaeb if ec else "", accessibilite=ec.accessibilite if ec else "",
-                securite=ec.securite if ec else "", multigrade=ec.multigrade if ec else "",
-                sous_systeme=ec.sous_systeme if ec else "", type_etab=ec.type_etab if ec else "ECOLE",
-                Up=0.0, Wp=0.0, est_zone_rouge=False,
-                latitude=ec.latitude if ec else None, longitude=ec.longitude if ec else None,
-            )
-            et.ajouter_poste_pourvu(poste)
-        et.affecte[idx] = True
-        res.append(_aff_item(e, poste, cfg, "effet_de_prince", motif=motif, arbitrage="fait_du_prince"))
+        origine = copy.copy(application.ecoles_avant[d.id_origine])
+        origine.ind = calculer_indicateurs(origine, cfg)
+        t = copy.copy(application.enseignants_avant[d.id_ens])
+        enrichir_enseignants([t], [origine])
+        t.bareme = calculer_bareme(t, cfg)
+        ec = application.ecoles_apres[d.id_destination]
+        poste = Poste(
+            id_poste=f"{ec.id}_P_PRINCE_{d.ordre}", id_etab=ec.id, nom_etab=ec.nom or ec.id, commune=ec.commune,
+            departement=ec.departement, region=ec.region, iaeb=ec.iaeb, accessibilite=ec.accessibilite,
+            securite=ec.securite, multigrade=ec.multigrade, sous_systeme=ec.sous_systeme.strip(),
+            type_etab=ec.type_etab, Up=float(ec.ind.Up or 0), Wp=float(ec.ind.Wp or 0),
+            est_zone_rouge=bool(ec.ind.est_zone_rouge), pourvu=True, latitude=ec.latitude, longitude=ec.longitude)
+        item = _aff_item(t, poste, cfg, "effet_de_prince", motif=d.motif, arbitrage="fait_du_prince")
+        motif = d.motif
+        if d.alertes:
+            item["alertes_prince"] = list(d.alertes)
+            motif = f"{motif} (alertes : {' ; '.join(d.alertes)})"
+        res.append(item)
         journal.append({**base, "id_poste": poste.id_poste, "statut": "FAIT_DU_PRINCE", "motif": motif})
     return res
 
@@ -255,6 +272,28 @@ def _phase_arbitrages(et: _Etat, arbitrages: List[dict], cfg: dict, horloge: Hor
     return res
 
 
+MOTIF_HORS_REGION = "hors_region"
+
+
+def _non_affectes_hors_region(vivier: List[Enseignant], et: _Etat, non_pourvus: List[Poste]) -> set:
+    """Indices des enseignants non affectés pour lesquels il reste un poste libre hors de leur région."""
+    regions_par_ss: Dict[str, set] = {}
+    for p in non_pourvus:
+        if p.est_zone_rouge:
+            continue
+        regions_par_ss.setdefault(norm(p.sous_systeme), set()).add(cle_region(p.region))
+    toutes = set().union(*regions_par_ss.values()) if regions_par_ss else set()
+    res = set()
+    for i, e in enumerate(vivier):
+        if et.affecte[i]:
+            continue
+        ss = norm(e.sous_systeme)
+        regions = regions_par_ss.get(ss, set()) if ss else toutes
+        if regions - {cle_region(e.region_attache)}:
+            res.add(i)
+    return res
+
+
 def _journaliser(journal: List[dict], horloge: Horloge, affs: List[dict], motif: str) -> None:
     for a in affs:
         journal.append({"timestamp": horloge(), "phase": a["phase"], "id_ens": a["id_ens"],
@@ -269,28 +308,36 @@ COLONNES_ECOLE_BESOIN = [C.COL_ETAB_ID, C.COL_ETAB_SS, C.COL_ETAB_REGION, C.COL_
 def lancer_affectation(ecoles: List[Ecole], enseignants: List[Enseignant], cfg: dict, *,
                        faits_prince: Optional[List[dict]] = None, arbitrages: Optional[List[dict]] = None,
                        horloge: Horloge = horloge_systeme) -> ResultatAffectation:
-    """Exécute le moteur. Les entrées sont copiées : elles ne sont pas modifiées."""
-    import copy
+    """Exécute le moteur. Les entrées sont copiées : elles ne sont pas modifiées.
+
+    Les faits du Prince passent en premier : ils sont appliqués aux bases (enseignants rattachés à leur destination,
+    effectifs des deux écoles mis à jour), puis les besoins, les excédents, les postes ouverts et le vivier sont
+    calculés sur ces bases recalculées. Les agents déplacés sont exclus de la mobilité ordinaire ; leurs mouvements
+    figurent dans les affectations (phase `effet_de_prince`) sans consommer de poste.
+    """
+    application: Optional[ApplicationPrince] = None
+    if faits_prince:
+        application = appliquer_effets_prince(ecoles, enseignants, faits_prince, cfg)
+        ecoles, enseignants = application.ecoles, application.enseignants
     # Copie simple de chaque objet : le moteur ne fait que réaffecter leurs attributs (y compris `ind`,
     # remplacé par enrichir_ecoles), sans modifier d'objet imbriqué. Une copie profonde de 30 000 écoles
     # et 39 000 enseignants coûtait les deux tiers du temps de calcul.
     ecoles = [copy.copy(e) for e in ecoles]
     enseignants = [copy.copy(e) for e in enseignants]
-    from ..diagnostic.indicateurs import enrichir_ecoles
     enrichir_ecoles(ecoles, cfg)
     ens, exclus = nettoyer_enseignants(enseignants, cfg)
     ens = enrichir_enseignants(ens, ecoles)
     postes = construire_postes(ecoles)
-    vivier = construire_vivier(ens, ecoles, cfg)
+    vivier = construire_vivier(ens, ecoles, cfg, exclus=application.deplaces if application else None)
     et = _Etat(postes, vivier)
-    ecoles_par_id = {e.id: e for e in ecoles}
 
     toutes: List[dict] = []
     journal: List[dict] = []
     regles = cfg["regles_dreb"]
 
-    if faits_prince and vivier:
-        toutes += _phase0_prince(et, ecoles_par_id, faits_prince, cfg, horloge, journal, 0)
+    mouvements_prince: List[dict] = []
+    if application is not None:
+        mouvements_prince = _mouvements_prince(application, cfg, horloge, journal)
 
     besoin = len(et.postes)
     dispo = len(vivier)
@@ -314,6 +361,9 @@ def lancer_affectation(ecoles: List[Ecole], enseignants: List[Enseignant], cfg: 
     if arbitrages:
         toutes += _phase_arbitrages(et, arbitrages, cfg, horloge, journal)
 
+    ordinaires = toutes                    # affectations qui pourvoient un poste ouvert
+    toutes = mouvements_prince + ordinaires
+
     # PHASE 4 : synthèse et projections
     non_aff = [e for i, e in enumerate(vivier) if not et.affecte[i]]
     non_pourvus = [p for p in et.postes if not p.pourvu]
@@ -331,21 +381,36 @@ def lancer_affectation(ecoles: List[Ecole], enseignants: List[Enseignant], cfg: 
     fournisseurs = [{C.COL_ETAB_ID: k, "nb_enseignants_vivier": compte[k]} for k in sorted(compte)]
 
     stats_phase = dict(Counter(a["phase"] for a in toutes).most_common())
-    nb_prince = sum(1 for a in toutes if a["phase"] == "effet_de_prince")
-    projections = generer_projections_n3(ecoles, vivier, toutes)
+    nb_prince = len(mouvements_prince)
+    # Les arrivées du Prince sont déjà dans l'effectif des écoles : seules les affectations ordinaires s'y ajoutent.
+    projections = generer_projections_n3(ecoles, vivier, ordinaires)
+
+    # Enseignants sans poste dans leur région alors qu'un poste libre existe ailleurs : la règle des régions
+    # les a laissés dans le vivier, ils vont à la commission d'arbitrage.
+    hors_region = _non_affectes_hors_region(vivier, et, non_pourvus) if regions_etanches(cfg) else set()
 
     affecte_dicts = []
     for i, e in enumerate(vivier):
         d = e.vers_dict()
         d["affecte"] = et.affecte[i]
+        if i in hors_region:
+            d["motif_non_affectation"] = MOTIF_HORS_REGION
         affecte_dicts.append(d)
 
     synthese = {
-        "besoin_total": besoin, "disponibles": dispo, "affectes": len(toutes),
-        "effet_de_prince": nb_prince, "non_affectes": len(non_aff), "postes_non_pourvus": len(non_pourvus),
+        "besoin_total": besoin, "disponibles": dispo, "affectes": len(ordinaires),
+        "effet_de_prince": nb_prince, "affectes_total": len(toutes), "non_affectes": len(non_aff), "postes_non_pourvus": len(non_pourvus),
         "a_recruter": len(non_pourvus), "rt_par_sous_systeme": rt_par_ss,
         "postes_rouge_non_pourvus": len(rouge), "stats_phase": stats_phase,
+        "regions_etanches": regions_etanches(cfg), "non_affectes_hors_region": len(hors_region),
     }
+    if application is not None:
+        synthese.update({
+            "besoin_total_avant_prince": application.totaux_avant["besoin_postes"],
+            "prince_appliques": len(application.decisions_appliquees()),
+            "prince_avec_alerte": sum(1 for d in application.decisions if d.alertes and d.appliquee),
+            "prince_rejetes": sum(1 for d in application.decisions if not d.appliquee),
+        })
     return ResultatAffectation(
         synthese=synthese, ecoles_en_besoin=ecoles_besoin, ecoles_fournisseurs=fournisseurs,
         affectations=toutes,

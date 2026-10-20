@@ -1,14 +1,18 @@
 /**
  * Définition de la navigation.
  *
- * La barre latérale ne liste plus les écrans un à un : elle propose une
- * rubrique par variable que l'application calcule ou fait décider (données de
- * référence, écoles prioritaires, affectations, quotas, nominations, rapport,
- * règles). Chaque rubrique ordonne ses écrans comme une chaîne de calcul :
- * d'abord les éléments qui composent la variable, puis l'écran du choix final,
- * marqué `finale`. Cette chaîne est affichée en tête de page (`EtapesRubrique`).
+ * L'application se présente comme un outil d'aide à la décision : cinq menus
+ * qui suivent le travail de la DRH (données, tableau de bord, affectations,
+ * planification, rapports), un menu « Comptes et accès » réservé au DRH, et un
+ * espace « Paramètres avancés » pour ce qui relève du réglage et du contrôle
+ * (méthodologie, moteur, référentiel, journal d'audit).
  *
- * Les écrans techniques ne sont proposés qu'en Vue analyste : la Vue simplifiée
+ * Dans un menu, les écrans du parcours s'enchaînent (bouton « Continuer »). Les
+ * écrans marqués `onglet` sont des détails : on y arrive en cliquant sur un
+ * indicateur ou depuis la barre d'onglets, ils ne font pas partie du parcours.
+ * Aucun écran n'est supprimé : chacun appartient à exactement un menu.
+ *
+ * Les écrans techniques ne sont proposés qu'en Vue analyste : la vue Décideur
  * conserve exactement le même moteur et les mêmes données, mais n'expose que
  * les écrans de pilotage.
  */
@@ -37,7 +41,9 @@ import {
   ListChecks,
   ListOrdered,
   Map,
+  Scale,
   ScrollText,
+  Settings2,
   Shuffle,
   Sigma,
   SlidersHorizontal,
@@ -53,6 +59,7 @@ export type PageKey =
   | 'import'
   | 'validation'
   | 'overview'
+  | 'alea'
   | 'diagnostic'
   | 'territoires'
   | 'priorites'
@@ -85,21 +92,23 @@ export type PageKey =
   | 'logs'
   | 'acces'
 
-/** Vue simplifiée (décideurs) ou Vue analyste (détail technique complet). */
+/** Vue Décideur (`simple`, valeur conservée pour les préférences déjà enregistrées) ou Vue analyste. */
 export type ViewMode = 'simple' | 'analyste'
 
 /** Rôle de la personne connectée : le DRH voit tout, un délégué régional ne voit que sa région. */
 export type RoleAcces = 'drh' | 'delegue'
 
-/** Un écran, c'est-à-dire une étape d'une rubrique. */
+/** Un écran, c'est-à-dire une étape d'un menu ou l'un de ses détails. */
 export interface NavItem {
   id: PageKey
   label: string
   /** Courte explication affichée sous le titre de la page. */
   sousTitre?: string
   icon: typeof LayoutDashboard
-  /** `true` si l'écran porte le choix final de la rubrique (et non l'un de ses éléments). */
+  /** `true` si l'écran porte le choix final du menu (et non l'un de ses éléments). */
   finale?: boolean
+  /** `true` si l'écran est un détail (onglet), hors du parcours guidé du menu. */
+  onglet?: boolean
   /** `true` si l'entrée n'apparaît qu'en Vue analyste. */
   analysteSeulement?: boolean
   /** `true` si l'entrée est réservée au DRH : décisions et règles qui engagent tout le pays. */
@@ -110,15 +119,17 @@ export interface NavItem {
   exigeSimulation?: boolean
 }
 
-/** Une variable de l'application et la chaîne d'écrans qui y mène. */
+/** Un menu de l'application et les écrans qu'il regroupe. */
 export interface Rubrique {
   id: string
   label: string
-  /** Ce qui est décidé ou calculé au bout de la chaîne. */
+  /** Ce que le menu permet de faire. */
   sousTitre: string
   icon: typeof LayoutDashboard
-  /** Éléments de la variable, dans l'ordre du calcul, puis le choix final. */
+  /** Écrans du menu : d'abord le parcours dans l'ordre, puis les onglets de détail. */
   etapes: NavItem[]
+  /** `true` pour « Paramètres avancés » : hors du parcours guidé, présenté à part dans la barre latérale. */
+  avance?: boolean
 }
 
 /** Ce qui est prêt dans le jeu ouvert : détermine les écrans accessibles. */
@@ -130,18 +141,18 @@ export interface EtatJeu {
 export const RUBRIQUES: Rubrique[] = [
   {
     id: 'donnees',
-    label: 'Données de référence',
-    sousTitre: 'Choix final : le jeu de données validé',
+    label: 'Données',
+    sousTitre: 'Importer, appliquer le Prince, valider',
     icon: Upload,
     etapes: [
       { id: 'import', label: 'Ajouter les données', sousTitre: 'Import et contrôle qualité', icon: Upload },
       {
-        id: 'data',
-        label: 'Qualité des données',
-        sousTitre: 'Colonnes reconnues et contrôles',
-        icon: Database,
-        analysteSeulement: true,
+        id: 'prince',
+        label: 'Fait de Prince',
+        sousTitre: 'Décisions appliquées aux bases avant tout calcul (facultatif)',
+        icon: Crown,
         exigeDonnees: true,
+        drhSeulement: true,
       },
       {
         id: 'validation',
@@ -151,12 +162,21 @@ export const RUBRIQUES: Rubrique[] = [
         exigeDonnees: true,
         finale: true,
       },
+      {
+        id: 'data',
+        label: 'Qualité des données',
+        sousTitre: 'Colonnes reconnues et contrôles',
+        icon: Database,
+        onglet: true,
+        analysteSeulement: true,
+        exigeDonnees: true,
+      },
     ],
   },
   {
     id: 'accueil',
     label: 'Tableau de bord',
-    sousTitre: 'Synthèse de toutes les variables',
+    sousTitre: 'Les réponses essentielles',
     icon: LayoutDashboard,
     etapes: [
       {
@@ -167,19 +187,20 @@ export const RUBRIQUES: Rubrique[] = [
         exigeDonnees: true,
         finale: true,
       },
-    ],
-  },
-  {
-    id: 'besoins',
-    label: 'Besoin des écoles',
-    sousTitre: 'Choix final : les écoles prioritaires',
-    icon: ListChecks,
-    etapes: [
       {
-        id: 'teachers',
-        label: 'Enseignants en poste',
-        sousTitre: 'Personnel disponible par école',
-        icon: Users,
+        id: 'alea',
+        label: 'Degré d’aléa',
+        sousTitre: 'Les enseignants suivent-ils les effectifs d’élèves ? Détail par région',
+        icon: Scale,
+        onglet: true,
+        exigeSimulation: true,
+      },
+      {
+        id: 'priorites',
+        label: 'Écoles prioritaires',
+        sousTitre: 'Classement retenu pour les affectations',
+        icon: ListChecks,
+        onglet: true,
         exigeDonnees: true,
       },
       {
@@ -187,40 +208,39 @@ export const RUBRIQUES: Rubrique[] = [
         label: 'Besoin par école',
         sousTitre: 'Effectifs, classes, dotation et écart',
         icon: Building2,
-        exigeDonnees: true,
-      },
-      { id: 'territoires', label: 'Territoires', sousTitre: 'Carte et exploration', icon: Map, exigeDonnees: true },
-      {
-        id: 'diagnostic',
-        label: 'Situation nationale',
-        sousTitre: 'Déficits et excédents agrégés',
-        icon: BarChart3,
+        onglet: true,
         exigeDonnees: true,
       },
       {
-        id: 'priorites',
-        label: 'Écoles prioritaires',
-        sousTitre: 'Classement retenu pour les affectations',
-        icon: ListChecks,
+        id: 'teachers',
+        label: 'Enseignants en poste',
+        sousTitre: 'Personnel disponible par école',
+        icon: Users,
+        onglet: true,
         exigeDonnees: true,
-        finale: true,
+      },
+      {
+        id: 'territoires',
+        label: 'Territoires',
+        sousTitre: 'Carte et exploration',
+        icon: Map,
+        onglet: true,
+        exigeDonnees: true,
       },
     ],
   },
   {
     id: 'affectations',
     label: 'Affectations',
-    sousTitre: 'Choix final : les propositions arbitrées',
+    sousTitre: 'Des besoins recalculés aux nominations',
     icon: Gavel,
     etapes: [
       {
-        id: 'prince',
-        label: 'Fait de Prince',
-        sousTitre: 'Redéploiements décidés par la DRH',
-        icon: Crown,
+        id: 'diagnostic',
+        label: 'Besoins recalculés',
+        sousTitre: 'Situation nationale sur les bases après les effets du Prince',
+        icon: BarChart3,
         exigeDonnees: true,
-        analysteSeulement: true,
-        drhSeulement: true,
       },
       {
         id: 'simulations',
@@ -237,44 +257,6 @@ export const RUBRIQUES: Rubrique[] = [
         exigeSimulation: true,
       },
       {
-        id: 'pool',
-        label: 'Vivier',
-        sousTitre: 'Enseignants mobilisables du scénario',
-        icon: GraduationCap,
-        analysteSeulement: true,
-        exigeSimulation: true,
-      },
-      {
-        id: 'posts',
-        label: 'Postes',
-        sousTitre: 'Postes à pourvoir et leur poids',
-        icon: ClipboardList,
-        analysteSeulement: true,
-        exigeSimulation: true,
-      },
-      {
-        id: 'assignments',
-        label: 'Affectations calculées',
-        sousTitre: 'Score de chaque appariement',
-        icon: Sigma,
-        analysteSeulement: true,
-        exigeSimulation: true,
-      },
-      {
-        id: 'unassigned',
-        label: 'Non affectés',
-        icon: UserX,
-        analysteSeulement: true,
-        exigeSimulation: true,
-      },
-      {
-        id: 'logs',
-        label: 'Journal de simulation',
-        icon: ScrollText,
-        analysteSeulement: true,
-        exigeSimulation: true,
-      },
-      {
         id: 'comparison',
         label: 'Comparaison',
         sousTitre: 'Avant / après et scénarios',
@@ -287,53 +269,7 @@ export const RUBRIQUES: Rubrique[] = [
         sousTitre: 'Valider, rejeter ou corriger les propositions',
         icon: Gavel,
         exigeSimulation: true,
-        finale: true,
       },
-    ],
-  },
-  {
-    id: 'quotas',
-    label: 'Quotas de recrutement',
-    sousTitre: 'Choix final : les quotas validés',
-    icon: ClipboardCheck,
-    etapes: [
-      {
-        id: 'hypotheses',
-        label: 'Hypothèses de calcul',
-        sousTitre: 'Retraite, attrition, horizon',
-        icon: Calculator,
-        exigeDonnees: true,
-      },
-      {
-        id: 'planification',
-        label: 'Projection sur 5 ans',
-        sousTitre: 'Départs, besoins, vivier et quotas par année',
-        icon: CalendarRange,
-        exigeSimulation: true,
-      },
-      {
-        id: 'rapport-previsionnel',
-        label: 'Rapport prévisionnel',
-        sousTitre: 'Scénarios, retraites par région, redéploiement, priorités',
-        icon: FileText,
-        exigeSimulation: true,
-      },
-      {
-        id: 'quotas',
-        label: 'Quotas de recrutement',
-        sousTitre: 'Calculés, ajustés, validés',
-        icon: ClipboardCheck,
-        exigeSimulation: true,
-        finale: true,
-      },
-    ],
-  },
-  {
-    id: 'nominations',
-    label: 'Nominations',
-    sousTitre: 'Choix final : les nominations validées',
-    icon: UserRoundCheck,
-    etapes: [
       {
         id: 'vivier',
         label: 'Vivier et postes ouverts',
@@ -356,12 +292,85 @@ export const RUBRIQUES: Rubrique[] = [
         exigeSimulation: true,
         finale: true,
       },
+      {
+        id: 'pool',
+        label: 'Vivier du scénario',
+        sousTitre: 'Enseignants mobilisables du scénario',
+        icon: GraduationCap,
+        onglet: true,
+        analysteSeulement: true,
+        exigeSimulation: true,
+      },
+      {
+        id: 'posts',
+        label: 'Postes',
+        sousTitre: 'Postes à pourvoir et leur poids',
+        icon: ClipboardList,
+        onglet: true,
+        analysteSeulement: true,
+        exigeSimulation: true,
+      },
+      {
+        id: 'assignments',
+        label: 'Affectations calculées',
+        sousTitre: 'Score de chaque appariement',
+        icon: Sigma,
+        onglet: true,
+        analysteSeulement: true,
+        exigeSimulation: true,
+      },
+      {
+        id: 'unassigned',
+        label: 'Non affectés',
+        icon: UserX,
+        onglet: true,
+        analysteSeulement: true,
+        exigeSimulation: true,
+      },
+      {
+        id: 'logs',
+        label: 'Journal de simulation',
+        icon: ScrollText,
+        onglet: true,
+        analysteSeulement: true,
+        exigeSimulation: true,
+      },
     ],
   },
   {
-    id: 'suivi',
-    label: 'Suivi et rapports',
-    sousTitre: 'Choix final : le rapport de synthèse',
+    id: 'planification',
+    label: 'Planification',
+    sousTitre: 'Attrition, retraites, projections et quotas',
+    icon: CalendarRange,
+    etapes: [
+      {
+        id: 'hypotheses',
+        label: 'Hypothèses de calcul',
+        sousTitre: 'Retraite, attrition, horizon',
+        icon: Calculator,
+        exigeDonnees: true,
+      },
+      {
+        id: 'planification',
+        label: 'Projection sur 5 ans',
+        sousTitre: 'Départs, besoins, vivier et quotas par année',
+        icon: CalendarRange,
+        exigeSimulation: true,
+      },
+      {
+        id: 'quotas',
+        label: 'Quotas de recrutement',
+        sousTitre: 'Calculés, ajustés, validés',
+        icon: ClipboardCheck,
+        exigeSimulation: true,
+        finale: true,
+      },
+    ],
+  },
+  {
+    id: 'rapports',
+    label: 'Rapports',
+    sousTitre: 'Rapport final, suivi des mouvements, prévisions',
     icon: FileText,
     etapes: [
       {
@@ -379,11 +388,11 @@ export const RUBRIQUES: Rubrique[] = [
         exigeSimulation: true,
       },
       {
-        id: 'audit',
-        label: 'Journal d’audit',
-        sousTitre: 'Toutes les décisions, horodatées',
-        icon: History,
-        exigeDonnees: true,
+        id: 'rapport-previsionnel',
+        label: 'Rapport prévisionnel',
+        sousTitre: 'Scénarios, retraites par région, redéploiement, priorités',
+        icon: FileText,
+        exigeSimulation: true,
       },
       {
         id: 'reports',
@@ -396,18 +405,37 @@ export const RUBRIQUES: Rubrique[] = [
     ],
   },
   {
-    // « Règles » et non « Paramètres » : ce qu'on y règle, ce sont les règles de l'analyse.
-    id: 'regles',
-    label: 'Règles de calcul',
-    sousTitre: 'Choix final : le référentiel appliqué',
-    icon: BookMarked,
+    // Gestion des comptes des délégués régionaux : réservée au DRH, hors du parcours guidé.
+    id: 'comptes',
+    label: 'Comptes et accès',
+    sousTitre: 'Délégués régionaux et historique des accès',
+    icon: KeyRound,
     etapes: [
-      { id: 'methodology', label: 'Méthodologie', sousTitre: 'Formules expliquées', icon: BookOpen },
+      {
+        id: 'acces',
+        label: 'Comptes et accès',
+        sousTitre: 'Délégués régionaux et historique des accès',
+        icon: KeyRound,
+        onglet: true,
+        drhSeulement: true,
+      },
+    ],
+  },
+  {
+    // Réglage et contrôle, hors du parcours : chaque entrée garde ses restrictions d'accès.
+    id: 'avancees',
+    label: 'Paramètres avancés',
+    sousTitre: 'Méthodologie, moteur, référentiel, audit',
+    icon: Settings2,
+    avance: true,
+    etapes: [
+      { id: 'methodology', label: 'Méthodologie', sousTitre: 'Formules expliquées', icon: BookOpen, onglet: true },
       {
         id: 'engine',
         label: 'Configuration du moteur',
         sousTitre: 'Barème, poids et phases',
         icon: SlidersHorizontal,
+        onglet: true,
         analysteSeulement: true,
         drhSeulement: true,
       },
@@ -416,23 +444,22 @@ export const RUBRIQUES: Rubrique[] = [
         label: 'Référentiel',
         sousTitre: "Règles utilisées pour l'analyse",
         icon: BookMarked,
+        onglet: true,
         drhSeulement: true,
-        finale: true,
+      },
+      {
+        id: 'audit',
+        label: 'Journal d’audit',
+        sousTitre: 'Toutes les décisions, horodatées',
+        icon: History,
+        onglet: true,
+        exigeDonnees: true,
       },
     ],
   },
 ]
 
-/** Gestion des comptes des délégués régionaux (suspension, sessions, mot de passe temporaire, historique). */
-export const PAGE_ACCES: NavItem = {
-  id: 'acces',
-  label: 'Comptes et accès',
-  sousTitre: 'Délégués régionaux et historique des accès',
-  icon: KeyRound,
-  drhSeulement: true,
-}
-
-const TOUTES = [...RUBRIQUES.flatMap(r => r.etapes), PAGE_ACCES]
+const TOUTES = RUBRIQUES.flatMap(r => r.etapes)
 
 /** Titre de page affiché dans l'en-tête. */
 export function titreDePage(page: PageKey): string {
@@ -444,7 +471,7 @@ export function sousTitreDePage(page: PageKey): string | undefined {
   return TOUTES.find(i => i.id === page)?.sousTitre
 }
 
-/** Rubrique qui contient la page. */
+/** Menu qui contient la page. */
 export function rubriqueDePage(page: PageKey): Rubrique | undefined {
   return RUBRIQUES.find(r => r.etapes.some(e => e.id === page))
 }
@@ -459,14 +486,19 @@ export function pageAnalysteSeule(page: PageKey): boolean {
   return TOUTES.some(i => i.id === page && i.analysteSeulement)
 }
 
-/** Étapes d'une rubrique visibles dans le mode d'affichage courant, pour le rôle connecté. */
+/** Écrans d'un menu visibles dans le mode d'affichage courant, pour le rôle connecté. */
 export function etapesVisibles(rubrique: Rubrique, mode: ViewMode, role: RoleAcces): NavItem[] {
   return rubrique.etapes.filter(
     e => (mode === 'analyste' || !e.analysteSeulement) && (role === 'drh' || !e.drhSeulement),
   )
 }
 
-/** Rubriques ayant au moins une étape visible. */
+/** Écrans du parcours guidé d'un menu (sans ses onglets de détail). */
+export function parcoursVisible(rubrique: Rubrique, mode: ViewMode, role: RoleAcces): NavItem[] {
+  return etapesVisibles(rubrique, mode, role).filter(e => !e.onglet)
+}
+
+/** Menus ayant au moins un écran visible. */
 export function rubriquesVisibles(mode: ViewMode, role: RoleAcces): Rubrique[] {
   return RUBRIQUES.filter(r => etapesVisibles(r, mode, role).length > 0)
 }
@@ -476,12 +508,38 @@ export function etapeAccessible(etape: NavItem, etat: EtatJeu): boolean {
   return !(etape.exigeDonnees && !etat.donneesChargees) && !(etape.exigeSimulation && !etat.simulationPrete)
 }
 
-/** Premier écran ouvrable d'une rubrique, `undefined` si aucun ne l'est encore. */
+/** Premier écran ouvrable d'un menu, `undefined` si aucun ne l'est encore. */
 export function premiereEtapeAccessible(
   rubrique: Rubrique,
   mode: ViewMode,
   role: RoleAcces,
   etat: EtatJeu,
 ): NavItem | undefined {
-  return etapesVisibles(rubrique, mode, role).find(e => etapeAccessible(e, etat))
+  const visibles = etapesVisibles(rubrique, mode, role)
+  // Le parcours d'abord : un menu s'ouvre sur sa première étape, pas sur un onglet de détail.
+  return (
+    visibles.filter(e => !e.onglet).find(e => etapeAccessible(e, etat)) ?? visibles.find(e => etapeAccessible(e, etat))
+  )
+}
+
+/**
+ * Étape qui suit la page courante dans le parcours guidé : les écrans de parcours
+ * des cinq menus, dans l'ordre. `undefined` pour un onglet de détail, pour un
+ * écran des paramètres avancés et pour la dernière étape. `accessible` dit si
+ * l'étape peut déjà être ouverte (une simulation peut manquer). `ignorer` : étapes facultatives que « Continuer »
+ * saute (le Fait de Prince quand il n'y en a aucun) ; elles restent ouvrables depuis le parcours.
+ */
+export function etapeSuivante(
+  page: PageKey,
+  mode: ViewMode,
+  role: RoleAcces,
+  etat: EtatJeu,
+  ignorer: readonly PageKey[] = [],
+): { etape: NavItem; accessible: boolean } | undefined {
+  const parcours = RUBRIQUES.filter(r => !r.avance).flatMap(r => parcoursVisible(r, mode, role))
+  const i = parcours.findIndex(e => e.id === page)
+  if (i < 0) return undefined
+  const etape = parcours.slice(i + 1).find(e => !ignorer.includes(e.id))
+  if (!etape) return undefined
+  return { etape, accessible: etapeAccessible(etape, etat) }
 }

@@ -24,9 +24,9 @@ import { FeatureCard } from './FeatureCard'
 const FONCTIONS = [
   {
     Icone: Upload,
-    titre: 'Collecter',
+    titre: 'Importer',
     description:
-      'Importation des fichiers Excel des établissements et des enseignants, reconnaissance des colonnes et contrôle qualité.',
+      'Importation des fichiers Excel des établissements (DPPC) et des enseignants (DRH), reconnaissance des colonnes et contrôle qualité.',
   },
   {
     Icone: BarChart3,

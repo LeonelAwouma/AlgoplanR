@@ -10,9 +10,12 @@ import { X } from 'lucide-react'
 import type { IdJeu, ProposedAssignment } from '@shared/api'
 import { LIBELLE_NATURE, LIBELLE_PROXIMITE } from '@shared/kernel'
 import { Notice, Panel } from '@shared/ui/commun'
+import { TableauCalcul } from '@shared/ui/TableauCalcul'
 
 import { useExplication } from '../../application/hooks'
 import { EXPLICATION_NATURE, libelleTotalScore } from '../../domain/explications'
+
+const fmtScore = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
 
 export interface ProprietesExplicationProposition {
   jeu: IdJeu
@@ -55,34 +58,29 @@ export function ExplicationProposition({ jeu, scenario, proposition: a, onFermer
         </ul>
       )}
 
-      <table className="compare-table">
-        <thead>
-          <tr>
-            <th>Composante réellement utilisée dans le calcul</th>
-            <th className="num">Valeur</th>
-            <th className="num">Poids</th>
-            <th className="num">Contribution</th>
-          </tr>
-        </thead>
-        <tbody>
-          {a.breakdown.components.map((c, i) => (
-            <tr key={`${c.label}-${i}`}>
-              <th scope="row" className="th-normal">
-                {c.label}
-              </th>
-              <td className="num">{c.valeur.toLocaleString('fr-FR')}</td>
-              <td className="num">{c.poids}</td>
-              <td className="num">{c.contribution.toLocaleString('fr-FR')}</td>
-            </tr>
-          ))}
-          <tr>
-            <th scope="row">{libelleTotalScore(a.nature)}</th>
-            <td className="num" colSpan={3}>
-              <strong>{a.breakdown.total.toLocaleString('fr-FR')}</strong>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <h3 className="titre-section">Score d’appariement : pourquoi {fmtScore(a.breakdown.total)}</h3>
+      <TableauCalcul
+        breakdown={a.breakdown}
+        enteteComposante="Composante réellement utilisée dans le calcul"
+        libelleTotal={libelleTotalScore(a.nature)}
+        legende="Calcul du score d’appariement"
+      />
+
+      {explication.data && (
+        <>
+          <h3 className="titre-section">Z1 · Barème individuel : pourquoi {fmtScore(explication.data.bareme.total)}</h3>
+          <TableauCalcul
+            breakdown={explication.data.bareme}
+            enteteComposante="Critère du barème"
+            libelleTotal="Barème individuel (C1 + C2 + C3 + C4 + C5)"
+            legende="Calcul du barème individuel"
+          />
+          <p className="hint">
+            Le barème individuel ({fmtScore(explication.data.bareme.total)}) est la valeur de Z1 dans le score
+            d’appariement. Les poids se règlent dans « Configuration du moteur ».
+          </p>
+        </>
+      )}
 
       <Notice tone="warn" title="Statut de cette proposition.">
         Cette proposition provient d’une simulation et nécessite une validation administrative.

@@ -111,7 +111,7 @@ export function raisonsPriorite(d: SchoolDiagnostic): DiagnosticReason[] {
 
 /** Additionne les diagnostics d'un ensemble d'écoles en totaux territoriaux (écrêtage avant addition). */
 export function agregerTotaux(diagnostics: SchoolDiagnostic[]): TerritorialTotals {
-  let classes = 0
+  let classes: number | null = null
   let enseignantsEtat = 0
   let autresEnseignants: number | null = null
   let postesNecessaires = 0
@@ -120,6 +120,11 @@ export function agregerTotaux(diagnostics: SchoolDiagnostic[]): TerritorialTotal
   let sallesManquantes = 0
   let surnombre = 0
   let effectifTotalEleves: number | null = null
+  // Enseignants et classes des seules écoles dont l'effectif d'élèves est connu : ils forment le dénominateur
+  // des rapports, pour que le numérateur et le dénominateur portent sur les mêmes écoles.
+  let enseignantsAvecEleves = 0
+  let classesAvecEleves = 0
+  let elevesAvecClasses = 0
   let classesMultigrades = 0
   let ecolesEnDeficit = 0
   let ecolesAvecExcedent = 0
@@ -127,7 +132,7 @@ export function agregerTotaux(diagnostics: SchoolDiagnostic[]): TerritorialTotal
   let ecolesAExaminer = 0
 
   for (const d of diagnostics) {
-    classes += d.nbClasses
+    if (d.school.nombreClassesOuvertes != null) classes = (classes ?? 0) + d.school.nombreClassesOuvertes
     enseignantsEtat += d.enseignantsEtat
     if (d.school.nbAutresEnseignants != null)
       autresEnseignants = (autresEnseignants ?? 0) + d.school.nbAutresEnseignants
@@ -136,8 +141,14 @@ export function agregerTotaux(diagnostics: SchoolDiagnostic[]): TerritorialTotal
     excedentMobilisable += d.enseignantsMobilisables ?? d.excedentTheorique
     sallesManquantes += d.calcul.sallesManquantes
     surnombre += d.calcul.surnombre
-    if (d.school.effectifTotalEleves != null)
+    if (d.school.effectifTotalEleves != null) {
       effectifTotalEleves = (effectifTotalEleves ?? 0) + d.school.effectifTotalEleves
+      if (d.school.nombreClassesOuvertes != null) {
+        elevesAvecClasses += d.school.effectifTotalEleves
+        classesAvecEleves += d.school.nombreClassesOuvertes
+      }
+      enseignantsAvecEleves += d.enseignantsEtat
+    }
     classesMultigrades += d.school.classesMultigrades
     if (d.besoinTheorique > 0) ecolesEnDeficit++
     if (d.excedentTheorique > 0) ecolesAvecExcedent++
@@ -145,8 +156,9 @@ export function agregerTotaux(diagnostics: SchoolDiagnostic[]): TerritorialTotal
     if (d.classement === 'a_examiner') ecolesAExaminer++
   }
 
-  const elevesParEnseignantEtat = ratio(effectifTotalEleves, enseignantsEtat > 0 ? enseignantsEtat : null)
-  const elevesParClasse = ratio(effectifTotalEleves, classes > 0 ? classes : null)
+  // REM d'un territoire : somme des élèves ÷ somme des enseignants, jamais la moyenne des REM des écoles.
+  const elevesParEnseignantEtat = ratio(effectifTotalEleves, enseignantsAvecEleves > 0 ? enseignantsAvecEleves : null)
+  const elevesParClasse = ratio(elevesAvecClasses, classesAvecEleves > 0 ? classesAvecEleves : null)
 
   return {
     ecolesAnalysees: diagnostics.length,

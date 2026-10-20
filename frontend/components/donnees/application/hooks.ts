@@ -16,7 +16,7 @@ import {
   type GlobalFilters,
   type IdJeu,
   type TypeColonnes,
-  type TypeFichier,
+  type TypeFichierEnvoi,
 } from '../../shared/api'
 import { useEcritureJeu, useLectureJeu } from '../../shared/requetes'
 import {
@@ -66,7 +66,7 @@ export function useEnvoyerFichier() {
       feuille,
       baseNationale,
     }: {
-      type: TypeFichier
+      type: TypeFichierEnvoi
       fichier: Blob
       feuille?: string
       baseNationale?: boolean

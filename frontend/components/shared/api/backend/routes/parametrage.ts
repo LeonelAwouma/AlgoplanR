@@ -11,7 +11,11 @@ import type { Conversion } from '../types'
 /** Réponse du serveur à une lecture ou une modification des règles d'un jeu. */
 interface ReglesJeu {
   parametres: ConfigDjango
+  /** Année scolaire du jeu, enregistrée à sa création. */
+  annee_scolaire?: string
 }
+
+const reglesDuJeu = (r: ReglesJeu): EngineSettings => versEngineSettings(r.parametres, r.annee_scolaire)
 
 /** Paramètres au format du contrat (un fichier exporté par l'interface) ou déjà au format du serveur. */
 function versServeur(parametres: unknown): unknown {
@@ -26,23 +30,20 @@ export const conversionsParametrage: Record<string, Conversion> = {
     versEngineSettings(await acces.lire<ConfigDjango>('parametres/defaut/')),
 
   'GET jeux/{jeu}/parametres/': async (_, acces, p) =>
-    versEngineSettings((await acces.lire<ReglesJeu>(`jeux/${p.jeu}/parametres/`)).parametres),
+    reglesDuJeu(await acces.lire<ReglesJeu>(`jeux/${p.jeu}/parametres/`)),
 
   'PUT jeux/{jeu}/parametres/': async (r, acces, p) =>
-    versEngineSettings(
-      (await acces.ecrire<ReglesJeu>('PUT', `jeux/${p.jeu}/parametres/`, versConfigDjango(r.corps as EngineSettings)))
-        .parametres,
+    reglesDuJeu(
+      await acces.ecrire<ReglesJeu>('PUT', `jeux/${p.jeu}/parametres/`, versConfigDjango(r.corps as EngineSettings)),
     ),
 
   'PATCH jeux/{jeu}/parametres/': async (r, acces, p) =>
-    versEngineSettings(
-      (
-        await acces.ecrire<ReglesJeu>(
-          'PATCH',
-          `jeux/${p.jeu}/parametres/`,
-          versConfigDjango(r.corps as MiseAJourParametres),
-        )
-      ).parametres,
+    reglesDuJeu(
+      await acces.ecrire<ReglesJeu>(
+        'PATCH',
+        `jeux/${p.jeu}/parametres/`,
+        versConfigDjango(r.corps as MiseAJourParametres),
+      ),
     ),
 
   'POST jeux/{jeu}/parametres/import/': async (r, acces, p) => {
@@ -50,7 +51,7 @@ export const conversionsParametrage: Record<string, Conversion> = {
     const reponse = await acces.ecrire<ReglesJeu>('POST', `jeux/${p.jeu}/parametres/import/`, {
       parametres: versServeur(parametres),
     })
-    return versEngineSettings(reponse.parametres)
+    return reglesDuJeu(reponse)
   },
 
   'GET jeux/{jeu}/situations-familiales/': async (_, acces, p): Promise<InventaireSituations> => {
