@@ -67,9 +67,16 @@ function versValidation(v: {
   statut: ValidationJeu['statut']
   valide_le: string | null
   valide_par: string | null
+  reserve?: ValidationJeu['reserve']
   controles: ValidationJeu['controles']
 }): ValidationJeu {
-  return { statut: v.statut, valideLe: v.valide_le, validePar: v.valide_par, controles: v.controles }
+  return {
+    statut: v.statut,
+    valideLe: v.valide_le,
+    validePar: v.valide_par,
+    reserve: v.reserve ?? null,
+    controles: v.controles,
+  }
 }
 
 interface ActualisationDjango {

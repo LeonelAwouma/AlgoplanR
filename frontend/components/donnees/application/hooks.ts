@@ -138,7 +138,9 @@ export function useValidation(jeu: IdJeu | null) {
 
 /** Valide le jeu comme référence des projections. */
 export function useValiderJeu(jeu: IdJeu | null) {
-  return useEcritureJeu(jeu, 'donnees', (id, auteur: string) => validerJeu(id, auteur))
+  return useEcritureJeu(jeu, 'donnees', (id, v: { auteur: string; reserve?: string }) =>
+    validerJeu(id, v.auteur, v.reserve),
+  )
 }
 
 /** Historique des actualisations. */

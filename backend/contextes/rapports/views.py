@@ -21,6 +21,8 @@ def rapport(request, jeu):
     sc = sim.scenario_du_jeu(j, int(sid)) if sid else sim.scenario_par_defaut(j)
     r = restreindre_resultat(sim.charger_resultat(sc), perimetre_depuis(request))
     return Response(construire_rapport(
-        r, jeu={"id": str(j.id), "nom": j.nom}, scenario=sim.resume_scenario(sc),
+        r, jeu={"id": str(j.id), "nom": j.nom, "statut": j.statut, "valide_par": j.valide_par or None,
+                "valide_le": j.valide_le.isoformat(timespec="seconds") if j.valide_le else None,
+                "reserve_drh": j.validation_reserve}, scenario=sim.resume_scenario(sc),
         faits_prince=sim.faits_prince_actifs(j), arbitrages=sim.arbitrages_jeu(j),
         genere_le=timezone.now().isoformat(timespec="seconds")))

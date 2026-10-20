@@ -138,12 +138,27 @@ export interface ControleValidation {
   ok: boolean
   /** Un contrôle bloquant non satisfait empêche la validation. */
   bloquant: boolean
+  /**
+   * Contrôle bloquant dont la DRH peut s'affranchir en validant « avec réserve » (écart d'effectif déclaré / matricules
+   * pour les écoles touchées par un fait du Prince). Les contrôles structurels ne se dérogent jamais.
+   */
+  derogeable?: boolean
   detail: string
 }
 
 /** Validation d'un jeu comme référence des projections. */
 export interface CorpsValidationJeu {
   auteur: string
+  /** Motif de la validation « avec réserve DRH » ; obligatoire pour déroger, réservé à la DRH. */
+  reserve?: string
+}
+
+/** Réserve émise par la DRH en validant un jeu malgré des contrôles dérogeables. */
+export interface ReserveValidation {
+  motif: string
+  auteur: string
+  le: string
+  controles: { code: string; libelle: string; detail: string }[]
 }
 
 /** Actualisation d'un exercice avec deux nouveaux fichiers déjà envoyés. */
@@ -158,6 +173,8 @@ export interface ValidationJeu {
   statut: StatutJeu
   valideLe: string | null
   validePar: string | null
+  /** Renseignée quand le jeu est validé « avec réserve DRH » ; `null` pour une validation normale. */
+  reserve?: ReserveValidation | null
   controles: ControleValidation[]
 }
 

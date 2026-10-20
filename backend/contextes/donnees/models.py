@@ -27,6 +27,8 @@ class JeuDeDonnees(models.Model):
     statut = models.CharField(max_length=10, default="brouillon")  # brouillon | valide
     valide_le = models.DateTimeField(null=True, blank=True)
     valide_par = models.CharField(max_length=150, blank=True, default="")
+    # Validation « avec réserve DRH » : {motif, auteur, le, controles}. Vide pour une validation normale.
+    validation_reserve = models.JSONField(null=True, blank=True, default=None)
     # Scénario dont les mouvements alimentent la planification et les nominations.
     scenario_retenu = models.ForeignKey("simulation.Scenario", null=True, blank=True, on_delete=models.SET_NULL,
                                         related_name="+")

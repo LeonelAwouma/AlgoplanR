@@ -254,7 +254,8 @@ def validation(request, jeu):
     if request.method == "GET":
         return Response(services.validation(j))
     d = request.data if isinstance(request.data, dict) else {}
-    return Response(services.valider(j, request=request, auteur=auteur_de(request, d.get("auteur"))))
+    return Response(services.valider(j, request=request, auteur=auteur_de(request, d.get("auteur")),
+                                     reserve=d.get("reserve")))
 
 
 @extend_schema(methods=["GET"], responses=OpenApiTypes.OBJECT, summary="Actualisations du jeu, la plus récente d'abord")

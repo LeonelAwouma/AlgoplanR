@@ -317,27 +317,78 @@ def validation(jeu: JeuDeDonnees) -> dict:
     from contextes.diagnostic.services import preparer
     from domaine.donnees.validation import controles_validation
     application = preparer(jeu).application
+    rejetes = [{"id_ens": d.id_ens, "motifs": list(d.rejets)} for d in (application.decisions if application else [])
+               if not d.appliquee]
     return {"statut": jeu.statut, "valide_le": jeu.valide_le, "valide_par": jeu.valide_par or None,
+            "reserve": jeu.validation_reserve,
             "controles": controles_validation(depots.charger_ecoles(jeu), depots.charger_enseignants(jeu),
                                               _rapport_qualite(jeu),
-                                              application.ecarts_effectifs if application else ())}
+                                              application.ecarts_effectifs if application else (), rejetes)}
 
 
 @transaction.atomic
-def valider(jeu: JeuDeDonnees, *, request, auteur: str) -> dict:
+def valider(jeu: JeuDeDonnees, *, request, auteur: str, reserve: Optional[str] = None) -> dict:
+    """Valide le jeu comme référence des projections.
+
+    - Validation normale : aucun contrôle bloquant en échec.
+    - Validation **avec réserve DRH** : seuls les contrôles bloquants *dérogeables* (écarts d'effectif des écoles
+      touchées par un fait du Prince) peuvent être en échec ; un motif est obligatoire, la réserve est réservée à la
+      DRH, tracée au journal et reprise dans les rapports. Les incohérences structurelles ne se dérogent jamais.
+    """
     from django.utils import timezone
 
     from contextes.audit.services import journaliser
     v = validation(jeu)
     bloquants = [c for c in v["controles"] if c["bloquant"] and not c["ok"]]
-    if bloquants:
-        raise RefusMetier(f"Validation impossible : {', '.join(c['libelle'] for c in bloquants)}.",
-                          [c["detail"] for c in bloquants], code="validation_bloquee", details={"controles": bloquants})
-    jeu.statut, jeu.valide_le, jeu.valide_par = "valide", timezone.now(), auteur
-    jeu.save(update_fields=["statut", "valide_le", "valide_par"])
-    journaliser(jeu, "validation_donnees", "validé", "Jeu validé comme référence des projections", request=request,
-                auteur=auteur, objet=("jeu", jeu.id), avant={"statut": "brouillon"}, apres={"statut": "valide"})
+    structurels = [c for c in bloquants if not c["derogeable"]]
+    derogeables = [c for c in bloquants if c["derogeable"]]
+    motif = (reserve or "").strip()
+    if structurels:
+        raise RefusMetier(f"Validation impossible : {', '.join(c['libelle'] for c in structurels)}.",
+                          [c["detail"] for c in structurels], code="validation_bloquee",
+                          details={"controles": bloquants, "derogation_possible": False})
+    if derogeables and not motif:
+        raise RefusMetier(f"Validation impossible : {', '.join(c['libelle'] for c in derogeables)}.",
+                          [c["detail"] for c in derogeables] + [
+                              "La DRH peut valider avec réserve en motivant sa décision."],
+                          code="validation_bloquee", details={"controles": bloquants, "derogation_possible": True})
+    if derogeables and not getattr(request.user, "est_drh", False):
+        raise RefusMetier("La validation avec réserve est réservée à la DRH",
+                          ["Seul le DRH peut déroger aux contrôles d'effectif"], code="derogation_reservee_drh")
+    maintenant = timezone.now()
+    jeu.validation_reserve = ({"motif": motif, "auteur": auteur, "le": maintenant.isoformat(timespec="seconds"),
+                               "controles": [{"code": c["code"], "libelle": c["libelle"], "detail": c["detail"]}
+                                             for c in derogeables]} if derogeables else None)
+    jeu.statut, jeu.valide_le, jeu.valide_par = "valide", maintenant, auteur
+    jeu.save(update_fields=["statut", "valide_le", "valide_par", "validation_reserve"])
+    journaliser(jeu, "validation_donnees", "validé avec réserve" if derogeables else "validé",
+                "Jeu validé avec réserve DRH : " + motif if derogeables
+                else "Jeu validé comme référence des projections", request=request,
+                auteur=auteur, objet=("jeu", jeu.id), avant={"statut": "brouillon"},
+                apres={"statut": "valide", "reserve": jeu.validation_reserve})
     return validation(jeu)
+
+
+def _reevaluer_faits_prince(jeu: JeuDeDonnees) -> List[dict]:
+    """Réévalue les faits du Prince actifs sur les données actualisées. Un fait devenu impossible (agent déjà dans
+    l'école de destination, école d'origine vide…) passe à l'état INVALIDE avec son motif : il n'est jamais appliqué en
+    silence et reste visible dans la liste des faits et dans les écarts de l'actualisation."""
+    from contextes.diagnostic.services import preparer
+    from domaine.prince.projection import appliquer_effets_prince
+    faits = list(jeu.faits_prince.filter(statut="ACTIF").order_by("id"))
+    if not faits:
+        return []
+    avant = preparer(jeu).avant()
+    app = appliquer_effets_prince(avant.ecoles, list(avant.enseignants.values()),
+                                  [{"id_ens": f.id_ens, "id_etab": f.id_etab, "motif": f.motif} for f in faits],
+                                  avant.cfg)
+    invalidees = []
+    for f, d in zip(faits, app.decisions):
+        if d.rejets:
+            f.statut, f.motif_invalidite = "INVALIDE", " ; ".join(d.rejets)[:500]
+            f.save(update_fields=["statut", "motif_invalidite"])
+            invalidees.append({"type": "fait_prince", "id": str(f.pk), "motif": f.motif_invalidite})
+    return invalidees
 
 
 def _invalider_decisions(jeu: JeuDeDonnees, ids_ecoles: set, matricules: set) -> List[dict]:
@@ -411,9 +462,10 @@ def actualiser(jeu: JeuDeDonnees, id_fichier_etab, id_fichier_ens, *, compte, re
     for f in (f_etab, f_ens):
         f.jeu = jeu
         f.save(update_fields=["jeu"])
-    jeu.statut, jeu.valide_le, jeu.valide_par = "brouillon", None, ""
-    jeu.save(update_fields=["statut", "valide_le", "valide_par"])
+    jeu.statut, jeu.valide_le, jeu.valide_par, jeu.validation_reserve = "brouillon", None, "", None
+    jeu.save(update_fields=["statut", "valide_le", "valide_par", "validation_reserve"])
     invalider_cache(jeu)
+    invalidees += _reevaluer_faits_prince(jeu)       # sur les nouvelles données : un fait impossible n'est jamais appliqué
     recalculer_scenarios(jeu)
     act = Actualisation.objects.create(
         jeu=jeu, realisee_par=auteur, fichier_etablissements=f_etab.nom_fichier, fichier_enseignants=f_ens.nom_fichier,

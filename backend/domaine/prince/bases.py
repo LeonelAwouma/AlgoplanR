@@ -55,16 +55,21 @@ def _decision_par_matricule(decisions: Iterable[DecisionPrince]) -> Dict[str, De
 
 
 def lignes_enseignants(avant: Iterable[Enseignant], apres: Iterable[Enseignant],
-                       decisions: Iterable[DecisionPrince]) -> List[dict]:
+                       decisions: Iterable[DecisionPrince], regions: Optional[Dict[str, str]] = None) -> List[dict]:
     """Base enseignants après Prince : `Ecole_Attache_Actuelle` est l'école après la décision, l'école d'origine est
-    conservée dans `Ecole_Origine_Prince`."""
+    conservée dans `Ecole_Origine_Prince`. `Ecole_Initiale` / `Region_Initiale` (fichier importé) et
+    `Region_Apres_Decision` lèvent l'ambiguïté d'un agent déplacé hors de sa région : l'ancienne région reste lisible
+    et filtrable. `regions` : région de chaque école (elle ne change pas avec les faits du Prince)."""
     par_mat = _decision_par_matricule(decisions)
+    regions = regions or {}
     lignes = []
     for av, ap in zip(avant, apres):
         d = ap.vers_dict()
         ligne = {k: d.get(k) for k in COLONNES_ENSEIGNANT}
         dec = par_mat.get(ap.matricule)
         ligne.update({
+            "Ecole_Initiale": av.ecole_attache, "Region_Initiale": regions.get(av.ecole_attache, ""),
+            "Region_Apres_Decision": regions.get(ap.ecole_attache, ""),
             "Ecole_Origine_Prince": av.ecole_attache if dec else "",
             "Ecole_Affectation_Prince": dec.id_destination if dec else "",
             "Statut_Prince": LIBELLE_STATUT[dec.statut] if dec else "",

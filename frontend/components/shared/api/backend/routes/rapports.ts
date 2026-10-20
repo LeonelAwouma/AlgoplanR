@@ -11,6 +11,12 @@ import type { Conversion } from '../types'
 /** Rapport tel que le sert le serveur (`domaine/rapport/rapport.py`). */
 interface RapportDjango {
   titre: string
+  jeu?: {
+    statut?: string
+    valide_par?: string | null
+    valide_le?: string | null
+    reserve_drh?: { motif: string; auteur: string; le: string; controles: { libelle: string; detail: string }[] } | null
+  }
   genere_le: string
   scenario: { nom: string; description: string }
   perimetre: { titre: string }
@@ -30,9 +36,30 @@ interface RapportDjango {
 
 const n = (v: number) => new Intl.NumberFormat('fr-FR').format(Math.round(v))
 
+/** Statut de validation du jeu, dit sans ambiguïté, réserve DRH comprise. */
+export function statutDonnees(jeu: RapportDjango['jeu']): string[] {
+  if (jeu?.statut !== 'valide') {
+    return [
+      'Jeu de données non validé (brouillon) : les chiffres de ce rapport ne reposent pas sur une référence validée.',
+    ]
+  }
+  const par = jeu.valide_par ? ` par ${jeu.valide_par}` : ''
+  const le = jeu.valide_le ? ` le ${new Date(jeu.valide_le).toLocaleDateString('fr-FR')}` : ''
+  if (!jeu.reserve_drh) return [`Jeu de données validé${par}${le}, sans réserve.`]
+  return [
+    `Jeu de données validé AVEC RÉSERVE DE LA DRH${par}${le}.`,
+    `Motif de la réserve : ${jeu.reserve_drh.motif}`,
+    `Contrôle(s) en réserve : ${jeu.reserve_drh.controles.map(c => c.libelle).join(' ; ')}. Les calculs partent des effectifs déclarés des établissements ; la liste nominative des enseignants peut être incomplète pour les écoles concernées.`,
+  ]
+}
+
 function sections(r: RapportDjango): DecisionReportSection[] {
   const s = r.synthese
   const liste: DecisionReportSection[] = [
+    {
+      titre: 'Statut des données de référence',
+      paragraphes: statutDonnees(r.jeu),
+    },
     {
       titre: 'Synthèse',
       paragraphes: [`Scénario : ${r.scenario.nom}. ${r.scenario.description}`, r.narratif],

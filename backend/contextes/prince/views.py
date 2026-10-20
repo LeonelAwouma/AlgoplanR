@@ -17,7 +17,7 @@ from .models import FaitPrince
 
 def _d(f: FaitPrince) -> dict:
     return {"id": f.pk, "id_ens": f.id_ens, "id_etab": f.id_etab, "motif": f.motif, "statut": f.statut,
-            "cree_le": f.cree_le}
+            "motif_invalidite": f.motif_invalidite or None, "cree_le": f.cree_le}
 
 
 def _protege(request):

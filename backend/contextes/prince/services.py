@@ -99,10 +99,15 @@ def impact(jeu, id_ens: str, id_etab: str, motif: str = "") -> dict:
                                 arbitrages=sim.arbitrages_jeu(jeu))
     deplaces = []
     ancien = {a["id_ens"]: a for a in avant.affectations}
+    nouveau = {a["id_ens"]: a for a in apres.affectations}
     for a in apres.affectations:
         o = ancien.get(a["id_ens"])
         if o is None or o["id_poste"] != a["id_poste"]:
             deplaces.append({"id_ens": a["id_ens"], "avant": o["id_etab"] if o else None, "apres": a["id_etab"]})
+    # Les enseignants qui perdent leur affectation (poste pris par l'agent déplacé, ou poste disparu) comptent aussi.
+    for m, o in ancien.items():
+        if m not in nouveau:
+            deplaces.append({"id_ens": m, "avant": o["id_etab"], "apres": None})
     cles = ("besoin_total", "affectes", "non_affectes", "postes_non_pourvus", "effet_de_prince")
     return {"enregistre": False, "scenario": sc.nom, "alertes": alertes,
             "origine": _ecart_ecole(d.id_origine, base, app, depart),
@@ -255,7 +260,8 @@ def lignes_bases(jeu, nom: str, perimetre: Perimetre, *, concernes: bool = False
             cache[nom] = pb.lignes_etablissements(avant.ecoles, prep.ecoles, app.ecoles_apres if app else ())
         elif nom == "enseignants":
             cache[nom] = pb.lignes_enseignants(list(avant.enseignants.values()), list(prep.enseignants.values()),
-                                               app.decisions if app else [])
+                                               app.decisions if app else [],
+                                               {e.id: e.region for e in avant.ecoles})
         else:
             cache[nom] = pb.lignes_journal(app, avant.ecoles_par_id, avant.enseignants)
     lignes = cache[nom]
@@ -263,7 +269,9 @@ def lignes_bases(jeu, nom: str, perimetre: Perimetre, *, concernes: bool = False
     if not perimetre.national:
         ids = {l[C.COL_ETAB_ID] for l in filtrer_lignes(prep.ecoles_dicts, perimetre, C.COL_ETAB_REGION,
                                                          C.COL_ETAB_DEPT, C.COL_ETAB_COMMUNE)}
-        colonnes = {"etablissements": (C.COL_ETAB_ID,), "enseignants": (C.COL_ENS_ETAB,),
+        # Un agent déplacé hors du périmètre reste visible dans le périmètre où il était (école initiale), à côté de celui
+        # où il arrive (école après décision) : la région initiale et la région après décision figurent en colonnes.
+        colonnes = {"etablissements": (C.COL_ETAB_ID,), "enseignants": (C.COL_ENS_ETAB, "Ecole_Initiale"),
                     "journal": ("Ecole_Origine", "Ecole_Destination")}[nom]
         lignes = [l for l in lignes if any(l.get(c) in ids for c in colonnes)]
     if concernes:

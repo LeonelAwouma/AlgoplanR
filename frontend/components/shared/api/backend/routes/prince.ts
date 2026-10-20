@@ -29,6 +29,8 @@ interface FaitDjango {
   id_etab: string
   motif: string
   statut: string
+  /** Fait devenu impossible après une actualisation (statut INVALIDE). */
+  motif_invalidite?: string | null
   cree_le: string
 }
 
@@ -162,14 +164,17 @@ function versFaitApplique(
   d: DecisionDjango | undefined,
   ecoles: Map<string, SchoolDiagnostic>,
 ): FaitPrinceApplique {
+  const invalide = f.statut === 'INVALIDE'
   const rejetee = !d || d.Motifs_Rejet !== ''
-  const statut: StatutFaitPrince = !d
-    ? 'enseignant_introuvable'
-    : rejetee
-      ? statutDeRejet(d.Motifs_Rejet)
-      : d.Alertes
-        ? 'applique_avec_alerte'
-        : 'applique'
+  const statut: StatutFaitPrince = invalide
+    ? 'invalide'
+    : !d
+      ? 'enseignant_introuvable'
+      : rejetee
+        ? statutDeRejet(d.Motifs_Rejet)
+        : d.Alertes
+          ? 'applique_avec_alerte'
+          : 'applique'
   return {
     fait: {
       id: String(f.id),
@@ -182,13 +187,15 @@ function versFaitApplique(
       destination: lieu(f.id_etab, ecoles),
     },
     statut,
-    motif: !d
-      ? 'Matricule absent des données du jeu.'
-      : rejetee
-        ? d.Motifs_Rejet
-        : d.Alertes
-          ? `Décision appliquée aux bases, avec alerte : ${d.Alertes}`
-          : 'Décision appliquée aux bases : l’enseignant est rattaché à sa nouvelle école et sorti du vivier.',
+    motif: invalide
+      ? `Devenu impossible après l’actualisation des données : ${f.motif_invalidite ?? 'motif non précisé'}. Il n’est pas appliqué.`
+      : !d
+        ? 'Matricule absent des données du jeu.'
+        : rejetee
+          ? d.Motifs_Rejet
+          : d.Alertes
+            ? `Décision appliquée aux bases, avec alerte : ${d.Alertes}`
+            : 'Décision appliquée aux bases : l’enseignant est rattaché à sa nouvelle école et sorti du vivier.',
   }
 }
 
@@ -253,7 +260,7 @@ export const conversionsPrince: Record<string, Conversion> = {
       origine: EcartEcoleDjango
       destination: EcartEcoleDjango
       ecart: Record<string, number>
-      affectations_modifiees: { id_ens: string; avant: string; apres: string }[]
+      affectations_modifiees: { id_ens: string; avant: string | null; apres: string | null }[]
     }>('POST', `jeux/${p.jeu}/faits-prince/impact/`, corpsServeur(c))
     const observations = [...simulation.alertes]
     const e = simulation.ecart
@@ -263,9 +270,18 @@ export const conversionsPrince: Record<string, Conversion> = {
       observations.push(
         `${e.postes_non_pourvus > 0 ? '+' : ''}${e.postes_non_pourvus} poste(s) non pourvu(s) dans « ${simulation.scenario} ».`,
       )
-    const deplaces = simulation.affectations_modifiees.filter(m => m.id_ens !== c.matricule && m.avant !== m.apres)
+    const autres = simulation.affectations_modifiees.filter(m => m.id_ens !== c.matricule && m.avant !== m.apres)
+    const perdants = autres.filter(m => m.apres === null)
+    const deplaces = autres.filter(m => m.apres !== null)
     if (deplaces.length > 0)
       observations.push(`${deplaces.length} autre(s) proposition(s) d'affectation changent d'école.`)
+    if (perdants.length > 0)
+      observations.push(
+        `${perdants.length} enseignant(s) perdent leur affectation proposée (${perdants
+          .slice(0, 5)
+          .map(m => m.id_ens)
+          .join(', ')}${perdants.length > 5 ? '…' : ''}).`,
+      )
     return {
       origine: versImpactEcole(simulation.origine),
       destination: versImpactEcole(simulation.destination),

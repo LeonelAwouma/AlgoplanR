@@ -205,6 +205,7 @@ export const LIBELLE_STATUT_PRINCE: Record<StatutFaitPrince, string> = {
   ecole_introuvable: 'École introuvable',
   meme_ecole: 'Même école',
   doublon: 'Déjà redéployé',
+  invalide: 'Devenu impossible',
 }
 
 // --- Situations familiales -------------------------------------------------------------------------------

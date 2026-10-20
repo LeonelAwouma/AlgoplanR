@@ -111,6 +111,20 @@ const colonnesEnseignants: Colonne<LigneEnseignantApresPrince>[] = [
         l.Ecole_Attache_Actuelle
       ),
   },
+  {
+    cle: 'region',
+    entete: 'Région',
+    tri: l => l.Region_Apres_Decision ?? '',
+    rendu: l =>
+      l.Region_Initiale && l.Region_Apres_Decision && l.Region_Initiale !== l.Region_Apres_Decision ? (
+        <span>
+          {l.Region_Initiale} <ArrowRight size={11} aria-hidden="true" /> <strong>{l.Region_Apres_Decision}</strong>
+          <small>initiale → après décision</small>
+        </span>
+      ) : (
+        (l.Region_Apres_Decision ?? '—')
+      ),
+  },
   { cle: 'ss', entete: 'Sous-système', rendu: l => l.Sous_Systeme_Formation || '—' },
   {
     cle: 'statut',

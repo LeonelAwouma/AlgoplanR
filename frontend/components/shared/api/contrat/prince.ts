@@ -51,6 +51,8 @@ export type StatutFaitPrince =
   | 'ecole_introuvable'
   | 'meme_ecole'
   | 'doublon'
+  /** Devenue impossible après une actualisation des données : jamais appliquée, motif conservé. */
+  | 'invalide'
 
 export interface FaitPrinceApplique {
   fait: FaitPrince
@@ -192,6 +194,10 @@ export interface LigneEnseignantApresPrince {
   Ecole_Attache_Actuelle: string
   Anciennete_Poste_Actuel: number
   Ecole_Origine_Prince: string
+  /** École et région du fichier importé, et région après la décision : l'ancienne région reste lisible. */
+  Ecole_Initiale?: string
+  Region_Initiale?: string
+  Region_Apres_Decision?: string
   Ecole_Affectation_Prince: string
   Statut_Prince: string
   Reference_Decision: string
