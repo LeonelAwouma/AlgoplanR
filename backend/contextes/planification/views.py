@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from contextes.acces.perimetre import jeu_autorise, region_imposee
 from contextes.audit.services import auteur_de
 from contextes.commun.erreurs import RefusMetier
-from contextes.commun.outils import reponse_paginee
-from domaine.planification.parametres import hypotheses_par_defaut
+from contextes.commun.outils import entier_param, reponse_paginee
+from domaine.planification.parametres import REFERENTIEL_ATTRITION_M1, hypotheses_par_defaut
 
 from . import services as pl
 
@@ -48,7 +48,8 @@ def _version_demandee(request):
 @extend_schema(responses=OBJ, summary="Hypothèses par défaut (rapport DRH d'octobre 2026)")
 @api_view(["GET"])
 def hypotheses_defaut(request):
-    return Response({**hypotheses_par_defaut(), "version": 1, "modifiees_le": None, "modifiees_par": pl.AUTEUR_INITIAL})
+    return Response({**hypotheses_par_defaut(), "version": 1, "modifiees_le": None, "modifiees_par": pl.AUTEUR_INITIAL,
+                     "reference_attrition": REFERENTIEL_ATTRITION_M1})
 
 
 @extend_schema(methods=["GET"], responses=OBJ, summary="Hypothèses en vigueur")
@@ -190,10 +191,10 @@ def version(request, jeu, numero):
 @api_view(["GET"])
 def comparer(request, jeu):
     q = request.query_params
-    if not (q.get("de", "").isdigit() and q.get("a", "").isdigit()):
+    de, a = entier_param(q.get("de"), "de", minimum=1), entier_param(q.get("a"), "a", minimum=1)
+    if de is None or a is None:
         raise RefusMetier("Versions à comparer manquantes", ["Paramètres « de » et « a » (numéros) attendus"])
-    return Response(pl.comparer(jeu_autorise(request, jeu, ecriture=False), int(q["de"]), int(q["a"]),
-                                perimetre(request)))
+    return Response(pl.comparer(jeu_autorise(request, jeu, ecriture=False), de, a, perimetre(request)))
 
 
 # --- Quotas -----------------------------------------------------------------------------------------------------

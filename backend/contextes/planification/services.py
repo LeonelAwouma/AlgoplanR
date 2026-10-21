@@ -55,7 +55,10 @@ def hypotheses_courantes(jeu) -> Tuple[dict, dict]:
 
 def hypotheses_dict(jeu) -> dict:
     contenu, meta = hypotheses_courantes(jeu)
-    return {**contenu, **meta}
+    # `reference_attrition` est un référentiel en lecture seule (modèle M1 du rapport DRH) : jamais stocké dans
+    # `contenu`, jamais modifiable via PUT, toujours recalculé à la demande pour rester à jour indépendamment des
+    # versions d'hypothèses enregistrées.
+    return {**contenu, **meta, "reference_attrition": par.REFERENTIEL_ATTRITION_M1}
 
 
 def historique_hypotheses(jeu) -> List[dict]:
@@ -531,12 +534,14 @@ def ajuster_quota(jeu, annee: str, territoire: str, corps: dict, *, request, aut
     if q.statut == "valide":
         from contextes.nominations.services import Conflit
         raise Conflit("Ce quota est validé : il ne peut plus être ajusté.")
-    try:
-        retenu = int(corps.get("retenu"))
-    except (TypeError, ValueError):
+    valeur = corps.get("retenu")
+    if isinstance(valeur, float) and not valeur.is_integer():
         raise RefusMetier("Quota retenu invalide", ["Nombre entier attendu"])
-    if retenu < 0:
-        raise RefusMetier("Un quota ne peut pas être négatif.")
+    from contextes.commun.outils import entier_param
+    retenu = entier_param(None if valeur is None else int(valeur) if isinstance(valeur, float) else valeur,
+                          "retenu", minimum=0, maximum=10_000_000)
+    if retenu is None:
+        raise RefusMetier("Quota retenu invalide", ["Nombre entier attendu"])
     motif = str(corps.get("motif") or "").strip()
     if retenu != q.calcule and not motif:
         raise RefusMetier("Un ajustement doit être motivé.", code="motif_manquant")

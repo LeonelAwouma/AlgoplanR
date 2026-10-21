@@ -26,6 +26,7 @@ from ..commun.texte import norm, texte
 from ..diagnostic.indicateurs import calculer_indicateurs
 from ..donnees.modeles import Ecole, Enseignant
 from .parametres import ANNEES_PLAN, PART_DIRECTEURS_PRIMAIRE, STOCK_NATIONAL_PRIMAIRE
+from .referentiel_drh import _cle as cle_region
 
 STRUCTURES = ("IAEB", "DREB", "DELEGATION")
 
@@ -154,7 +155,7 @@ def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], 
     g = float(hyp["drh"].get("G_PRI_PCT", 0)) / 100.0
     resultat: List[ProjectionEcole] = []
     for e in ecoles:
-        initial = max(0, int(round(e.enseignants_actuels)) + ecart.get(e.id, 0))
+        initial = max(0, arrondi(e.enseignants_actuels) + ecart.get(e.id, 0))
         depart = dataclasses.replace(e, enseignants_actuels=float(initial))
         ind0 = calculer_indicateurs(depart, cfg)
         p = ProjectionEcole(
@@ -185,16 +186,36 @@ def arrondi(x: float) -> int:
     return int(math.floor(x + 0.5 + 1e-9))
 
 
+#: Statuts possibles pour l'origine du taux d'attrition effectivement appliqué à un périmètre (metadonnée M1,
+#: exposée dans les lignes de `calculer_annees` sous la clé `origine_taux`).
+ORIGINE_TAUX_NATIONALE = "hypothese_nationale"
+ORIGINE_TAUX_REGIONALE = "hypothese_regionale"
+ORIGINE_TAUX_SOUS_SYSTEME = "hypothese_sous_systeme"
+
+
+def origine_taux(hyp: dict) -> str:
+    """Origine du taux d'attrition selon la méthode retenue (jamais « observé » : toujours une hypothèse)."""
+    return {"taux_unique": ORIGINE_TAUX_NATIONALE, "par_region": ORIGINE_TAUX_REGIONALE,
+            "par_sous_systeme": ORIGINE_TAUX_SOUS_SYSTEME}.get(
+        hyp["attrition"].get("methode", "taux_unique"), ORIGINE_TAUX_NATIONALE)
+
+
 def taux_attrition(ecoles: List[ProjectionEcole], hyp: dict) -> float:
-    """Taux annuel d'autres départs du périmètre, pondéré par l'effectif initial selon la méthode retenue."""
+    """Taux annuel d'autres départs du périmètre, pondéré par l'effectif initial selon la méthode retenue.
+
+    Pour la méthode « par région », la correspondance tolère la casse, les accents et les tirets (comme le
+    référentiel DRH, `referentiel_drh.region_drh`) : une région absente du périmètre à l'identique (espace au lieu
+    d'un tiret, accent manquant) est quand même reconnue, et seules les régions réellement absentes du barème
+    retombent sur le taux unique.
+    """
     a = hyp["attrition"]
     unique = float(a.get("taux_unique", 0))
     methode = a.get("methode", "taux_unique")
     if methode == "taux_unique":
         return unique
     if methode == "par_region":
-        par = {norm(k): float(v) for k, v in (a.get("par_region") or {}).items()}
-        cle = lambda e: norm(e.region)  # noqa: E731
+        par = {cle_region(k): float(v) for k, v in (a.get("par_region") or {}).items()}
+        cle = lambda e: cle_region(e.region)  # noqa: E731
     else:
         par = {k: float(v) for k, v in (a.get("par_sous_systeme") or {}).items()}
         cle = lambda e: e.sous_systeme  # noqa: E731
@@ -222,8 +243,8 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
     taux = taux_attrition(ecoles, hyp)
     initial = somme(lambda e: e.effectif_initial)
     part = initial / STOCK_NATIONAL_PRIMAIRE
-    directeurs = int(round(drh["DIR_NOM_AN"] * PART_DIRECTEURS_PRIMAIRE * drh["DIR_H_PRI_PCT"] / 100.0 * part))
-    plafond = int(round(drh["PLAF_PRI"] * part)) if drh["PLAF_PRI"] > 0 else None
+    directeurs = arrondi(drh["DIR_NOM_AN"] * PART_DIRECTEURS_PRIMAIRE * drh["DIR_H_PRI_PCT"] / 100.0 * part)
+    plafond = arrondi(drh["PLAF_PRI"] * part) if drh["PLAF_PRI"] > 0 else None
     deficit = somme(lambda e: e.deficit_initial)
     supposes = bool(hyp["quotas"].get("annees_precedentes_realisees", True))
     etalement = max(1, int(drh["ETAL_N"]))
@@ -231,6 +252,7 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
     effectif = initial
     attrition_cumulee = directeurs_cumules = 0
     besoin_precedent = rattrapage_precedent = 0
+    origine = origine_taux(hyp)
     lignes = []
     for k in range(horizon):
         retraites = somme(lambda e: e.retraites[k])
@@ -241,7 +263,7 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
         besoin = max(0, besoin_cumule - besoin_precedent) if supposes else besoin_cumule
         besoin_precedent = besoin_cumule
         vivier = (somme(lambda e: e.excedents[0]) + ressources_supplementaires) if k == 0 else 0
-        part_cumulee = int(round(deficit * min(k + 1, etalement) / etalement))
+        part_cumulee = arrondi(deficit * min(k + 1, etalement) / etalement)
         if supposes:
             rattrapage, inclus = part_cumulee - rattrapage_precedent, (deficit if k == 0 else 0)
         else:
@@ -262,8 +284,9 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
             "deploiements_prevus": somme(lambda e: e.arrivees) if k == 0 else 0, "deploiements_realises": 0,
             "besoin_restant": quota,
             # Détail DRH (hors contrat) : taux appliqué, classes libérées, rattrapage, plafond, REM projeté.
-            "taux_attrition": round(taux, 4), "directeurs_decharges": directeurs, "rattrapage": rattrapage,
-            "plafond": plafond, "rem": round(eleves / effectif, 1) if effectif > 0 else None,
+            "taux_attrition": round(taux, 4), "origine_taux": origine, "directeurs_decharges": directeurs,
+            "rattrapage": rattrapage, "plafond": plafond,
+            "rem": round(eleves / effectif, 1) if effectif > 0 else None,
         })
         if scenario == "min":
             recrutes = retraites
