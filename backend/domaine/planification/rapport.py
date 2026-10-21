@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional
 
-from ..commun.encadrement import taux_encadrement
+from ..commun.encadrement import encadrement_population, taux_encadrement
 from ..commun.texte import cle_tri_fr
 from ..donnees.modeles import Ecole, Enseignant
 from .parametres import ANNEES_PLAN
@@ -54,8 +54,7 @@ def rem_base(ecoles: List[ProjectionEcole]) -> Optional[float]:
     (`eleves_connus`, lui-même basé sur `Ecole.effectif_connu` — voir `projeter_ecoles` et `ecoles_a_l_import`).
     Même population aux deux termes du ratio (décision « Encadrement », lot 4) : une école à l'effectif d'élèves
     inconnu ne contribue ni à ses élèves ni à ses enseignants, plutôt que de diluer le ratio."""
-    connues = [e for e in ecoles if e.eleves_connus]
-    return _rem(eleves_base(connues), sum(e.effectif_initial for e in connues))
+    return encadrement_population((e.eleves_connus, e.eleves_initial, e.effectif_initial) for e in ecoles).taux
 
 
 def regions(ecoles: List[ProjectionEcole]) -> Dict[str, List[ProjectionEcole]]:

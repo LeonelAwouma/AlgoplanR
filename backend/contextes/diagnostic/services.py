@@ -14,6 +14,7 @@ from contextes.simulation import services as sim
 from domaine.diagnostic import synthese as syn
 from domaine.diagnostic import territoires as terr
 from domaine.diagnostic.indicateurs import enrichir_ecoles
+from domaine.commun.encadrement import taux_encadrement
 from domaine.commun.texte import cle_recherche
 from domaine.donnees import colonnes as C
 from domaine.donnees.modeles import Ecole, Enseignant
@@ -70,7 +71,7 @@ def empreinte_jeu(jeu) -> str:
 
 
 def _rem(e: Ecole) -> Optional[float]:
-    return round(e.effectif_eleves / e.enseignants_actuels, 2) if e.enseignants_actuels else None
+    return taux_encadrement(e.effectif_eleves, e.enseignants_actuels or 0)
 
 
 def _ligne_ecole(e: Ecole, mobilisables: int, avant: Optional[Ecole] = None, touchee: bool = False) -> dict:

@@ -1,11 +1,15 @@
 """Diagnostic (Moteur A), priorités, points d'attention et texte narratif (règles, sans LLM)."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+from ..commun.encadrement import encadrement_population
 from ..commun.texte import est_oui
 from ..donnees import colonnes as C
 from ..planification.projection import arrondi, taux_attrition_pondere
+from ..planification.rapport import alea_et_raison
+from ..rapport.territorial import alea_qualifie
 from .territoires import Perimetre, filtrer_lignes
 
 
@@ -34,7 +38,6 @@ def totaux_diagnostic(ecoles: List[dict]) -> dict:
     effectif_total_eleves: Optional[int] = None
     eleves_avec_classes = 0
     classes_avec_eleves = 0
-    enseignants_avec_eleves = 0.0
     ecoles_a_examiner = 0
     ecoles_satisfaisantes = 0
 
@@ -48,16 +51,14 @@ def totaux_diagnostic(ecoles: List[dict]) -> dict:
             if co is not None:
                 eleves_avec_classes += eleves
                 classes_avec_eleves += co
-            enseignants_avec_eleves += float(e.get(C.COL_ETAB_EE, 0) or 0)
         be, xe, ae = float(e.get("be", 0) or 0), float(e.get("xe", 0) or 0), float(e.get("ae", 0) or 0)
         if be <= 0 and xe <= 0 and ae > 0:
             ecoles_a_examiner += 1
         if be == 0:
             ecoles_satisfaisantes += 1
 
-    eleves_par_enseignant = (
-        round(effectif_total_eleves / enseignants_avec_eleves, 2) if enseignants_avec_eleves > 0 else None
-    )
+    eleves_par_enseignant = encadrement_population(
+        (e.get("effectif_connu", True) is not False, e.get(C.COL_ETAB_NE), e.get(C.COL_ETAB_EE)) for e in ecoles).taux
     eleves_par_classe = round(eleves_avec_classes / classes_avec_eleves, 2) if classes_avec_eleves > 0 else None
 
     return {
@@ -88,6 +89,14 @@ def totaux_diagnostic(ecoles: List[dict]) -> dict:
     }
 
 
+@dataclass(frozen=True)
+class _PointAlea:
+    """Les trois champs que lit `alea_et_raison` : une école (élèves, enseignants) du périmètre."""
+    eleves_connus: bool
+    eleves_initial: float
+    effectif_initial: float
+
+
 def synthese_par_sous_systeme(ecoles: List[dict], hyp_attrition: dict, effectifs: Optional[Dict[str, float]] = None) -> dict:
     """Agrégation par sous-système (Moteur B, §2.5-2.6) : besoin, excédent, part couvrable par redéploiement
     interne, besoin restant, recrutement à prévoir (restant + attrition) et degré d'aléa — jamais par moyenne
@@ -101,8 +110,17 @@ def synthese_par_sous_systeme(ecoles: List[dict], hyp_attrition: dict, effectifs
     `effectifs` : effectif retenu par école (après un plan), par identifiant ; à défaut, l'effectif actuel
     (`Enseignants_Actuels`). La cible (Ke) et la dotation (De) ne changent jamais : ce sont des capacités fixées
     à l'import, pas des grandeurs qui suivent le personnel effectivement en poste.
+
+    Deux indicateurs distincts, jamais confondus :
+      - `degre_alea` : degré d'aléa statistique = 1 − R² de la régression, école par école, du nombre d'enseignants
+        sur le nombre d'élèves (« Diagnostic de la politique enseignante », IV.3) — la même fonction
+        (`alea_et_raison`) que le rapport territorial, sur les écoles à l'effectif d'élèves connu, avec sa
+        qualification E5 (`degre_alea_statut`) et sa raison (`degre_alea_raison`) ; `None` si non calculable ;
+      - `taux_desequilibre` : (besoin + excédent) ÷ Σ cibles — part de la cible qui n'est pas là où il faut. Ce n'est
+        PAS un degré d'aléa : il ne mesure pas la déconnexion entre dotation et effectifs d'élèves.
     """
     groupes: Dict[str, dict] = {}
+    points: List[_PointAlea] = []
     for e in ecoles:
         ss = e.get(C.COL_ETAB_SS) or "non_renseigne"
         g = groupes.setdefault(ss, {"sous_systeme": ss, "besoin": 0.0, "excedent": 0.0, "salles_manquantes": 0.0,
@@ -115,6 +133,8 @@ def synthese_par_sous_systeme(ecoles: List[dict], hyp_attrition: dict, effectifs
         g["effectif"] += E
         g["somme_cibles"] += cible
         g["poids"].append((e.get(C.COL_ETAB_REGION), ss, E))
+        points.append(_PointAlea(eleves_connus=e.get("effectif_connu", True) is not False,
+                                 eleves_initial=float(e.get(C.COL_ETAB_NE) or 0), effectif_initial=E))
 
     par_sous_systeme = []
     for g in sorted(groupes.values(), key=lambda g: str(g["sous_systeme"])):
@@ -132,13 +152,16 @@ def synthese_par_sous_systeme(ecoles: List[dict], hyp_attrition: dict, effectifs
 
     somme = lambda cle: sum(g[cle] for g in par_sous_systeme)  # noqa: E731
     besoin, excedent, somme_cibles = somme("besoin"), somme("excedent"), sum(g["somme_cibles"] for g in groupes.values())
+    valeur_alea, raison_alea = alea_et_raison(points)
+    alea = alea_qualifie(valeur_alea, raison_alea, sum(1 for p in points if p.eleves_connus))
     return {
         "par_sous_systeme": par_sous_systeme,
         "besoin": besoin, "excedent": excedent,
         "salles_manquantes": somme("salles_manquantes"),
         "couvrable": somme("couvrable"), "restant": somme("restant"),
         "recrutement_a_prevoir": somme("recrutement_a_prevoir"),
-        "degre_alea": round((besoin + excedent) / somme_cibles, 4) if somme_cibles > 0 else None,
+        "degre_alea": alea["valeur"], "degre_alea_statut": alea["statut"], "degre_alea_raison": alea["raison"],
+        "taux_desequilibre": round((besoin + excedent) / somme_cibles, 4) if somme_cibles > 0 else None,
     }
 
 

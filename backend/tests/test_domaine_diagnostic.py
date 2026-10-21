@@ -1,6 +1,7 @@
 """`totaux_diagnostic` : seule source des totaux territoriaux (diagnostic, synthèse, nœuds de l'arbre
 territorial) — vérifié ligne à ligne pour que la future suppression du recalcul côté interface (lot 4.8) ne
 change aucun chiffre déjà affiché."""
+from domaine.commun.encadrement import CHIFFRES_ENCADREMENT, encadrement_population, taux_encadrement
 from domaine.diagnostic.synthese import synthese_par_sous_systeme, totaux_diagnostic
 from domaine.diagnostic.territoires import _agreger, arbre_territorial
 
@@ -146,6 +147,51 @@ def test_sous_systeme_effectif_retenu_remplace_effectif_actuel():
 
 def test_sous_systeme_aucun_besoin_ni_excedent_rend_alea_null():
     assert synthese_par_sous_systeme([], _hyp("taux_unique"))["degre_alea"] is None
+
+
+def _ecoles_alea(couples, ke=0):
+    return [_ecole(Identifiant_Ecole=f"E{i}", Effectif_Eleves_Attendus=eleves, Enseignants_Actuels=ens,
+                   Sous_Systeme="francophone", Ke=ke, De=ke)
+            for i, (eleves, ens) in enumerate(couples)]
+
+
+def test_degre_alea_est_un_moins_r2_et_distinct_du_taux_de_desequilibre():
+    # Enseignants exactement proportionnels aux élèves : R² = 1, donc aléa nul — alors que la cible (Ke = 20 par
+    # école) est loin de l'effectif : le taux de déséquilibre est, lui, élevé. Les deux ne doivent jamais se confondre.
+    s = synthese_par_sous_systeme(_ecoles_alea([(100, 2), (200, 4), (300, 6), (400, 8)], ke=20), _hyp("taux_unique"))
+    assert s["degre_alea"] == 0.0
+    assert s["degre_alea_statut"] == "indicatif"            # 4 écoles : de 3 à 9 (E5)
+    assert s["taux_desequilibre"] == round((s["besoin"] + s["excedent"]) / 80, 4)
+    assert s["taux_desequilibre"] > 0.5 and s["degre_alea"] != s["taux_desequilibre"]
+
+
+def test_degre_alea_valeur_calculee_a_la_main():
+    # (x, y) = (1,1) (2,3) (3,2) (4,4) : sxx = 5, syy = 5, sxy = 4 -> R² = 16/25 = 0,64 -> aléa 0,36
+    s = synthese_par_sous_systeme(_ecoles_alea([(1, 1), (2, 3), (3, 2), (4, 4)]), _hyp("taux_unique"))
+    assert s["degre_alea"] == 0.36
+
+
+def test_degre_alea_non_calculable_sous_trois_ecoles_renseignees():
+    ecoles = _ecoles_alea([(100, 2), (200, 4)]) + [_ecole(Identifiant_Ecole="X", effectif_connu=False,
+                                                          Effectif_Eleves_Attendus=0, Enseignants_Actuels=9)]
+    s = synthese_par_sous_systeme(ecoles, _hyp("taux_unique"))
+    assert s["degre_alea"] is None and s["degre_alea_statut"] == "non_calculable"
+    assert s["degre_alea_raison"]
+
+
+def test_taux_encadrement_une_seule_precision_et_population_commune():
+    assert CHIFFRES_ENCADREMENT == 1
+    assert taux_encadrement(100, 3) == 33.3
+    enc = encadrement_population([(True, 100, 4), (False, 999, 50), (True, 50, 1)])
+    assert (enc.eleves, enc.enseignants, enc.taux) == (150, 5, 30.0)
+    assert encadrement_population([(False, 10, 2)]).taux is None
+    assert encadrement_population([(False, 10, 2)], defaut=0.0).taux == 0.0
+
+
+def test_totaux_diagnostic_utilise_la_meme_population_et_la_meme_precision():
+    ecoles = [_ecole(Identifiant_Ecole="A", Effectif_Eleves_Attendus=100, Enseignants_Actuels=3),
+              _ecole(Identifiant_Ecole="B", effectif_connu=False, Effectif_Eleves_Attendus=999, Enseignants_Actuels=50)]
+    assert totaux_diagnostic(ecoles)["eleves_par_enseignant_etat"] == taux_encadrement(100, 3) == 33.3
 
 
 # --- `arbre_territorial` : arbre complet nation -> arrondissement, pour que la navigation ne déclenche plus un

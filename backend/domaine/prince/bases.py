@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional
 
+from ..commun.encadrement import taux_encadrement
 from ..donnees import colonnes as C
 from ..donnees.modeles import Ecole, Enseignant
 from .projection import ApplicationPrince, DecisionPrince, REJETE
@@ -24,7 +25,7 @@ LIBELLE_STATUT = {"applique": "Appliquée", "applique_avec_alerte": "Appliquée 
 
 
 def _rem(e: Ecole) -> Optional[float]:
-    return round(e.effectif_eleves / e.enseignants_actuels, 2) if e.enseignants_actuels else None
+    return taux_encadrement(e.effectif_eleves, e.enseignants_actuels or 0)
 
 
 def lignes_etablissements(avant: Iterable[Ecole], apres: Iterable[Ecole], touchees: Iterable[str]) -> List[dict]:

@@ -134,14 +134,14 @@ def couverture_parec(lignes: Iterable[LigneEcoleParec]) -> dict:
 
 REGISTRE_INDICATEURS: List[dict] = [
     {
-        "code": "encadrement", "intitule": "Taux d'encadrement",
+        "code": "encadrement", "unite": "élèves par enseignant", "intitule": "Taux d'encadrement",
         "formule": "Σ élèves ÷ Σ enseignants, écoles à effectif d'élèves connu (mêmes écoles aux deux termes)",
         "population": "Écoles du périmètre dont l'effectif d'élèves est connu (Ecole.effectif_connu)",
         "source": "domaine.commun.encadrement.taux_encadrement",
         "limites": "Une école à l'effectif d'élèves inconnu est hors de l'agrégat, élèves et enseignants ensemble.",
     },
     {
-        "code": "couverture_globale", "intitule": "Couverture globale des besoins initiaux",
+        "code": "couverture_globale", "unite": "%", "intitule": "Couverture globale des besoins initiaux",
         "formule": "Σ min(besoin_initial, max(0, effectif(t) − effectif_initial)) ÷ Σ besoin_initial",
         "population": "Écoles du périmètre, base de besoin fixée à l'import (avant Prince, avant scénario)",
         "source": "domaine.rapport.territorial.couverture_globale",
@@ -150,14 +150,14 @@ REGISTRE_INDICATEURS: List[dict] = [
                    "indicateur (base constante)."),
     },
     {
-        "code": "couverture_operationnelle", "intitule": "Couverture opérationnelle après Prince",
+        "code": "couverture_operationnelle", "unite": "%", "intitule": "Couverture opérationnelle après Prince",
         "formule": "Σ min(besoin_après_Prince, max(0, effectif_simulation − effectif_après_Prince)) ÷ Σ besoin_après_Prince",
         "population": "Écoles du périmètre, besoin recalculé après les faits du Prince actifs",
         "source": "domaine.rapport.territorial.couverture_operationnelle",
         "limites": "Exclut l'effet du Prince du numérateur ; disponible seulement à la situation « après simulation ».",
     },
     {
-        "code": "couverture_parec", "intitule": "Couverture des écoles de plus de 100 élèves",
+        "code": "couverture_parec", "unite": "%", "intitule": "Couverture des écoles de plus de 100 élèves",
         "formule": "Écoles de plus de 100 élèves avec ≥ 3 enseignants (Enseignants_Actuels) ÷ écoles de plus de 100 élèves",
         "population": "Écoles de plus de 100 élèves du périmètre",
         "source": "domaine.rapport.territorial.couverture_parec",
@@ -165,7 +165,7 @@ REGISTRE_INDICATEURS: List[dict] = [
                    "absente du jeu) : à ne pas confondre avec la définition PAREC d'origine."),
     },
     {
-        "code": "attrition", "intitule": "Attrition (modèle M1)",
+        "code": "attrition", "unite": "% par an", "intitule": "Attrition (modèle M1)",
         "formule": "Taux appliqué à l'effectif de début d'année (M1 : Effectif(t+1) − Recrues(t+1) = β × Effectif(t))",
         "population": "Écoles du périmètre",
         "source": "domaine.planification.projection.calculer_annees / origine_taux",
@@ -174,11 +174,14 @@ REGISTRE_INDICATEURS: List[dict] = [
                    "affichées qu'aux niveaux national et régional."),
     },
     {
-        "code": "alea", "intitule": "Degré d'aléa",
+        "code": "alea", "unite": "sans unité, entre 0 et 1", "intitule": "Degré d'aléa",
         "formule": "1 − R² de la régression (enseignants ~ élèves), écoles à effectif d'élèves connu",
         "population": "Écoles du périmètre à effectif d'élèves connu",
         "source": "domaine.planification.rapport.alea_et_raison + domaine.rapport.territorial.alea_qualifie",
         "limites": ("Non calculable sous 3 écoles renseignées ; qualifié « indicatif » de 3 à 9 ; calcul normal à "
-                   "partir de 10, sans que cela garantisse une fiabilité statistique au-delà de ce seuil."),
+                   "partir de 10, sans que cela garantisse une fiabilité statistique au-delà de ce seuil. Calculé sur "
+                   "Enseignants_Actuels, sans distinguer les enseignants payés par l'État (le rapport de référence "
+                   "les distingue) : les valeurs ne sont pas directement comparables à celles du rapport. À ne pas "
+                   "confondre avec le taux de déséquilibre (besoin + excédent) ÷ Σ cibles."),
     },
 ]

@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from contextes.diagnostic import services as diag
 from contextes.planification import services as pl
-from domaine.commun.encadrement import taux_encadrement
+from domaine.commun.encadrement import encadrement_population, taux_encadrement
 from domaine.donnees.modeles import Ecole
 from domaine.planification.parametres import ANNEES_PLAN, REFERENTIEL_ATTRITION_M1
 from domaine.planification.projection import ProjectionEcole, lieu_de
@@ -157,14 +157,11 @@ def _indicateur_parec(d: _Donnees, p: dict, sim: List[ProjectionEcole]) -> Dict[
 def _indicateur_encadrement(d: _Donnees, p: dict, sim: List[ProjectionEcole], annees: List[dict]) -> Dict[str, dict]:
     imp_proj = ecoles_a_l_import(d.ecoles_import(p))
     prince_proj = ecoles_a_l_import(d.ecoles_apres_prince(p))   # même constructeur : « Ecole -> ProjectionEcole »
-    out = {
-        "import": _valeur(sum(e.eleves_initial for e in imp_proj if e.eleves_connus),
-                          sum(e.effectif_initial for e in imp_proj if e.eleves_connus)),
-        "apres_prince": _valeur(sum(e.eleves_initial for e in prince_proj if e.eleves_connus),
-                                sum(e.effectif_initial for e in prince_proj if e.eleves_connus)),
-        "apres_simulation": _valeur(sum(e.eleves_initial for e in sim if e.eleves_connus),
-                                    sum(e.effectif_initial for e in sim if e.eleves_connus)),
-    }
+    def situation(ecoles: List[ProjectionEcole]) -> dict:
+        enc = encadrement_population((e.eleves_connus, e.eleves_initial, e.effectif_initial) for e in ecoles)
+        return _valeur(enc.eleves, enc.enseignants)
+
+    out = {"import": situation(imp_proj), "apres_prince": situation(prince_proj), "apres_simulation": situation(sim)}
     for k, ligne in enumerate(annees[:5]):
         eff = ligne.get("effectif_debut") or 0
         eleves = ligne.get("eleves")
@@ -277,9 +274,12 @@ def _ligne_territoire(nom: str, bloc: dict, code: str, situations: tuple) -> dic
     return {"territoire": nom, "valeurs": [_cellule(bloc[code][s]) for s in situations]}
 
 
-def tableaux_pour_export(rapport: dict, *, indicateur: Optional[str] = None) -> List[dict]:
+def tableaux_pour_export(rapport: dict, *, indicateur: Optional[str] = None,
+                         annee: Optional[str] = None) -> List[dict]:
     """Un tableau par indicateur (ou un seul si `indicateur` est précisé) : le nœud courant en première ligne,
-    puis chacun de ses enfants — jamais une ligne recalculée autrement que par les mêmes fonctions que le JSON."""
+    puis chacun de ses enfants — jamais une ligne recalculée autrement que par les mêmes fonctions que le JSON.
+    `annee` (« n1 » à « n5 ») ne garde, parmi les colonnes de projection, que l'année demandée ; import, après
+    Prince et après simulation restent toujours présents. L'unité de l'indicateur figure dans l'intitulé."""
     registre = REGISTRE_INDICATEURS
     if indicateur:
         registre = [x for x in registre if x["code"] == indicateur]
@@ -294,11 +294,13 @@ def tableaux_pour_export(rapport: dict, *, indicateur: Optional[str] = None) -> 
             situations = SITUATIONS_ANNEES
         else:
             situations = SITUATIONS_ENCADREMENT
+        if annee:
+            situations = tuple(x for x in situations if x not in SITUATIONS_ANNEES or x == annee)
         lignes = [_ligne_territoire(rapport["titre"], rapport["noeud"], code, situations)]
         for enfant in rapport["enfants"]:
             lignes.append(_ligne_territoire(enfant["territoire"]["nom"], enfant, code, situations))
         tableaux.append({
-            "code": code, "intitule": definition["intitule"], "formule": definition["formule"],
+            "code": code, "intitule": definition["intitule"], "unite": definition.get("unite", ""), "formule": definition["formule"],
             "population": definition["population"], "source": definition["source"], "limites": definition["limites"],
             "colonnes": [LIBELLE_SITUATION[s] for s in situations], "lignes": lignes,
         })

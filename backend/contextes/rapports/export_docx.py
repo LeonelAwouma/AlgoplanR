@@ -71,7 +71,8 @@ def _entete_bandeau(cell, texte: str) -> None:
 
 
 def _ajouter_tableau(document: Document, t: dict, *, niveau_titre: int = 2) -> None:
-    document.add_heading(t["intitule"], level=min(niveau_titre, 9))
+    document.add_heading(f"{t['intitule']} ({t['unite']})" if t.get("unite") else t["intitule"],
+                         level=min(niveau_titre, 9))
     entetes = ["Territoire", *t["colonnes"]]
     table = document.add_table(rows=1, cols=len(entetes))
     table.style = "Table Grid"

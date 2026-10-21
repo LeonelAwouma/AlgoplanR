@@ -1,6 +1,7 @@
 """Taux d'encadrement et turnover, avant l'algorithme et après."""
 import pytest
 
+from domaine.commun.encadrement import taux_encadrement
 from domaine.donnees.demonstration import construire_jeu_demonstration
 from domaine.donnees.modeles import construire_ecole, construire_enseignant
 from domaine.mobilite.analyses import comparer_encadrement_turnover, synthese_sous_systeme_avant_apres
@@ -35,8 +36,8 @@ def test_encadrement_s_ameliore_ou_reste_equilibre_region_par_region():
     res, enseignants, cfg = _calcul()
     out = comparer_encadrement_turnover(res, enseignants, cfg)
     n = out["national"]
-    assert n["rem_avant"] == round(n["eleves"] / n["enseignants_avant"], 2)
-    assert n["rem_apres"] == round(n["eleves"] / n["enseignants_apres"], 2)
+    assert n["rem_avant"] == taux_encadrement(n["eleves"], n["enseignants_avant"])
+    assert n["rem_apres"] == taux_encadrement(n["eleves"], n["enseignants_apres"])
     # Un mouvement interne à une région laisse le REM régional inchangé.
     internes = {r["territoire"]: r for r in out["par_region"]}
     assert all(r["enseignants_apres"] >= 0 for r in internes.values())
