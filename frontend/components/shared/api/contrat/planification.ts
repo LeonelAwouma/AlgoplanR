@@ -53,7 +53,7 @@ export interface Hypotheses {
     tauxUnique: number
     parSousSysteme: Partial<Record<SousSysteme, number>>
     parRegion: Record<string, number>
-    /** Niveau territorial auquel l'attrition est arrondie (point à valider). */
+    /** Conservé dans les hypothèses (lecture tolérante) mais non lu par le calcul : aucun contrôle ne le propose. */
     niveauArrondi: NiveauTerritorial
   }
   quotas: Justification & {
@@ -123,6 +123,8 @@ export interface DetailProjectionAnnee {
   eleves: number
   /** Élèves par enseignant projeté, `null` quand il n'est pas calculable. */
   rem: number | null
+  /** Pourquoi `rem` est « non disponible » (écoles à effectif d'élèves inconnu) ; `null`/absent sinon. */
+  remRaison?: string | null
 }
 
 /** Les huit indicateurs du mémo (§2.1), pour une année et un périmètre. */
@@ -275,6 +277,8 @@ export interface RapportPrevisionnel {
     lignes: LigneTableauRapport[]
     remReference: number
     remFinal: Record<ScenarioRecrutement, number | null>
+    /** Raison pour laquelle les taux d'encadrement obtenus sont « non disponibles » ; absente sinon. */
+    remIndisponible?: string | null
   }
   retraitesRegions: { lignes: RetraitesRegion[]; national: RetraitesRegion }
   scenariosRegions: { lignes: RecrutementsRegion[]; national: RecrutementsRegion }

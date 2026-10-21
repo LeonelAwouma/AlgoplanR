@@ -28,6 +28,8 @@ export interface LigneProjection {
   quotaRetenu: number | null
   /** Élèves par enseignant projeté. */
   rem: number | null
+  /** Pourquoi `rem` est « non disponible », `null` sinon. */
+  remRaison: string | null
   /** Taux d'attrition appliqué (%). */
   tauxAttrition: number | null
 }
@@ -59,6 +61,7 @@ export function construireProjection(annees: readonly IndicateursAnnee[]): Ligne
       quotaCalcule: a.quotaCalcule,
       quotaRetenu: a.quotaRetenu,
       rem: a.rem ?? null,
+      remRaison: a.remRaison ?? null,
       tauxAttrition: a.tauxAttrition ?? null,
     }
   })

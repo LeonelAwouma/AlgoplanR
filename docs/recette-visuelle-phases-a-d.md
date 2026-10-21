@@ -36,10 +36,10 @@ Durée : environ 45 minutes. Cocher chaque ligne ; noter toute différence avec 
 | 2.3 | Ajustements contextuels. | Cinq lignes dont **Bonification ciblée (rapprochement de conjoint, suivi médical) sur l'école visée : 20**. |
 | 2.4 | Sous le barème. | Paragraphe « Fixés dans le moteur, donc non modifiables ici » : C3 −2 par enfant, C4 2 par formation plafonnée à 10, C5 10 / 8 / 5. |
 | 2.5 | Modifier un poids (curseur), enregistrer, recharger la page. | La valeur modifiée est conservée (réglage transmis au serveur). |
-| 2.6 | Référentiel → Mobilité. | Les champs et interrupteurs inactifs sont **grisés avec « Non appliqué : le calcul n'utilise pas ce réglage »** : nombre de vœux, ordre d'examen, proche de la retraite, stabilité pour l'obligatoire, protection des proches de la retraite, solution proche, redéploiement obligatoire, zone rouge, projection N+2, départage (le taux d'attrition ne s'y règle plus : Planification → Hypothèses de calcul). Restent actifs : stabilité minimale, vœux, régions étanches. |
-| 2.7 | Référentiel → Besoin. | Actifs : norme, tolérance (première section), niveaux, minimum selon multigrades, double flux, âge de retraite. Grisés : déduction des départs connus, repli sans effectif, source des postes. L'année scolaire est en lecture seule. |
-| 2.8 | Référentiel → Gravité / Priorité. | Seuils de sévérité, points α / σ, seuils de niveau, tranches β : grisés (« non appliqué »). Les coefficients t1 / t2 restent actifs. |
-| 2.9 | Simulation → scénario personnalisé. | Norme, tolérance, niveaux, double flux, stabilité : actifs. Ordre d'examen, solution proche, redéploiement obligatoire, zone rouge : grisés. |
+| 2.6 | Référentiel → Mobilité. | **Seuls les réglages appliqués par le calcul sont affichés** (lot 4.9 : les champs inactifs ne sont plus grisés « Non appliqué », ils sont retirés). Restent : stabilité minimale au poste, « Traiter les vœux des enseignants » et « Affecter chaque enseignant dans sa région ». Le taux d'attrition ne s'y règle pas : Planification → Hypothèses de calcul. |
+| 2.7 | Référentiel → Besoin. | Actifs : année scolaire (lecture seule), norme, tolérance, minimum pédagogique, niveaux, minimum selon multigrades, double flux, âge de retraite du moteur (exclusion du vivier, alerte du Prince, barème — la projection des départs N+1 à N+5 utilise l'âge légal des Hypothèses de calcul). Plus de champ grisé. |
+| 2.8 | Référentiel → Gravité / Priorité. | Seuls les coefficients t1 / t2 sont proposés ; les seuils de sévérité, points α / σ, seuils de niveau et tranches β sont fixés par le serveur et ne sont plus affichés comme réglables. |
+| 2.9 | Simulation → scénario personnalisé. | Seuls les réglages transmis au serveur sont proposés : nom, rayon territorial, norme, tolérance, niveaux, stabilité minimale. |
 
 ## 3. Bonification ciblée (effet sur les vœux)
 
@@ -122,7 +122,7 @@ n'a été fait ; l'ouverture du Word dans Microsoft Word n'a pas non plus été 
 
 | Étape | Résultat |
 |---|---|
-| 2 Configuration du moteur, référentiel | Conforme : champs appliqués modifiables, champs non appliqués figés avec la mention « Non appliqué ». |
+| 2 Configuration du moteur, référentiel | Conforme : seuls les champs appliqués par le calcul sont affichés et modifiables (règle testée par `tests/champs-moteur.test.ts`) ; les points par situation matrimoniale se limitent aux quatre catégories connues du serveur. |
 | 4 Faits du Prince, validation avec réserve | Conforme : motif obligatoire, bouton désactivé sans auteur ni motif, statut et motif affichés, mention dans le rapport. |
 | 5 Indicateurs de suivi | **Deux défauts réels trouvés et corrigés** : pourcentages affichés ×100 (« 3700 % » au lieu de 37 %) ; ligne de version en double dans « D'une version à l'autre » (clé React dupliquée). |
 | 6 Consultation paginée | Conforme : 50 puis 100 lignes par page, pas de hauteur fixe, filtres région et département. |
@@ -145,7 +145,7 @@ programme sur les valeurs lues dans la page ; captures en pièces. Aucun contrô
 | Planification → Projection sur 5 ans → onglet « Projection N+1 à N+5 » | Ouvert par défaut ; cinq années ; mention « Lecture seule : chiffres du serveur » et taux appliqué. |
 | Enchaînement des effectifs | Conforme : fin = début − retraites − attrition − directeurs + recrutements ; début de N+k+1 = fin de N+k. |
 | Modification du taux d'attrition (2,25 → 6 %) dans « Hypothèses de calcul » | Conforme : attrition 6, 5, 5, 5, 5 → 15, 13, 13, 13, 12 ; chaînage toujours cohérent ; « 6,00 % par an » annoncé. |
-| Niveau d'arrondi | Champ figé, libellé « non appliqué » (aucun calcul ne le lit ; test serveur de garde). |
+| Niveau d'arrondi | Aucun champ : `attrition.niveau_arrondi` est conservé dans les hypothèses (lecture tolérante) mais aucun calcul ne le lit. |
 | Référentiel | Plus de champ « Taux d'attrition τ* ». |
 | Méthodologie | « Projection de N+1 à N+5 » ; plus de « N+1 à N+3 ». |
 | Rapport | Section « Projection de N+1 à N+5 » tirée de la planification ; plus de « Quota de recrutement estimé en N+2, N+3 ». |
@@ -153,3 +153,7 @@ programme sur les valeurs lues dans la page ; captures en pièces. Aucun contrô
 Limite connue : la colonne « Évolution » et suivantes du tableau de l'onglet défilent horizontalement à 1440 px.
 Mode démonstration (exécuté) : l'onglet s'affiche ; les données factices n'ont pas le détail de la projection, les colonnes
 concernées (directeurs, recrutements, REM) affichent « — » ; l'effectif de fin est l'effectif de début de l'année suivante.
+
+## Mise à jour du lot 4.9 (nettoyage des réglages non appliqués)
+
+Les mentions « Non appliqué » des tableaux ci-dessus décrivaient un état antérieur : depuis, les champs inactifs ne sont plus affichés. Au lot 4.9 : les exceptions de retraite (`retraite.exceptions`, non lues par le calcul des départs) ne sont plus saisissables, celles déjà enregistrées sont conservées et signalées ; les situations « Séparé(e) » et « Union libre » (sans effet : le serveur ne connaît que marié, divorcé, veuf, célibataire) et le bouton « Ajouter au barème » sont retirés ; une ligne d'aide indique l'âge de retraite qui agit sur la projection (hypothèses) et celui du moteur (Prince, vivier, barème). Les sources de vivier « disponibilité », « fin de détachement », « réintégration » et « autre » **restent affichées : elles sont actives** (elles filtrent les personnes importées au vivier).

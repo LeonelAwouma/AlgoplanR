@@ -22,7 +22,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from ..commun.encadrement import taux_encadrement
+from ..commun.encadrement import CHIFFRES_ENCADREMENT, ratio_encadrement
 from ..commun.texte import norm, texte
 from ..diagnostic.indicateurs import calculer_indicateurs
 from ..donnees.modeles import Ecole, Enseignant
@@ -233,6 +233,13 @@ def taux_attrition(ecoles: List[ProjectionEcole], hyp: dict) -> float:
     return taux_attrition_pondere([(e.region, e.sous_systeme, e.effectif_initial) for e in ecoles], hyp)
 
 
+def raison_encadrement_indisponible(nb_inconnues: int) -> str:
+    """Pourquoi le taux d'encadrement projeté n'est pas calculable : des écoles à effectif d'élèves inconnu."""
+    return (f"{nb_inconnues} école(s) à effectif d'élèves inconnu : les départs et les recrutements projetés ne "
+            "peuvent pas être attribués aux seules écoles à effectif connu (population commune) sans répartir "
+            "artificiellement les recrutements entre écoles.")
+
+
 #: Scénarios de recrutement du rapport DRH : la règle fixe les recrues qui s'ajoutent au stock de l'année suivante.
 SCENARIOS = ("min", "maintien", "besoin", "plafond")
 
@@ -257,6 +264,12 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
     supposes = bool(hyp["quotas"].get("annees_precedentes_realisees", True))
     etalement = max(1, int(drh["ETAL_N"]))
 
+    # Population commune du taux d'encadrement (décision « Encadrement ») : élèves ET enseignants des seules écoles à
+    # effectif d'élèves connu. Le stock de début de l'année 1 est connu école par école : il se restreint sans rien
+    # répartir. Après, l'attrition, les directeurs et les recrutements ne sont projetés que pour le périmètre entier :
+    # sans école à effectif inconnu le périmètre EST la population commune ; sinon le taux n'est pas calculable.
+    nb_inconnues = sum(1 for e in ecoles if not e.eleves_connus)
+    initial_connus = somme(lambda e: e.effectif_initial if e.eleves_connus else 0)
     effectif = initial
     attrition_cumulee = directeurs_cumules = 0
     besoin_precedent = rattrapage_precedent = 0
@@ -285,6 +298,13 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
         else:
             quota = min(brut, plafond)
         eleves = somme(lambda e: e.eleves[k] if e.eleves_connus else 0.0)
+        if nb_inconnues == 0:
+            rem_den, rem_raison = effectif, None
+        elif k == 0:
+            rem_den, rem_raison = initial_connus, None
+        else:
+            rem_den, rem_raison = None, raison_encadrement_indisponible(nb_inconnues)
+        rem_brut = None if rem_den is None else ratio_encadrement(eleves, rem_den)
         lignes.append({
             "annee": ANNEES_PLAN[k], "effectif_debut": effectif, "departs_retraite": retraites,
             "departs_attrition": attrition, "besoin": besoin, "ressources_vivier": vivier, "quota_calcule": quota,
@@ -294,10 +314,11 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
             # Détail DRH (hors contrat) : taux appliqué, classes libérées, rattrapage, plafond, REM projeté.
             "taux_attrition": round(taux, 4), "origine_taux": origine, "directeurs_decharges": directeurs,
             "rattrapage": rattrapage, "plafond": plafond,
-            # REM projeté : formule partagée (domaine/commun/encadrement.py) ; population = effectif du
-            # périmètre (non restreinte aux seules écoles à élèves connus, contrairement à rem_base — voir
-            # module docstring de `rapport.rem_base`).
-            "rem": taux_encadrement(eleves, effectif, 1),
+            # Taux d'encadrement projeté (population commune, voir plus haut) : arrondi à la restitution seulement ;
+            # `rem_brut` et `eleves_brut` gardent la précision pour la suite des calculs. `None` + raison quand il
+            # n'est pas calculable sur la population commune.
+            "rem": None if rem_brut is None else round(rem_brut, CHIFFRES_ENCADREMENT), "rem_brut": rem_brut,
+            "rem_denominateur": rem_den, "rem_raison": rem_raison, "population_complete": nb_inconnues == 0, "eleves_brut": eleves,
         })
         if scenario == "min":
             recrutes = retraites

@@ -89,7 +89,7 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
           </Regle>
           <Regle
             enonce="Un enseignant part à la retraite à"
-            precision="Les départs connus à la rentrée sont déduits de l’effectif ; ceux de l’année suivante alimentent la projection N+2."
+            precision="Cet âge exclut du vivier de mobilité les agents qui l’ont atteint, déclenche l’alerte du Prince et réduit le barème dans les cinq ans qui précèdent. La projection des départs N+1 à N+5 utilise, elle, l’âge légal des Hypothèses de calcul (Planification)."
             htmlFor="r-retraite"
           >
             <input

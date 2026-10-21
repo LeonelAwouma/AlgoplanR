@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from ..commun.texte import est_vide, nombre_ou_none, norm, texte
 from ..donnees import colonnes as C
 from ..donnees.modeles import construire_enseignant
+from ..mobilite.bareme import categorie_situation
 from ..mobilite.bonification import ecole_bonifiee
 
 CHAMPS_NUMERIQUES_ETAB = [C.COL_ETAB_NE, C.COL_ETAB_EE, C.COL_ETAB_SSF, C.COL_ETAB_SDF]
@@ -136,6 +137,30 @@ def controler(lignes_etab: List[Dict[str, Any]], lignes_ens: List[Dict[str, Any]
             f"La colonne {C.COL_ENS_AGE} est absente : un âge de 35 ans est supposé pour les {len(lignes_ens)} "
             "enseignants. Départs à la retraite, cohortes d'âge et ajustements d'âge ne sont pas fiables.",
             colonne=C.COL_ENS_AGE))
+    # Situation matrimoniale (composante C3 du barème) : une valeur absente, vide ou non reconnue vaut 0 point ; elle
+    # n'est jamais assimilée à « célibataire ». Signalée pour que la donnée soit corrigée à la source.
+    vides, inconnues = 0, Counter()
+    for l in lignes_ens:
+        brut = l.get(C.COL_ENS_SITU)
+        if categorie_situation(brut) is not None:
+            continue
+        if est_vide(brut):
+            vides += 1
+        else:
+            inconnues[texte(brut)] += 1
+    if vides or inconnues:
+        nb_inconnues = sum(inconnues.values())
+        detail = []
+        if vides:
+            detail.append(f"{vides} sans situation renseignée")
+        if nb_inconnues:
+            detail.append(f"{nb_inconnues} avec une situation non reconnue ({', '.join(f'« {v} »' for v, _ in inconnues.most_common(5))})")
+        avert.append(_anomalie(
+            "ENS_SITUATION_ABSENTE_OU_INCONNUE", "avertissement",
+            f"{vides + nb_inconnues} enseignant(s) : {' ; '.join(detail)}. La composante matrimoniale du barème "
+            "(C3) vaut 0 point pour eux : ils ne sont pas comptés comme « célibataire ». Reconnues : célibataire, "
+            "marié(e), divorcé(e), veuf(ve).",
+            colonne=C.COL_ENS_SITU, valeurs=[v for v, _ in inconnues.most_common(50)]))
     sans_effectif = [texte(l.get(C.COL_ETAB_ID)) for l in lignes_etab if nombre_ou_none(l.get(C.COL_ETAB_NE)) is None]
     if sans_effectif:
         avert.append(_anomalie(

@@ -109,3 +109,20 @@ describe('projection N+1 à N+5', () => {
     assert.equal(totauxProjection([]), null)
   })
 })
+
+describe('Taux d’encadrement projeté non disponible', () => {
+  it('garde la raison fournie par le serveur et n’invente aucune valeur', () => {
+    const raison = '3 école(s) à effectif d’élèves inconnu : …'
+    const lignes = construireProjection([
+      annee(0, 1000, { rem: 31.9 }),
+      annee(1, 998, { rem: null, remRaison: raison }),
+      annee(2, 996),
+    ])
+    assert.equal(lignes[0].rem, 31.9)
+    assert.equal(lignes[0].remRaison, null)
+    assert.equal(lignes[1].rem, null)
+    assert.equal(lignes[1].remRaison, raison)
+    assert.equal(lignes[2].rem, null, 'sans valeur ni raison : indisponible, jamais 0')
+    assert.equal(lignes[2].remRaison, null)
+  })
+})

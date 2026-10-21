@@ -159,6 +159,13 @@ export function VueEnsemblePage() {
     hypotheses: hypotheses.data ?? null,
     alea: alea.data ?? null,
     anneePlan: planification.data?.annees[0] ?? null,
+    raisonSansResultat: affiche
+      ? null
+      : scenarios.isPending || (scenario !== null && resultat.isPending)
+        ? 'chargement'
+        : calcules.length === 0
+          ? 'aucun_scenario'
+          : 'situation_actuelle',
   })
 
   const carte = (k: Kpi) => (

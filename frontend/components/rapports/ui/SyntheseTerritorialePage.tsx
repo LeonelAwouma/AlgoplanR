@@ -54,7 +54,8 @@ function filtresDe(selection: TerritorySelection, scenario: string | null): Filt
 /** Taux d'encadrement : des élèves par enseignant, jamais un pourcentage. */
 function celluleEncadrement(v: ValeurIndicateur | undefined): string {
   if (!v) return '—'
-  if (v.statut === 'sansObjet') return 'Sans objet'
+  if (v.statut === 'sans_objet') return 'Sans objet'
+  if (v.statut === 'non_disponible') return 'Non disponible'
   return v.taux === null ? '—' : fmtDec(v.taux, 1)
 }
 
@@ -63,7 +64,8 @@ const UNITE_ENCADREMENT = 'élèves par enseignant'
 /** Taux d'un indicateur de couverture/encadrement, « — » ou « Sans objet » quand il n'est pas calculable. */
 function celluleTaux(v: ValeurIndicateur | undefined, decimales = 1): string {
   if (!v) return '—'
-  if (v.statut === 'sansObjet') return 'Sans objet'
+  if (v.statut === 'sans_objet') return 'Sans objet'
+  if (v.statut === 'non_disponible') return 'Non disponible'
   return v.taux === null ? '—' : `${fmtDec(v.taux, decimales)} %`
 }
 
@@ -118,7 +120,7 @@ function StatsNoeud({ noeud }: { noeud: IndicateursTerritoire }) {
       libelle: 'Attrition N+1',
       valeur: celluleAttritionN1(noeud.attrition.annees.n1),
       hint: noeud.attrition.referenceM1
-        ? `Modèle M1 : ${fmtDec(noeud.attrition.referenceM1.attritionTotalePct, 2)} % ± ${noeud.attrition.referenceM1.intervalleConfiancePoints} pt au national (hypothèse, pas un taux observé).`
+        ? `Modèle M1 : ${fmtDec(noeud.attrition.referenceM1.attritionTotalePct, 2)} % ± ${fmtDec(noeud.attrition.referenceM1.intervalleConfiancePoints, 2)} pt au national (hypothèse, pas un taux observé).`
         : (noeud.attrition.note ?? 'Hypothèse héritée de la région.'),
     },
   ]
@@ -338,7 +340,7 @@ export function SyntheseTerritorialePage() {
     { cle: 'ecoles', entete: 'Écoles', numerique: true, rendu: e => fmt(e.nbEcoles), tri: e => e.nbEcoles },
     {
       cle: 'encadrement',
-      entete: `Taux d'encadrement (${UNITE_ENCADREMENT})`,
+      entete: 'Encadrement (élèves/enseignant)',
       numerique: true,
       rendu: e => celluleEncadrement(e.encadrement.apresSimulation),
       tri: e => e.encadrement.apresSimulation.taux ?? -1,
@@ -397,9 +399,9 @@ export function SyntheseTerritorialePage() {
       <Panel
         kicker="Exploration"
         title={`${LIBELLE_NIVEAU_ENFANTS[r.niveauEnfants] ?? 'Territoires'}s`}
-        hint={
+        hint={`${
           estEcole ? 'Détail des établissements de cet arrondissement.' : 'Cliquez sur un territoire pour l’explorer.'
-        }
+        } Encadrement en ${UNITE_ENCADREMENT} ; couvertures en %.`}
         flush
       >
         <DataTable

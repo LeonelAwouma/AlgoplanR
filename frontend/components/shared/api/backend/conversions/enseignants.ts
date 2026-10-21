@@ -145,7 +145,7 @@ export function situationRetenue(valeur: unknown, settings: EngineSettings): Sit
   return {
     libelle: reconnue ? LIBELLES_SITUATION[cle] : texte(valeur) || 'Non renseignée',
     reconnue,
-    points: settings.scoring.pointsSituationFamiliale[cle] ?? 0,
+    points: reconnue ? (settings.scoring.pointsSituationFamiliale[cle] ?? 0) : 0,
   }
 }
 

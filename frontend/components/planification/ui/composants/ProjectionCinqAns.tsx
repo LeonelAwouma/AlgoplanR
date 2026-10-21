@@ -198,7 +198,15 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
                   <td className="num">{signe(l.variation)}</td>
                   <td className="num">{fmt(l.besoin)}</td>
                   <td className="num">{fmt(l.quotaCalcule)}</td>
-                  <td className="num">{l.rem === null ? TIRET : fmtDec(l.rem, 1)}</td>
+                  <td className="num">
+                    {l.rem !== null ? (
+                      fmtDec(l.rem, 1)
+                    ) : l.remRaison ? (
+                      <abbr title={l.remRaison}>Non disponible</abbr>
+                    ) : (
+                      TIRET
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

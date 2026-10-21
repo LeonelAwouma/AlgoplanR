@@ -111,3 +111,8 @@ export function messageErreur(erreur: unknown): string {
   if (erreur instanceof Error) return erreur.message
   return String(erreur)
 }
+
+/** Vrai pour le refus 422 « Aucun scénario calculé » : le jeu n'a aucun scénario, et la lecture n'en crée jamais. */
+export function estAucunScenario(erreur: unknown): boolean {
+  return erreur instanceof ApiError && erreur.code === 'aucun_scenario'
+}

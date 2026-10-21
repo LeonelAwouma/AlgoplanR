@@ -88,6 +88,7 @@ interface AnneeDjango {
   taux_attrition?: number
   eleves?: number
   rem?: number | null
+  rem_raison?: string | null
 }
 
 interface TableauDjango {
@@ -201,6 +202,7 @@ export function versAnnee(a: AnneeDjango): IndicateursAnnee {
     tauxAttrition: a.taux_attrition,
     eleves: a.eleves,
     rem: a.rem,
+    remRaison: a.rem_raison ?? null,
   }
 }
 

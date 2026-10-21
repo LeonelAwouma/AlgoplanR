@@ -7,6 +7,7 @@ arrondissements (sous-section par département).
 from __future__ import annotations
 
 import io
+import re
 from datetime import datetime, timezone
 from typing import List
 
@@ -14,16 +15,17 @@ from docx import Document
 from docx.enum.section import WD_ORIENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
-from docx.shared import Pt, RGBColor
+from docx.shared import Cm, Pt, RGBColor
 from docx.table import Table
 
 from contextes.donnees.lecteur import _cellule_sure
 
 
 def _page_paysage(document: Document) -> None:
+    """Page A4 en paysage (le gabarit par défaut de python-docx est au format Letter)."""
     section = document.sections[0]
     section.orientation = WD_ORIENT.LANDSCAPE
-    section.page_width, section.page_height = section.page_height, section.page_width
+    section.page_width, section.page_height = Cm(29.7), Cm(21.0)
 
 
 def _champ_page(paragraphe) -> None:
@@ -70,6 +72,11 @@ def _entete_bandeau(cell, texte: str) -> None:
         cell._tc.makeelement(qn("w:shd"), {qn("w:val"): "clear", qn("w:fill"): "1F4E79"}))
 
 
+def _decimale_francaise(texte: str) -> str:
+    """« 0.9 (indicatif) » → « 0,9 (indicatif) » : virgule décimale entre deux chiffres, le reste est intact."""
+    return re.sub(r"(?<=\d)\.(?=\d)", ",", texte)
+
+
 def _ajouter_tableau(document: Document, t: dict, *, niveau_titre: int = 2) -> None:
     document.add_heading(f"{t['intitule']} ({t['unite']})" if t.get("unite") else t["intitule"],
                          level=min(niveau_titre, 9))
@@ -83,7 +90,8 @@ def _ajouter_tableau(document: Document, t: dict, *, niveau_titre: int = 2) -> N
         cellules[0].text = str(_cellule_sure(ligne["territoire"]))
         for c, v in enumerate(ligne["valeurs"], start=1):
             v = _cellule_sure(v)
-            cellules[c].text = f"{v:g}" if isinstance(v, float) else str(v)
+            # Décimale française (virgule) : le document est lu en français ; le classeur Excel garde des nombres.
+            cellules[c].text = _decimale_francaise(f"{v:g}" if isinstance(v, float) else str(v))
     _repeter_entete(table)
     note = document.add_paragraph()
     note.paragraph_format.space_before = Pt(2)
@@ -121,7 +129,8 @@ def document_national_complet(complet: dict, *, jeu_nom: str = "", scenario_id: 
     document = Document()
     _page_paysage(document)
     _pied_de_page_numerote(document)
-    _entete_document(document, "Rapport national complet", _sous_titre(jeu_nom, scenario_id))
+    _entete_document(document, "Rapport national complet",
+                     _sous_titre(jeu_nom, scenario_id or complet.get("scenario_id", "")))
     for t in complet["national"]["tableaux"]:
         _ajouter_tableau(document, t, niveau_titre=2)
     for region in complet["regions"]:

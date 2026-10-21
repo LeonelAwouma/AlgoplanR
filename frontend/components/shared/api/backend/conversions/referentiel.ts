@@ -83,16 +83,17 @@ export const LIBELLES_SITUATION: Record<string, string> = {
 }
 
 /**
- * Catégorie de barème d'une situation déclarée, comme bareme.categorie_situation :
- * toute valeur qui n'évoque ni mariage, ni divorce, ni veuvage compte en célibataire.
- * `reconnue` dit si la valeur désigne vraiment l'une des quatre situations.
+ * Catégorie de barème d'une situation déclarée, comme `bareme.categorie_situation` (serveur, règle v2) : marié(e),
+ * divorcé(e), veuf(ve) ou célibataire explicitement renseigné. Une valeur vide ou non reconnue n'a PAS de catégorie
+ * (`reconnue: false`, `cle: ''`) : elle vaut 0 point, jamais ceux de « célibataire ».
  */
 export function categorieSituation(valeur: unknown): { cle: string; reconnue: boolean } {
   const v = normaliser(valeur)
   if (v.includes('mari')) return { cle: 'marie', reconnue: true }
   if (v.includes('divorc')) return { cle: 'divorce', reconnue: true }
   if (v.includes('veuf') || v.includes('veuve')) return { cle: 'veuf', reconnue: true }
-  return { cle: 'celibataire', reconnue: v.includes('celib') }
+  if (v.includes('celib')) return { cle: 'celibataire', reconnue: true }
+  return { cle: '', reconnue: false }
 }
 
 /** Types d'établissement traités comme structures d'encadrement par le serveur (mobilite/score.py). */

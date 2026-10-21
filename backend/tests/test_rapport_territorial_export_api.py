@@ -173,3 +173,14 @@ def test_l_unite_du_taux_d_encadrement_n_est_jamais_un_pourcentage(c, jeu):
     registre = {d["code"]: d for d in c.get(B + f"jeux/{jeu}/rapports/territorial/").json()["registre_indicateurs"]}
     assert registre["encadrement"]["unite"] == "élèves par enseignant"
     assert all("%" in registre[k]["unite"] for k in ("couverture_globale", "couverture_operationnelle", "couverture_parec"))
+
+
+def test_word_est_en_a4_paysage_avec_scenario_et_decimale_francaise(c, jeu):
+    for params in ({"format": "docx"}, {"format": "docx", "type": "national_complet"}):
+        doc = Document(io.BytesIO(_get_fichier(c, f"jeux/{jeu}/rapports/territorial/export/", **params)))
+        section = doc.sections[0]
+        assert round(section.page_width.cm, 1) == 29.7 and round(section.page_height.cm, 1) == 21.0   # A4 paysage
+        sous_titre = next(p.text for p in doc.paragraphs if p.text.startswith("Jeu :"))
+        assert "Scénario : " in sous_titre and "Scénario :  " not in sous_titre and "Scénario : ·" not in sous_titre
+        cellules = [cell.text for t in doc.tables for row in t.rows for cell in row.cells]
+        assert not any(x.replace(".", "", 1).isdigit() and "." in x for x in cellules), "décimale avec point dans le Word"

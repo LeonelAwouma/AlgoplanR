@@ -52,7 +52,8 @@ export const REGLAGES_FIXES: readonly CheminReglage[] = [
   ['scoring', 'pointsProximite', 'memeRegion'],
 ]
 
-const SITUATIONS_REGLABLES = ['celibataire', 'divorce', 'veuf', 'marie']
+/** Les seules situations que le serveur distingue pour le barème (`bareme.py:points_situation`). */
+export const SITUATIONS_REGLABLES = ['celibataire', 'marie', 'divorce', 'veuf'] as const
 
 /** Tous les champs éditables de la page, par chemin dans `EngineSettings`. */
 export const CHEMINS_MOTEUR_EDITABLES: readonly CheminReglage[] = [
