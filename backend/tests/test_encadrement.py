@@ -3,7 +3,7 @@ import pytest
 
 from domaine.donnees.demonstration import construire_jeu_demonstration
 from domaine.donnees.modeles import construire_ecole, construire_enseignant
-from domaine.mobilite.analyses import comparer_encadrement_turnover
+from domaine.mobilite.analyses import comparer_encadrement_turnover, synthese_sous_systeme_avant_apres
 from domaine.mobilite.moteur import lancer_affectation
 from domaine.parametrage.config import defaut
 
@@ -57,6 +57,56 @@ def test_sans_donnees_pas_de_division_par_zero():
     res = {"etab_enrichi": [], "affectations": [], "vivier": []}
     out = comparer_encadrement_turnover(res, [], defaut())
     assert out["national"]["rem_avant"] == 0.0 and out["national"]["turnover_apres"] == 0.0
+
+
+HYP = {"attrition": {"methode": "taux_unique", "taux_unique": 2.25, "par_region": {}, "par_sous_systeme": {}}}
+
+
+def _ecole_res(id_, region, ss, actuels, ke, de):
+    return {"Identifiant_Ecole": id_, "Region": region, "Sous_Systeme": ss, "Enseignants_Actuels": actuels,
+            "Ke": ke, "De": de, "se": 0.0}
+
+
+def test_synthese_avant_apres_deplacement_ordinaire_change_les_deux_ecoles():
+    res = {
+        "etab_enrichi": [
+            _ecole_res("A", "Centre", "francophone", 6, 5, 5),   # origine : excédentaire (6 pour 5)
+            _ecole_res("B", "Centre", "francophone", 3, 5, 5),   # destination : besoin 2 avant
+        ],
+        "affectations": [{"id_ens": "T1", "id_etab": "B", "phase": "phase1_voeux"}],
+        "vivier": [{"Matricule_Enseignant": "T1", "Ecole_Attache_Actuelle": "A"}],
+    }
+    out = synthese_sous_systeme_avant_apres(res, HYP)
+    franco_avant = next(g for g in out["avant"]["par_sous_systeme"] if g["sous_systeme"] == "francophone")
+    franco_apres = next(g for g in out["apres"]["par_sous_systeme"] if g["sous_systeme"] == "francophone")
+    assert franco_avant["besoin"] == 2 and franco_avant["excedent"] == 1    # A : 6 - 5 ; B : 5 - 3
+    assert franco_apres["besoin"] == 1 and franco_apres["excedent"] == 0   # A : 5 - 5 ; B : 5 - 4
+    assert franco_apres["effectif"] == franco_avant["effectif"]  # un déplacement ne crée ni ne détruit de poste
+
+
+def test_synthese_avant_apres_fait_du_prince_non_recompte():
+    # Le fait du Prince a déjà déplacé l'enseignant dans `etab_enrichi` (Enseignants_Actuels de B vaut déjà 4) :
+    # l'affectation de phase effet_de_prince ne doit pas être rejouée une seconde fois dans l'état « après ».
+    res = {
+        "etab_enrichi": [
+            _ecole_res("A", "Centre", "francophone", 4, 5, 5),
+            _ecole_res("B", "Centre", "francophone", 4, 5, 5),
+        ],
+        "affectations": [{"id_ens": "T1", "id_etab": "B", "phase": "effet_de_prince"}],
+        "vivier": [],
+    }
+    out = synthese_sous_systeme_avant_apres(res, HYP)
+    franco_avant = next(g for g in out["avant"]["par_sous_systeme"] if g["sous_systeme"] == "francophone")
+    franco_apres = next(g for g in out["apres"]["par_sous_systeme"] if g["sous_systeme"] == "francophone")
+    assert franco_avant["effectif"] == franco_apres["effectif"] == 8
+
+
+def test_synthese_avant_apres_sur_un_jeu_reel_conserve_l_effectif_total():
+    res, enseignants, cfg = _calcul()
+    out = synthese_sous_systeme_avant_apres(res, HYP)
+    total_avant = sum(g["effectif"] for g in out["avant"]["par_sous_systeme"])
+    total_apres = sum(g["effectif"] for g in out["apres"]["par_sous_systeme"])
+    assert total_avant == total_apres  # des mutations, jamais des créations ou disparitions de postes
 
 
 def test_population_commune_effectif_connu():

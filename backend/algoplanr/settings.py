@@ -111,7 +111,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["contextes.acces.authentification.AuthentificationJeton"],
     "DEFAULT_PERMISSION_CLASSES": ["contextes.acces.permissions.AccesComplet"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser", "rest_framework.parsers.MultiPartParser"],
+    "DEFAULT_PARSER_CLASSES": ["contextes.commun.parseurs.JSONObjetParser", "rest_framework.parsers.MultiPartParser"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "contextes.commun.erreurs.gestionnaire_exceptions",
     "UNAUTHENTICATED_USER": None,

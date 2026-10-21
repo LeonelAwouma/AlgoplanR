@@ -1,7 +1,7 @@
 """Dépôts : correspondance ORM <-> objets du domaine."""
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import List
 
 from domaine.donnees import colonnes as C
 from domaine.donnees.modeles import Ecole, Enseignant, construire_ecole, construire_enseignant

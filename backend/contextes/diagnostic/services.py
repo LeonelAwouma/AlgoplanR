@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 from contextes.donnees import depots
 from contextes.parametrage.services import config_jeu
+from contextes.planification import services as pl
 from contextes.simulation import services as sim
 from domaine.diagnostic import synthese as syn
 from domaine.diagnostic import territoires as terr
@@ -222,6 +223,16 @@ def territoires(jeu, perimetre) -> dict:
     return terr.noeud_territorial(ecoles_enrichies(jeu), perimetre)
 
 
+def arbre(jeu, perimetre) -> dict:
+    """Arbre territorial complet à partir du périmètre demandé (la région imposée d'un délégué, le national pour
+    le DRH) : les écoles hors périmètre sont retirées avant de construire l'arbre, jamais après — un délégué ne
+    reçoit donc jamais la moindre trace d'une autre région, même dans un total agrégé."""
+    ecoles = terr.filtrer_lignes(ecoles_enrichies(jeu), perimetre, C.COL_ETAB_REGION, C.COL_ETAB_DEPT,
+                                 C.COL_ETAB_COMMUNE)
+    return terr.arbre_territorial(ecoles, niveau=perimetre.niveau, region=perimetre.region,
+                                  departement=perimetre.departement, commune=perimetre.commune)
+
+
 def options(jeu, perimetre) -> dict:
     return terr.options_filtres(ecoles_enrichies(jeu), perimetre)
 
@@ -252,4 +263,5 @@ def synthese(jeu, perimetre, scenario=None) -> dict:
                             "par_enfant_territorial": noeud["enfants"]},
         "points_attention": syn.points_attention(s, ecoles),
         "narratif": syn.texte_narratif(s, perimetre.titre),
+        "synthese_territoriale": syn.synthese_par_sous_systeme(ecoles, pl.hypotheses_dict(jeu)),
     }

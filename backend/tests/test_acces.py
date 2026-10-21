@@ -350,6 +350,7 @@ def test_un_delegue_ne_voit_pas_les_donnees_d_une_autre_region(centre, littoral)
     assert centre.get(B + "jeux/").json() == []
     for url in (f"jeux/{jeu}/", f"jeux/{jeu}/etablissements/", f"jeux/{jeu}/enseignants/",
                 f"jeux/{jeu}/recherche/enseignants/?q=a", f"jeux/{jeu}/diagnostic/", f"jeux/{jeu}/synthese/",
+                f"jeux/{jeu}/territoires/arbre/",
                 f"jeux/{jeu}/scenarios/{sid}/affectations/", f"jeux/{jeu}/scenarios/{sid}/export/",
                 f"jeux/{jeu}/rapport/", f"jeux/{jeu}/rapports/territorial/",
                 f"jeux/{jeu}/rapports/territorial/export/?format=xlsx", f"jeux/{jeu}/parametres/"):
@@ -366,6 +367,36 @@ def test_filtre_region_du_client_ignore_pour_un_delegue(centre):
     assert autre["count"] == total == 12
     assert {e["Region"] for e in autre["resultats"]} == {"Centre"}
     assert centre.get(B + f"jeux/{jeu}/diagnostic/", {"region": "Nord"}).json()["perimetre"]["region"] == "Centre"
+
+
+def _territoires_de(noeud: dict) -> set[str]:
+    """Tous les libellés de niveau région rencontrés dans l'arbre (racine comprise)."""
+    vus = {noeud["libelle"]} if noeud["niveau"] == "region" else set()
+    for enfant in noeud["enfants"]:
+        vus |= _territoires_de(enfant)
+    return vus
+
+
+def _ecoles_de(noeud: dict) -> set[str]:
+    vus = set(noeud["ecoles"])
+    for enfant in noeud["enfants"]:
+        vus |= _ecoles_de(enfant)
+    return vus
+
+
+def test_arbre_territorial_d_un_delegue_ne_porte_que_sa_region(centre):
+    jeu = _jeu_demo(centre)
+    attendu = centre.get(B + f"jeux/{jeu}/etablissements/").json()["count"]
+    arbre = centre.get(B + f"jeux/{jeu}/territoires/arbre/").json()
+    # Le nœud racine est déjà celui de la région imposée, jamais le national : aucune autre région ne peut
+    # apparaître nulle part dans la structure, même comme enfant d'un enfant.
+    assert arbre["niveau"] == "region" and arbre["perimetre"]["region"] == "Centre"
+    assert _territoires_de(arbre) <= {"Centre"}
+    assert arbre["totaux"]["nb_ecoles"] == attendu
+    assert len(_ecoles_de(arbre)) == attendu
+    # Le paramètre de requête est ignoré, comme pour toute autre route déléguée.
+    autre = centre.get(B + f"jeux/{jeu}/territoires/arbre/", {"region": "Littoral"}).json()
+    assert autre["perimetre"]["region"] == "Centre"
 
 
 def test_fichiers_d_un_autre_delegue_inutilisables(centre, littoral):

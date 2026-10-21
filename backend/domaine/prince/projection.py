@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field, replace
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 from ..commun.texte import norm, texte
 from ..diagnostic.indicateurs import calculer_indicateurs

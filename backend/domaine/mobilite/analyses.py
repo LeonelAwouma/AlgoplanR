@@ -138,6 +138,29 @@ def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], c
                            for r, b in sorted(regions.items(), key=lambda kv: cle_tri_fr(kv[0]))]}
 
 
+def synthese_sous_systeme_avant_apres(res: Dict[str, Any], hyp_attrition: dict) -> Dict[str, dict]:
+    """Synthèse par sous-système (`totaux_diagnostic`, `synthese_par_sous_systeme`) avant ce scénario (bases déjà
+    recalculées des faits du Prince) et après (ses affectations ordinaires appliquées) — jamais une troisième
+    recopie de cette agrégation : comparaison avant/après de la page Comparaison, sans double compte des
+    mouvements du Prince (déjà dans l'effectif « avant », comme `comparer_encadrement_turnover`)."""
+    from ..diagnostic.synthese import synthese_par_sous_systeme
+
+    ecoles = res["etab_enrichi"]
+    origine = {v[C.COL_ENS_ID]: v.get(C.COL_ENS_ETAB) for v in res["vivier"]}
+    effectifs_apres: Dict[str, float] = {e[C.COL_ETAB_ID]: float(e.get(C.COL_ETAB_EE, 0) or 0) for e in ecoles}
+    for a in res["affectations"]:
+        if a["phase"] == "effet_de_prince":
+            continue  # déjà dans etab_enrichi : l'effectif « avant » recalculé des faits du Prince le porte déjà
+        effectifs_apres[a["id_etab"]] = effectifs_apres.get(a["id_etab"], 0.0) + 1
+        depart = origine.get(a["id_ens"])
+        if depart in effectifs_apres:
+            effectifs_apres[depart] -= 1
+    return {
+        "avant": synthese_par_sous_systeme(ecoles, hyp_attrition),
+        "apres": synthese_par_sous_systeme(ecoles, hyp_attrition, effectifs_apres),
+    }
+
+
 # ---------------------------------------------------------------------------
 def verifier_invariants(res: Dict[str, Any]) -> List[dict]:
     aff, viv = res["affectations"], res["vivier"]

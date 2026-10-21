@@ -18,6 +18,9 @@ def _anomalie(code: str, gravite: str, message: str, **extra) -> dict:
     return {"code": code, "gravite": gravite, "message": message, **extra}
 
 
+#: Au-delà, une quantité du fichier (élèves, enseignants, salles, âge, ancienneté…) est une erreur de saisie.
+VALEUR_MAX = 1_000_000
+
 #: Nombre maximal d'écoles détaillées dans le rapport (les plus grands écarts d'abord) ; la synthèse porte sur toutes.
 LIMITE_ECARTS_DETAILLES = 500
 
@@ -95,6 +98,15 @@ def controler(lignes_etab: List[Dict[str, Any]], lignes_ens: List[Dict[str, Any]
     if dup:
         erreurs.append(_anomalie("ENS_MATRICULE_DOUBLON", "erreur", f"Matricules en doublon : {dup[:10]}", valeurs=dup))
 
+    for lignes, colonnes, libelle in ((lignes_etab, CHAMPS_NUMERIQUES_ETAB, "établissements"),
+                                      (lignes_ens, CHAMPS_NUMERIQUES_ENS, "enseignants")):
+        for col in colonnes:
+            aberrantes = sum(1 for l in lignes if (v := nombre_ou_none(l.get(col))) is not None and abs(v) > VALEUR_MAX)
+            if aberrantes:
+                erreurs.append(_anomalie(
+                    "VALEUR_ABERRANTE", "erreur",
+                    f"{aberrantes} valeur(s) supérieure(s) à {VALEUR_MAX:,} dans {col} ({libelle}) : "
+                    "saisie manifestement erronée, corrigez le fichier.".replace(",", " "), colonne=col))
     for col in CHAMPS_NUMERIQUES_ETAB:
         nb = sum(1 for l in lignes_etab if col in l and not est_vide(l.get(col)) and nombre_ou_none(l.get(col)) is None)
         if nb:
@@ -143,7 +155,9 @@ def controler(lignes_etab: List[Dict[str, Any]], lignes_ens: List[Dict[str, Any]
     # Motif de demande sans école identifiable parmi les vœux : aucune bonification ciblée (voir mobilite.bonification).
     sans_ecole = []
     for l in lignes_ens:
-        if not est_vide(l.get(C.COL_ENS_MOTIF)) and ecole_bonifiee(construire_enseignant(l)) is None:
+        # Une ligne sans matricule est déjà signalée en erreur : elle ne peut pas être construite.
+        if (texte(l.get(C.COL_ENS_ID)) and not est_vide(l.get(C.COL_ENS_MOTIF))
+                and ecole_bonifiee(construire_enseignant(l)) is None):
             sans_ecole.append(texte(l.get(C.COL_ENS_ID)))
     if sans_ecole:
         avert.append(_anomalie(

@@ -305,3 +305,14 @@ def test_rem_projete_suit_l_effectif_de_debut_meme_avec_un_quota_retenu(c, jeu):
     for a in _tableau_national(c, jeu):
         assert a["effectif_debut"] > 0
         assert abs(a["rem"] - a["eleves"] / a["effectif_debut"]) < 0.1
+
+
+def test_quota_retenu_refuse_les_valeurs_hostiles(c, jeu):
+    retenir(c, jeu)
+    q = get(c, f"jeux/{jeu}/quotas/", annee="N+1")[0]
+    url = f"jeux/{jeu}/quotas/N%2B1/{q['code_territoire']}/"
+    for mauvais in (10 ** 30, -1, "abc", 1.5, True, None, [3]):
+        envoyer(c, "put", url, {"sous_systeme": q["sous_systeme"], "retenu": mauvais, "motif": "m", "auteur": "a"},
+                attendu=422)
+    ok = envoyer(c, "put", url, {"sous_systeme": q["sous_systeme"], "retenu": q["calcule"], "motif": "", "auteur": "a"})
+    assert ok["retenu"] == q["calcule"]

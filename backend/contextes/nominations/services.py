@@ -282,6 +282,8 @@ def proposer(reg: Registre, personne_id: str, poste_id: str, annee: str, motif: 
 @transaction.atomic
 def changer_statut(reg: Registre, n: Nomination, vers: str, *, request, auteur: str, motif: Optional[str] = None,
                    reference: Optional[str] = None, date_effet: Optional[str] = None) -> Nomination:
+    # Texte saisi : une valeur non textuelle du corps (nombre, objet) est lue comme un texte, jamais comme une erreur.
+    motif, reference, date_effet = (None if x is None else str(x) for x in (motif, reference, date_effet))
     if vers in ("validee", "mise_en_oeuvre"):       # rejeter ou annuler reste possible sur un scénario obsolète
         sim.exiger_a_jour(reg.scenario)
     refus = cycle.refus_transition(n.statut, vers)

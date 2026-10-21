@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from contextes.acces.perimetre import jeu_autorise
-from contextes.commun.outils import bool_param, perimetre_depuis, reponse_paginee
+from contextes.commun.outils import bool_param, entier_param, perimetre_depuis, reponse_paginee
 from contextes.simulation import services as sim
 
 from . import services
@@ -34,6 +34,13 @@ def territoires(request, jeu):
     return Response(services.territoires(jeu_autorise(request, jeu), perimetre_depuis(request)))
 
 
+@extend_schema(parameters=GEO, responses=OpenApiTypes.OBJECT,
+               summary="Arbre territorial complet (nation à arrondissement), totaux précalculés à chaque nœud")
+@api_view(["GET"])
+def territoires_arbre(request, jeu):
+    return Response(services.arbre(jeu_autorise(request, jeu), perimetre_depuis(request)))
+
+
 @extend_schema(parameters=GEO, responses=OpenApiTypes.OBJECT, summary="Options des menus de filtres (cascade)")
 @api_view(["GET"])
 def territoires_options(request, jeu):
@@ -53,5 +60,5 @@ def priorites(request, jeu):
 def synthese(request, jeu):
     j = jeu_autorise(request, jeu)
     sid = request.query_params.get("scenario")
-    sc = sim.scenario_du_jeu(j, int(sid)) if sid else None
+    sc = sim.scenario_du_jeu(j, entier_param(sid, "scenario")) if sid else None
     return Response(services.synthese(j, perimetre_depuis(request), sc))

@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-from ..commun.texte import est_oui, nombre, nombre_ou_none, norm, texte
+from ..commun.texte import nombre, nombre_ou_none, norm, texte
 from . import colonnes as C
 
 

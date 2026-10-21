@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..commun.texte import cle_tri_fr, norm
 from ..donnees import colonnes as C
@@ -117,16 +117,10 @@ def restreindre_resultat(res: Dict[str, Any], p: Perimetre) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def _agreger(ecoles: List[dict]) -> dict:
-    return {
-        "nb_ecoles": len(ecoles),
-        "besoin": int(sum(int(e.get("nb_postes_ouverts", 0) or 0) for e in ecoles)),
-        "excedent": int(sum(float(e.get("xe", 0) or 0) for e in ecoles)),
-        "nb_necessiteuses": sum(1 for e in ecoles if e.get("est_necessiteuse")),
-        "nb_excedentaires": sum(1 for e in ecoles if e.get("est_excedentaire")),
-        "nb_zone_rouge": sum(1 for e in ecoles if e.get("est_zone_rouge")),
-        "salles_manquantes": int(sum(float(e.get("se", 0) or 0) for e in ecoles)),
-        "enseignants": int(sum(float(e.get(C.COL_ETAB_EE, 0) or 0) for e in ecoles)),
-    }
+    """Totaux d'un nœud de l'arbre territorial : `totaux_diagnostic`, la seule source — un nœud et le diagnostic
+    plat des mêmes écoles ne doivent jamais diverger (import tardif : `synthese` importe déjà `territoires`)."""
+    from .synthese import totaux_diagnostic
+    return totaux_diagnostic(ecoles)
 
 
 def options_filtres(ecoles: List[dict], p: Perimetre) -> dict:
@@ -187,4 +181,42 @@ def noeud_territorial(ecoles: List[dict], p: Perimetre) -> dict:
         "niveau": p.niveau, "libelle": p.titre, "perimetre": p.vers_dict(), "fil_ariane": fil,
         "noeud": _agreger(courantes), "enfants": enfants,
         "ecoles": [e[C.COL_ETAB_ID] for e in courantes] if p.niveau == "commune" else [],
+    }
+
+
+_DESCENTE = {"national": (C.COL_ETAB_REGION, "region"), "region": (C.COL_ETAB_DEPT, "departement"),
+             "departement": (C.COL_ETAB_COMMUNE, "commune")}
+
+
+def arbre_territorial(ecoles: List[dict], *, niveau: str = "national", region: str = "", departement: str = "",
+                      commune: str = "") -> dict:
+    """Arbre territorial complet à partir d'un nœud (national par défaut, ou le nœud déjà imposé à un délégué —
+    `ecoles` doit alors être déjà restreint à son périmètre par l'appelant, jamais filtré ici après coup) : les
+    totaux de `totaux_diagnostic` sur CHAQUE nœud, et tous ses descendants jusqu'à l'arrondissement, en une seule
+    structure — pour que la navigation d'un niveau à l'autre ne déclenche plus un second appel par clic.
+
+    Un territoire non renseigné (colonne vide) forme son propre nœud stable, sous le libellé « (non renseigné) » ;
+    il n'est jamais confondu avec un autre territoire vide par coïncidence (comparaison sur la chaîne normalisée,
+    pas sur une valeur par défaut arbitraire). `ecoles` : identifiants, seulement au niveau de l'arrondissement
+    (les niveaux supérieurs restent légers : un arbre national ne porte pas 13 000 identifiants à chaque nœud).
+    """
+    descente = _DESCENTE.get(niveau)
+    enfants = []
+    if descente:
+        col, niveau_enfant = descente
+        groupes: Dict[str, List[dict]] = {}
+        noms: Dict[str, str] = {}
+        for e in ecoles:
+            v = str(e.get(col) or "").strip()
+            groupes.setdefault(norm(v), []).append(e)
+            noms.setdefault(norm(v), v)
+        for k in sorted(groupes, key=lambda k: cle_tri_fr(noms[k])):
+            enfant_kw = {"region": region, "departement": departement, "commune": commune, niveau_enfant: noms[k]}
+            enfants.append(arbre_territorial(groupes[k], niveau=niveau_enfant, **enfant_kw))
+    libelle = {"region": region, "departement": departement, "commune": commune}.get(niveau) or "(non renseigné)"
+    return {
+        "niveau": niveau, "libelle": "National" if niveau == "national" else libelle,
+        "perimetre": {"region": region, "departement": departement, "commune": commune},
+        "totaux": _agreger(ecoles), "enfants": enfants,
+        "ecoles": [e[C.COL_ETAB_ID] for e in ecoles] if niveau == "commune" else [],
     }
