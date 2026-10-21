@@ -156,4 +156,6 @@ export interface OptionsExportTerritorial {
   annee?: AnneeExport
   /** Limite l'export à un seul indicateur (son `code` du registre) ; tous par défaut. */
   indicateur?: string
+  /** Annule la génération en cours (bouton « Annuler »). */
+  signal?: AbortSignal
 }

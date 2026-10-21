@@ -77,8 +77,13 @@ export function lireRapportTerritorial(
 /**
  * Export Excel ou Word de la synthèse territoriale, produit par le serveur à partir des mêmes fonctions que
  * `lireRapportTerritorial` : mêmes chiffres, pour les mêmes paramètres. `type: 'nationalComplet'` (réservé au
- * DRH) peut prendre plusieurs minutes sur un jeu national complet ; aucun délai n'est imposé côté client.
+ * DRH) dure environ une minute sur un jeu national (davantage sur un poste lent) : le délai maximal d'attente est de
+ * `DELAI_EXPORT_NATIONAL_MS`, après quoi l'erreur `delai_depasse` est signalée à l'utilisateur.
  */
+/** Délai maximal d'attente d'un export d'un périmètre, et d'un export national complet. */
+export const DELAI_EXPORT_PERIMETRE_MS = 5 * 60 * 1000
+export const DELAI_EXPORT_NATIONAL_MS = 10 * 60 * 1000
+
 export function exporterRapportTerritorial(
   jeu: IdJeu,
   filtres: FiltresRapportTerritorial,
@@ -94,5 +99,9 @@ export function exporterRapportTerritorial(
       annee: options.annee,
     },
     `rapport-territorial.${options.format}`,
+    {
+      delaiMs: options.type === 'nationalComplet' ? DELAI_EXPORT_NATIONAL_MS : DELAI_EXPORT_PERIMETRE_MS,
+      signal: options.signal,
+    },
   )
 }

@@ -526,6 +526,7 @@ export function FilterBar({
   onReset,
   scenarioActif,
   scenarios,
+  scenariosEnChargement = false,
   onScenarioChange,
 }: {
   filtres: GlobalFilters
@@ -535,6 +536,8 @@ export function FilterBar({
   /** Scénario affiché ; chaîne vide pour la situation actuelle, sans simulation. */
   scenarioActif: string
   scenarios: { id: string; nom: string }[]
+  /** La liste des scénarios est en cours de lecture : le choix « Situation actuelle » n'est pas encore une réalité. */
+  scenariosEnChargement?: boolean
   onScenarioChange: (id: string) => void
 }) {
   const majTerritoire = (patch: Partial<TerritorySelection>) =>
@@ -661,8 +664,16 @@ export function FilterBar({
 
         <div className="field">
           <label htmlFor="f-scenario">Scénario affiché</label>
-          <select id="f-scenario" value={scenarioActif} onChange={e => onScenarioChange(e.target.value)}>
-            <option value="">Situation actuelle (sans simulation)</option>
+          <select
+            id="f-scenario"
+            value={scenarioActif}
+            disabled={scenariosEnChargement}
+            aria-busy={scenariosEnChargement}
+            onChange={e => onScenarioChange(e.target.value)}
+          >
+            <option value="">
+              {scenariosEnChargement ? 'Chargement des scénarios…' : 'Situation actuelle (sans simulation)'}
+            </option>
             {scenarios.map(s => (
               <option key={s.id} value={s.id}>
                 {s.nom}
