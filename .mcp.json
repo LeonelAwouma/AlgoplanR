@@ -1,0 +1,1 @@
+{"mcpServers":{"algoplanr-local-bridge":{"type":"http","url":"${ALGOPLANR_BRIDGE_URL}"}}}
