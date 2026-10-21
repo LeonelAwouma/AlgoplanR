@@ -314,3 +314,35 @@ def test_rattrapage_arrondi_demi_vers_le_haut_comme_le_rapport():
     assert p[0].deficit_initial == 5
     a = calculer_annees(p, _hyp(ETAL_N=2))
     assert [x["rattrapage"] for x in a][:2] == [3, 2]
+
+
+# --- 4.9 : réglages conservés mais non lus par le calcul (aucune donnée supprimée) ---------------------------------
+
+def test_exceptions_de_retraite_et_niveau_d_arrondi_acceptes_conserves_et_sans_effet_sur_le_calcul():
+    h = par.hypotheses_par_defaut(defaut())
+    h["retraite"]["exceptions"] = [{"critere": "statut", "valeur": "contractuel", "age_legal": 65}]
+    h["attrition"]["niveau_arrondi"] = "region"
+    ok, erreurs = par.valider_hypotheses(h)
+    assert erreurs == []
+    assert ok["retraite"]["exceptions"] == [{"critere": "statut", "valeur": "contractuel", "age_legal": 65}]
+    assert ok["attrition"]["niveau_arrondi"] == "region"            # conservés tels quels, jamais détruits
+
+    # Mais le calcul ne les lit pas : mêmes départs et mêmes années avec ou sans ces réglages.
+    ecoles, ens = _jeu()
+    sans = par.hypotheses_par_defaut(defaut())
+    p1, d1 = projeter_ecoles(ecoles, ens, defaut(), {**sans, "drh": {**sans["drh"], "G_PRI_PCT": 0}})
+    avec = {**h, "drh": {**h["drh"], "G_PRI_PCT": 0}}
+    p2, d2 = projeter_ecoles(ecoles, ens, defaut(), avec)
+    assert [(d.matricule, d.annee) for d in d1] == [(d.matricule, d.annee) for d in d2]
+    assert calculer_annees(p1, {**sans, "drh": {**sans["drh"], "G_PRI_PCT": 0}}) == calculer_annees(p2, avec)
+
+
+def test_hypotheses_d_un_ancien_jeu_restent_lisibles():
+    """Lecture tolérante : un jeu ou une configuration qui porte encore des clés devenues inertes ne casse rien."""
+    h = par.hypotheses_par_defaut(defaut())
+    h["retraite"].pop("exceptions")                                  # ancienne version sans exceptions
+    h["attrition"].pop("niveau_arrondi")                            # ancienne version sans niveau d'arrondi
+    ok, erreurs = par.valider_hypotheses(h)
+    assert erreurs == [] and ok["retraite"]["exceptions"] == [] and ok["attrition"]["niveau_arrondi"] == "departement"
+    ok, erreurs = par.valider_hypotheses({**h, "drh": {"A_AUT_MAT_PCT": 1.7, "REM_REF_MAT": 25.0}})
+    assert erreurs == []

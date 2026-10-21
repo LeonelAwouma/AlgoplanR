@@ -1,23 +1,24 @@
 'use client'
 
 /**
- * Points par situation matrimoniale (critère C3 du barème). L'inventaire des
- * situations réellement déclarées dans le fichier vient du serveur : une valeur
- * qu'aucune graphie connue ne reconnaît vaut zéro point, et mieux vaut la
- * montrer que la laisser peser silencieusement sur le classement.
+ * Points par situation matrimoniale (critère C3 du barème). Le serveur ne connaît que quatre catégories — marié(e),
+ * divorcé(e), veuf(ve) et célibataire — et compte toute autre situation, ou une situation non renseignée, comme
+ * « célibataire » : seuls ces quatre réglages sont proposés (les autres n'ont aucun effet), et l'écran dit combien
+ * d'enseignants tombent dans ce cas, plutôt que de laisser croire qu'ils valent zéro point.
  */
 
 import { useMemo } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
 import type { EngineSettings, InventaireSituations } from '@shared/api'
-import { LIBELLE_SITUATION, SITUATIONS_CONNUES } from '@shared/kernel'
+import { LIBELLE_SITUATION } from '@shared/kernel'
 import { Notice, Panel, fmt } from '@shared/ui/commun'
 
+import { SITUATIONS_REGLABLES } from '../../../domain/champsMoteur'
 import type { MajParametres } from '../../../domain/edition'
 
-/** Valeurs non reconnues listées avant troncature. */
-const NON_RECONNUES_AFFICHEES = 8
+/** Valeurs listées avant troncature. */
+const AUTRES_AFFICHEES = 8
 
 export interface ProprietesSituationsFamiliales {
   parametres: EngineSettings
@@ -30,8 +31,15 @@ export interface ProprietesSituationsFamiliales {
 export function SituationsFamiliales({ parametres, maj, inventaire }: ProprietesSituationsFamiliales) {
   const points = parametres.scoring.pointsSituationFamiliale
 
-  /** Clés à régler : celles connues, plus toute clé ajoutée à la main dans la configuration. */
-  const clesSituations = useMemo(() => [...new Set<string>([...SITUATIONS_CONNUES, ...Object.keys(points)])], [points])
+  /** Situations déclarées que le serveur compte comme « célibataire » : autres graphies, non reconnues, non renseignées. */
+  const autres = useMemo(() => {
+    if (!inventaire) return { effectif: 0, valeurs: [] as { valeur: string; effectif: number }[] }
+    const hors = inventaire.reconnues
+      .filter(r => !(SITUATIONS_REGLABLES as readonly string[]).includes(r.cle))
+      .flatMap(r => r.graphies.map(g => ({ valeur: g, effectif: r.effectif })))
+    const valeurs = [...hors, ...inventaire.nonReconnues]
+    return { effectif: valeurs.reduce((t, v) => t + v.effectif, 0) + inventaire.nonRenseignees, valeurs }
+  }, [inventaire])
 
   const fixerPoints = (cle: string, valeur: number) =>
     maj(s => ({
@@ -46,7 +54,7 @@ export function SituationsFamiliales({ parametres, maj, inventaire }: Proprietes
       hint="Ces points alimentent le barème individuel. Les graphies du fichier sont rapprochées automatiquement : « Marié », « Mariée » et « MARIE(E) » comptent pour la même situation."
     >
       <div className="param-grid">
-        {clesSituations.map(cle => {
+        {SITUATIONS_REGLABLES.map(cle => {
           const observee = inventaire?.reconnues.find(r => r.cle === cle)
           const graphies = observee
             ? `${observee.graphies.slice(0, 3).join(', ')}${observee.graphies.length > 3 ? '…' : ''}`
@@ -74,37 +82,26 @@ export function SituationsFamiliales({ parametres, maj, inventaire }: Proprietes
         })}
       </div>
 
-      {inventaire && inventaire.nonReconnues.length > 0 && (
+      {inventaire && autres.effectif > 0 && (
         <>
-          <Notice tone="warn" title="Des situations déclarées ne sont rattachées à aucun barème.">
-            Ces valeurs du fichier ne correspondent à aucune situation connue : elles valent <strong>0 point</strong>{' '}
-            dans le classement. Ajoutez-les ci-dessous pour leur attribuer des points.
+          <Notice tone="warn" title="Des enseignants sont comptés comme « célibataire ».">
+            {fmt(autres.effectif)} enseignant(s) déclarent une autre situation que marié(e), divorcé(e), veuf(ve) ou
+            célibataire, ou n’en déclarent aucune : le moteur leur attribue les points de « célibataire » (
+            {fmt(points.celibataire ?? 0)} point(s)).
           </Notice>
-          <ul className="reason-list">
-            {inventaire.nonReconnues.slice(0, NON_RECONNUES_AFFICHEES).map(v => (
-              <li key={v.valeur}>
-                <AlertTriangle size={15} aria-hidden="true" />
-                <span>
-                  <strong>« {v.valeur} »</strong> — {fmt(v.effectif)} enseignant(s).{' '}
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={() => fixerPoints(v.valeur.trim().toLowerCase(), 0)}
-                  >
-                    Ajouter au barème
-                  </button>
-                </span>
-              </li>
-            ))}
-          </ul>
+          {autres.valeurs.length > 0 && (
+            <ul className="reason-list">
+              {autres.valeurs.slice(0, AUTRES_AFFICHEES).map(v => (
+                <li key={v.valeur}>
+                  <AlertTriangle size={15} aria-hidden="true" />
+                  <span>
+                    <strong>« {v.valeur} »</strong> — {fmt(v.effectif)} enseignant(s).
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
-      )}
-
-      {inventaire && inventaire.nonRenseignees > 0 && (
-        <p className="hint">
-          {fmt(inventaire.nonRenseignees)} enseignant(s) n’ont aucune situation matrimoniale renseignée : ce critère
-          vaut 0 point pour eux, les autres critères du barème s’appliquent normalement.
-        </p>
       )}
     </Panel>
   )

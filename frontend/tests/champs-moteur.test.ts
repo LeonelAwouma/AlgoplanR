@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { CHEMINS_MOTEUR_EDITABLES } from '../components/parametrage/domain/champsMoteur'
+import { CHEMINS_MOTEUR_EDITABLES, SITUATIONS_REGLABLES } from '../components/parametrage/domain/champsMoteur'
 import { versCandidatures } from '../components/shared/api/backend/conversions/simulation'
 import { versConfigDjango, versEngineSettings } from '../components/shared/api/backend/conversions/parametres'
 import { CONFIG } from './config-serveur'
@@ -162,5 +162,33 @@ describe('Audit des réglages', () => {
   it('les champs éditables de la page « Configuration du moteur » sont tous transmis', () => {
     const inertes = CHEMINS_MOTEUR_EDITABLES.filter(c => !transmis([...c])).map(c => c.join('.'))
     assert.deepEqual(inertes, [])
+  })
+})
+
+describe('Points par situation matrimoniale', () => {
+  it('seules les quatre situations connues du serveur sont réglables, et chacune est transmise', () => {
+    assert.deepEqual([...SITUATIONS_REGLABLES].sort(), ['celibataire', 'divorce', 'marie', 'veuf'])
+    const reglages = versEngineSettings(CONFIG)
+    const reference = JSON.stringify(versConfigDjango(reglages))
+    for (const cle of SITUATIONS_REGLABLES) {
+      const modifie = structuredClone(reglages) as unknown as Objet
+      ;(modifie.scoring as Objet).pointsSituationFamiliale = {
+        ...((modifie.scoring as Objet).pointsSituationFamiliale as Objet),
+        [cle]: 41,
+      }
+      assert.notEqual(JSON.stringify(versConfigDjango(modifie as never)), reference, `${cle} doit agir sur le serveur`)
+    }
+  })
+
+  it('une situation que le serveur ne connaît pas n’est jamais envoyée (« Séparé(e) », « Union libre »)', () => {
+    const reglages = versEngineSettings(CONFIG)
+    const reference = JSON.stringify(versConfigDjango(reglages))
+    const modifie = structuredClone(reglages) as unknown as Objet
+    ;(modifie.scoring as Objet).pointsSituationFamiliale = {
+      ...((modifie.scoring as Objet).pointsSituationFamiliale as Objet),
+      separe: 30,
+      concubinage: 30,
+    }
+    assert.equal(JSON.stringify(versConfigDjango(modifie as never)), reference)
   })
 })

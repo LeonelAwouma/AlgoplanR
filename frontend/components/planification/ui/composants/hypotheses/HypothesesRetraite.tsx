@@ -1,15 +1,14 @@
 'use client'
 
 /**
- * Hypothèses de départ à la retraite : âge légal, date à laquelle l'âge est
- * apprécié et exceptions par statut ou catégorie. Le mémo demande de confirmer
- * les règles réglementaires : chaque valeur porte sa source.
+ * Hypothèses de départ à la retraite : âge légal et date à laquelle l'âge est apprécié. Chaque valeur porte sa
+ * source. Les exceptions par statut ou catégorie ne sont pas lues par le calcul des départs (le serveur applique
+ * l'âge légal à tous) : leur saisie est retirée de l'écran, celles qui existent déjà restent enregistrées, telles
+ * quelles, et sont signalées.
  */
 
-import { Plus, Trash2 } from 'lucide-react'
-
-import type { ExceptionRetraite, Hypotheses } from '@shared/api'
-import { Panel } from '@shared/ui/commun'
+import type { Hypotheses } from '@shared/api'
+import { Notice, Panel } from '@shared/ui/commun'
 
 import { Justification } from './Justification'
 
@@ -22,9 +21,6 @@ export interface ProprietesHypothesesRetraite {
 
 /** Panneau « Départs à la retraite ». */
 export function HypothesesRetraite({ retraite, onChange }: ProprietesHypothesesRetraite) {
-  const majException = (index: number, patch: Partial<ExceptionRetraite>) =>
-    onChange({ ...retraite, exceptions: retraite.exceptions.map((e, i) => (i === index ? { ...e, ...patch } : e)) })
-
   return (
     <Panel kicker="Retraite" title="Départs à la retraite">
       <div className="param-grid">
@@ -52,63 +48,18 @@ export function HypothesesRetraite({ retraite, onChange }: ProprietesHypothesesR
         </div>
       </div>
 
-      <h3>Exceptions</h3>
-      {retraite.exceptions.length === 0 && <p className="hint">Aucune exception : l’âge légal s’applique à tous.</p>}
-      {retraite.exceptions.map((exception, i) => (
-        <div className="param-grid ligne-exception" key={i}>
-          <div className="field">
-            <label htmlFor={`hy-exc-critere-${i}`}>Critère</label>
-            <select
-              id={`hy-exc-critere-${i}`}
-              value={exception.critere}
-              onChange={e => majException(i, { critere: e.target.value as ExceptionRetraite['critere'] })}
-            >
-              <option value="statut">Statut</option>
-              <option value="categorie">Catégorie</option>
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor={`hy-exc-valeur-${i}`}>Valeur</label>
-            <input
-              id={`hy-exc-valeur-${i}`}
-              type="text"
-              value={exception.valeur}
-              onChange={e => majException(i, { valeur: e.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor={`hy-exc-age-${i}`}>Âge de départ</label>
-            <input
-              id={`hy-exc-age-${i}`}
-              type="number"
-              min={50}
-              max={70}
-              value={exception.ageLegal}
-              onChange={e => majException(i, { ageLegal: Number(e.target.value) })}
-            />
-          </div>
-          <button
-            type="button"
-            className="btn btn-sm btn-aligne"
-            aria-label={`Retirer l’exception ${i + 1}`}
-            onClick={() => onChange({ ...retraite, exceptions: retraite.exceptions.filter((_, j) => j !== i) })}
-          >
-            <Trash2 size={13} aria-hidden="true" />
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        className="btn btn-sm"
-        onClick={() =>
-          onChange({
-            ...retraite,
-            exceptions: [...retraite.exceptions, { critere: 'statut', valeur: '', ageLegal: retraite.ageLegal }],
-          })
-        }
-      >
-        <Plus size={13} aria-hidden="true" /> Ajouter une exception
-      </button>
+      <p className="hint">
+        Cet âge pilote la projection des départs à la retraite (N+1 à N+5) et le calcul nominatif des 1,08 %. Il est
+        distinct de l’« âge de départ à la retraite » du moteur d’affectation (Paramètres avancés, configuration du
+        moteur), qui sert au Prince, au vivier et au barème. Aucune exception par statut ou catégorie n’est appliquée :
+        l’âge légal vaut pour tous.
+      </p>
+      {retraite.exceptions.length > 0 && (
+        <Notice tone="warn" title="Exceptions enregistrées, non appliquées.">
+          {retraite.exceptions.length} exception(s) figurent dans cette version des hypothèses et sont conservées telles
+          quelles, mais le calcul des départs ne les lit pas.
+        </Notice>
+      )}
 
       <Justification
         id="hy-retraite"

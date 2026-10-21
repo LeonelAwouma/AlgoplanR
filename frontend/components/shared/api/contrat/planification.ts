@@ -53,7 +53,7 @@ export interface Hypotheses {
     tauxUnique: number
     parSousSysteme: Partial<Record<SousSysteme, number>>
     parRegion: Record<string, number>
-    /** Niveau territorial auquel l'attrition est arrondie (point à valider). */
+    /** Conservé dans les hypothèses (lecture tolérante) mais non lu par le calcul : aucun contrôle ne le propose. */
     niveauArrondi: NiveauTerritorial
   }
   quotas: Justification & {
