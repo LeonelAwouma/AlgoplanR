@@ -159,7 +159,9 @@ def ecoles_enrichies(jeu) -> List[dict]:
     else:
         ecoles = preparer(jeu).ecoles_dicts
         DiagnosticCache.objects.filter(jeu=jeu).exclude(empreinte=emp).delete()
-        DiagnosticCache.objects.create(jeu=jeu, empreinte=emp, contenu={"ecoles": ecoles})
+        # `get_or_create` : deux requêtes simultanées (arbre, diagnostic, totaux…) calculent le même diagnostic ; la
+        # seconde à écrire retrouve la ligne de la première au lieu d'échouer sur la contrainte d'unicité.
+        DiagnosticCache.objects.get_or_create(jeu=jeu, empreinte=emp, defaults={"contenu": {"ecoles": ecoles}})
     _ECOLES[cle] = ecoles
     while len(_ECOLES) > _MAX_JEUX:
         _ECOLES.popitem(last=False)
