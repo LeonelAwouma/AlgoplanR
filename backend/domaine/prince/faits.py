@@ -36,24 +36,24 @@ def diagnostiquer_eligibilite(ens: Optional[Enseignant], ecoles: Dict[str, Ecole
     return {"eligible": True, "code": "VIVIER", "raison": "Dans le vivier"}
 
 
-def verifier_fait_prince(id_ens: str, id_etab: str, *, enseignants: Dict[str, Enseignant], ecoles: Dict[str, Ecole],
-                         vivier_ids: Iterable[str], cfg: dict, faits_actifs: Iterable[dict]) -> List[str]:
-    """Retourne la liste des motifs de refus (vide = fait recevable) — verifierFaitPrince."""
+MOTIF_FAIT_ACTIF = "Un fait de Prince actif existe déjà pour cet enseignant"
+
+#: Rejets du prétraitement qui signifient « un fait existe déjà pour cet agent » (voir MOTIF_FAIT_ACTIF).
+_REJETS_FAIT_ACTIF = ("Plusieurs décisions contradictoires pour ce matricule", "Décision en doublon pour ce matricule")
+
+
+def motifs_de_refus(rejets: Iterable[str]) -> List[str]:
+    """Rejets du prétraitement (`DecisionPrince.rejets`) → motifs de refus à la saisie.
+
+    Un fait du Prince peut créer un déficit comme un excédent : la saisie ne refuse donc que les impossibilités
+    matérielles (matricule ou école inconnus, même école, fait déjà actif, école d'origine sans effectif). Le reste
+    (école d'origine non excédentaire, ancienneté, âge, capacité, excédent à l'arrivée…) est une alerte.
+    """
     motifs: List[str] = []
-    id_ens, id_etab = texte(id_ens), texte(id_etab)
-    if not id_ens:
-        motifs.append("Matricule de l'enseignant manquant")
-    if not id_etab:
-        motifs.append("Identifiant de l'école manquant")
-    if motifs:
-        return motifs
-    if id_etab not in ecoles:
-        motifs.append(f"École inconnue : {id_etab}")
-    diag = diagnostiquer_eligibilite(enseignants.get(id_ens), ecoles, cfg, vivier_ids)
-    if not diag["eligible"]:
-        motifs.append(f"Enseignant non mobilisable : {diag['raison']}")
-    if any(f["id_ens"] == id_ens for f in faits_actifs):
-        motifs.append("Un fait de Prince actif existe déjà pour cet enseignant")
+    for r in rejets:
+        m = MOTIF_FAIT_ACTIF if r in _REJETS_FAIT_ACTIF else r
+        if m not in motifs:
+            motifs.append(m)
     return motifs
 
 

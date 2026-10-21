@@ -83,10 +83,12 @@ def restreindre_resultat(res: Dict[str, Any], p: Perimetre) -> Dict[str, Any]:
     vivier = filtrer_lignes(res["vivier"], p, *geo_att)
     non_aff = filtrer_lignes(res["non_affectes"], p, *geo_att)
 
+    # Les mouvements du Prince ne pourvoient aucun poste ouvert : ils sont comptés à part.
+    ordinaires = [a for a in aff if a.get("phase") != "effet_de_prince"]
     if besoin:
         nb_besoin = int(sum(int(l.get("nb_postes_ouverts", 0) or 0) for l in besoin))
     else:
-        nb_besoin = len(non_pourvus) + len(aff)
+        nb_besoin = len(non_pourvus) + len(ordinaires)
     rt: Dict[str, int] = {}
     for l in non_pourvus:
         ss = l.get(C.COL_ETAB_SS)
@@ -94,8 +96,8 @@ def restreindre_resultat(res: Dict[str, Any], p: Perimetre) -> Dict[str, Any]:
             rt[str(ss)] = rt.get(str(ss), 0) + 1
     ids = {l[C.COL_ETAB_ID] for l in etab}
     synthese.update({
-        "besoin_total": nb_besoin, "disponibles": len(vivier), "affectes": len(aff),
-        "effet_de_prince": sum(1 for a in aff if a.get("phase") == "effet_de_prince"),
+        "besoin_total": nb_besoin, "disponibles": len(vivier), "affectes": len(ordinaires), "affectes_total": len(aff),
+        "effet_de_prince": len(aff) - len(ordinaires),
         "non_affectes": len(non_aff), "postes_non_pourvus": len(non_pourvus), "a_recruter": len(non_pourvus),
         "rt_par_sous_systeme": rt, "postes_rouge_non_pourvus": len(rouge),
         "stats_phase": _compter(aff, "phase"), "scope_title": p.titre,

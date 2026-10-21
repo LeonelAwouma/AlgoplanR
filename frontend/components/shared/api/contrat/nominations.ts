@@ -195,6 +195,13 @@ export interface BilanImportNominations {
 }
 
 export interface SyntheseNominations {
+  /** Scénario dont les mouvements alimentent les nominations (le retenu, sinon celui par défaut). */
+  scenarioReference?: string
+  /**
+   * Le scénario de référence n'a pas été recalculé depuis la dernière modification des règles ou des données :
+   * le serveur refuse de proposer, valider ou mettre en œuvre une nomination tant qu'il n'est pas recalculé.
+   */
+  scenarioObsolete?: boolean
   parStatut: Record<StatutNomination, number>
   parTerritoire: { territoire: string; parStatut: Record<StatutNomination, number> }[]
   parAnnee: { annee: AnneePlan; parStatut: Record<StatutNomination, number> }[]

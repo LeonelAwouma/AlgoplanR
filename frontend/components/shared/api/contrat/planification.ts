@@ -100,8 +100,27 @@ export interface EstimationAttrition {
 
 // --- Tableau de planification ---------------------------------------------------------
 
+/**
+ * Détail de la projection d'une année, calculé par le serveur : de quoi reconstituer l'évolution des effectifs.
+ * Facultatif : un serveur ou un jeu de données factices plus ancien ne le fournit pas.
+ */
+export interface DetailProjectionAnnee {
+  /** Classes libérées par les directeurs déchargés, rapportées au périmètre. */
+  directeursDecharges: number
+  /** Recrutements de l'année : quota retenu s'il est fixé, sinon quota calculé (quotas supposés réalisés). */
+  recrutement: number
+  /** Effectif en fin d'année : début − retraites − attrition − directeurs + recrutements. */
+  effectifFin: number
+  /** Taux d'attrition appliqué (%), celui des hypothèses de planification. */
+  tauxAttrition: number
+  /** Élèves projetés des écoles dont l'effectif est connu. */
+  eleves: number
+  /** Élèves par enseignant projeté, `null` quand il n'est pas calculable. */
+  rem: number | null
+}
+
 /** Les huit indicateurs du mémo (§2.1), pour une année et un périmètre. */
-export interface IndicateursAnnee {
+export interface IndicateursAnnee extends Partial<DetailProjectionAnnee> {
   annee: AnneePlan
   /** Effectif enseignant disponible en début de période. */
   effectifDebut: number
@@ -122,9 +141,12 @@ export interface IndicateursAnnee {
   besoinRestant: number
 }
 
+/** Indicateur numérique du tableau de planification (hors détail de la projection). */
+export type CleIndicateurPlan = Exclude<keyof Omit<IndicateursAnnee, 'annee'>, keyof DetailProjectionAnnee>
+
 /** Fiabilité d'un indicateur, selon la disponibilité des données sources. */
 export interface FiabiliteIndicateur {
-  indicateur: keyof Omit<IndicateursAnnee, 'annee'>
+  indicateur: CleIndicateurPlan
   niveau: 'bonne' | 'partielle' | 'faible'
   detail: string
 }
@@ -190,11 +212,15 @@ export type ScenarioRecrutement = 'min' | 'maintien' | 'besoin' | 'plafond'
 export interface LigneTableauRapport {
   libelle: string
   valeurs: (number | null)[]
+  /** Vrai pour les lignes de taux d'encadrement (une décimale), faux pour les effectifs (entiers). */
+  decimal: boolean
 }
 
 export interface RecrutementsRegion extends Record<ScenarioRecrutement, number> {
   region: string
   remBase: number | null
+  /** Degré d'aléa (1 − R²) de la région, `null` quand il n'est pas calculable. */
+  alea: number | null
   remFinal: { min: number | null; besoin: number | null; plafond: number | null }
 }
 
@@ -289,6 +315,35 @@ export interface ListesRapportPrevisionnel {
   }[]
 }
 
+/**
+ * Degré d'aléa d'un territoire : 1 − R² de la régression du nombre d'enseignants sur le nombre d'élèves,
+ * école par école (0 = les enseignants suivent parfaitement les effectifs, 1 = aucun alignement linéaire).
+ * Ne pas confondre avec le taux de déséquilibre des dotations, (B + X) ÷ ΣK, des simulations.
+ */
+export interface LigneAlea {
+  /** Région, ou « National » pour la ligne d'ensemble. */
+  region: string
+  /** `null` quand l'aléa n'est pas calculable ; `raison` en donne alors le motif. */
+  alea: number | null
+  raison: string | null
+  ecoles: number
+  /** Écoles dont l'effectif d'élèves est connu : seules elles entrent dans la régression. */
+  ecolesAvecEleves: number
+  /** Écart à l'aléa national (points), `null` si l'une des deux valeurs manque. */
+  ecartNational: number | null
+}
+
+/** Degré d'aléa national et par région (`GET jeux/{jeu}/planification/alea/`). */
+export interface DegreAlea {
+  perimetre: string
+  scenarioId: string
+  /** Aléa après le recalcul : bases après les faits du Prince et les mouvements du scénario. */
+  national: LigneAlea
+  regions: LigneAlea[]
+  /** Aléa à l'import : effectifs déclarés des bases importées, avant les faits du Prince et avant l'algorithme. */
+  avant?: { national: LigneAlea; regions: LigneAlea[] }
+}
+
 /** Disponibilité des données qui fondent les projections. */
 export interface LigneFiabilite {
   territoire: string
@@ -332,7 +387,7 @@ export interface DetailVersionPlanification {
 export interface ComparaisonVersions {
   de: VersionPlanification
   a: VersionPlanification
-  ecarts: { annee: AnneePlan; indicateur: keyof Omit<IndicateursAnnee, 'annee'>; de: number; a: number }[]
+  ecarts: { annee: AnneePlan; indicateur: CleIndicateurPlan; de: number; a: number }[]
 }
 
 // --- Quotas -----------------------------------------------------------------------------

@@ -9,10 +9,9 @@ import type {
   CombinaisonArbitrage,
   EngineSettings,
   GeographicScope,
-  ProjectionEcole,
-  ProjectionTerritoire,
   ProposedAssignment,
   ProximityLevel,
+  ScoreBreakdown,
   SimulationLogEntry,
   SimulationResult,
   SimulationScenario,
@@ -69,12 +68,6 @@ export interface JournalSimulation {
   computedAt: string
 }
 
-/** Projection pluriannuelle d'un scénario (remplacée par la planification sur cinq ans). */
-export interface ProjectionsScenario {
-  ecoles: ProjectionEcole[]
-  territoire: ProjectionTerritoire[]
-}
-
 /** École restée sans maître, avec les combinaisons proposées à la commission. */
 export interface EcoleNonCouverte {
   schoolId: string
@@ -94,6 +87,8 @@ export interface ExplicationProposition {
   titre: string
   lignes: string[]
   proposition: ProposedAssignment
+  /** Détail C1..C5 du barème individuel de l'enseignant (c'est la valeur de Z1 dans le score). */
+  bareme: ScoreBreakdown
 }
 
 /** Comparaison des scénarios calculés sur un périmètre. */

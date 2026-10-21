@@ -56,7 +56,8 @@ const NOMINATIONS: FamilleDonnees[] = ['vivier', 'postes-ouverts', 'nominations'
 const FAMILLES_INVALIDEES: Record<NatureEcriture, readonly FamilleDonnees[] | 'tout'> = {
   donnees: 'tout',
   parametres: ['meta', 'parametres', ...DIAGNOSTIC, 'scenarios', 'comparaison', 'rapport', ...PLANIFICATION],
-  hypotheses: ['hypotheses', ...PLANIFICATION, 'vivier', 'rapport'],
+  // L'attrition des hypothèses entre dans le recrutement à prévoir des synthèses territoriales.
+  hypotheses: ['hypotheses', ...PLANIFICATION, 'vivier', 'rapport', 'synthese', 'scenarios', 'comparaison'],
   effectifs: [
     'meta',
     'faits-prince',

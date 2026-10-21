@@ -4,6 +4,7 @@
  * métier : tout ce qui compte des enseignants ou des postes vient du serveur.
  */
 
+export * from './annee'
 export * from './echelles'
 export * from './ecole'
 export * from './libelles'

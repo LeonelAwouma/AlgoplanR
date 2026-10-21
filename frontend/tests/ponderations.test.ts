@@ -8,7 +8,7 @@
 import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
 
-import { reequilibrerPoids, sommePoids } from '../components/parametrage/domain/edition'
+import { reequilibrerPaire, reequilibrerPoids, sommePoids } from '../components/parametrage/domain/edition'
 
 const BAREME = {
   carriereZone: 0.3,
@@ -76,4 +76,24 @@ test('L’arrondi au centième ne fait jamais dévier la somme de 1', () => {
 test('Un poids saisi hors de [0, 1] est ramené dans l’intervalle', () => {
   assert.equal(reequilibrerPoids(BAREME, 'carriereZone', 1.4).carriereZone, 1)
   assert.equal(reequilibrerPoids(BAREME, 'carriereZone', -0.2).carriereZone, 0)
+})
+
+const APPARIEMENT = { bareme: 0.25, poidsPoste: 0.25, proximite: 0.25, ajustements: 0.25 }
+
+test('Équilibrer le barème et le poids de l’école garde la somme de la paire et les autres poids', () => {
+  const poids = reequilibrerPaire(APPARIEMENT, 'bareme', 'poidsPoste', 0.4)
+  assert.equal(poids.poidsPoste, 0.4)
+  assert.equal(poids.bareme, 0.1)
+  assert.equal(poids.proximite, 0.25)
+  assert.equal(poids.ajustements, 0.25)
+  assert.equal(sommePoids(poids), 1)
+})
+
+test('Le poids de l’école ne dépasse jamais la somme de la paire', () => {
+  const haut = reequilibrerPaire(APPARIEMENT, 'bareme', 'poidsPoste', 0.9)
+  assert.equal(haut.poidsPoste, 0.5)
+  assert.equal(haut.bareme, 0)
+  const bas = reequilibrerPaire(APPARIEMENT, 'bareme', 'poidsPoste', -1)
+  assert.equal(bas.poidsPoste, 0)
+  assert.equal(bas.bareme, 0.5)
 })

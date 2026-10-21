@@ -16,7 +16,7 @@ import {
   type GlobalFilters,
   type IdJeu,
   type TypeColonnes,
-  type TypeFichier,
+  type TypeFichierEnvoi,
 } from '../../shared/api'
 import { useEcritureJeu, useLectureJeu } from '../../shared/requetes'
 import {
@@ -66,7 +66,7 @@ export function useEnvoyerFichier() {
       feuille,
       baseNationale,
     }: {
-      type: TypeFichier
+      type: TypeFichierEnvoi
       fichier: Blob
       feuille?: string
       baseNationale?: boolean
@@ -138,7 +138,9 @@ export function useValidation(jeu: IdJeu | null) {
 
 /** Valide le jeu comme référence des projections. */
 export function useValiderJeu(jeu: IdJeu | null) {
-  return useEcritureJeu(jeu, 'donnees', (id, auteur: string) => validerJeu(id, auteur))
+  return useEcritureJeu(jeu, 'donnees', (id, v: { auteur: string; reserve?: string }) =>
+    validerJeu(id, v.auteur, v.reserve),
+  )
 }
 
 /** Historique des actualisations. */

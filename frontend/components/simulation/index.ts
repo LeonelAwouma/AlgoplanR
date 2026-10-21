@@ -7,6 +7,7 @@
 
 export * from './application/hooks'
 export * from './application/scenarioAffiche'
+export * from './application/effetsScenario'
 
 /** Composants d'interface partagés avec les autres contextes. */
 export { FluxPanel } from './ui/composants/FluxPanel'

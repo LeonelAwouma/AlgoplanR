@@ -2,7 +2,8 @@
 
 /**
  * Document du rapport décisionnel (§19), tel qu'il s'affiche et s'imprime :
- * page de garde, indicateurs clés, figures et sections rédigées par le serveur.
+ * page de garde, indicateurs clés, figures, sections rédigées par le serveur et tableau complet des
+ * propositions d'affectation.
  * `window.print()` ne masque que la navigation : le document reste identique.
  */
 
@@ -20,6 +21,8 @@ import type {
 import { LIBELLE_SCOPE, MENTION_SIMULATION } from '@shared/kernel'
 import { fmt, fmtDec, fmtPct } from '@shared/ui/commun'
 import { AvantApres, BarresHorizontales } from '@shared/ui/graphiques'
+
+import { TableauAffectations } from './TableauAffectations'
 
 export interface ProprietesDocumentRapport {
   rapport: DecisionReport
@@ -186,6 +189,8 @@ export function DocumentRapport({
           )}
         </section>
       ))}
+
+      <TableauAffectations resultat={resultat} />
 
       <footer className="report-footer">
         <p>

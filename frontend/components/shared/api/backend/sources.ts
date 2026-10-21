@@ -31,14 +31,22 @@ import {
   type SyntheseDjango,
 } from './conversions/simulation'
 import { booleen, valeur, valeurs } from './liste'
+import { versAttrition, type AttritionDjango, type HypotheseAttrition } from './moteur/attrition'
 import { appliquerFiltres, construireArbreTerritorial } from './moteur/territoires'
 
 /** Paramètres de calcul du jeu. */
 export function parametres(acces: Acces, jeu: string): Promise<EngineSettings> {
   return acces.memo(jeu, 'parametres', async a => {
-    const r = await a.lire<{ parametres: ConfigDjango }>(`jeux/${jeu}/parametres/`)
-    return versEngineSettings(r.parametres)
+    const r = await a.lire<{ parametres: ConfigDjango; annee_scolaire?: string }>(`jeux/${jeu}/parametres/`)
+    return versEngineSettings(r.parametres, r.annee_scolaire)
   })
+}
+
+/** Attrition hors retraite du jeu : les hypothèses de planification en sont l'unique source. */
+export function attritionDuJeu(acces: Acces, jeu: string): Promise<HypotheseAttrition> {
+  return acces.memo(jeu, 'attrition', async a =>
+    versAttrition((await a.lire<{ attrition: AttritionDjango }>(`jeux/${jeu}/hypotheses/`)).attrition),
+  )
 }
 
 /**
@@ -154,21 +162,24 @@ export function vivier(acces: Acces, jeu: string, scenario: string): Promise<Ens
 /** Données et résultat national complet d'un scénario. */
 export function resultat(acces: Acces, jeu: string, scenario: string): Promise<SimulationResult> {
   return acces.memo(jeu, `scenario:${scenario}:resultat`, async a => {
-    const [detail, brut, settings, ecoles, aff, viv, postes, candidatures, controles, journal] = await Promise.all([
-      a.lire<ScenarioDjango>(`jeux/${jeu}/scenarios/${scenario}/`),
-      a.lire<{ synthese: SyntheseDjango }>(`jeux/${jeu}/scenarios/${scenario}/resultat/`),
-      parametres(a, jeu),
-      diagnosticsParId(a, jeu),
-      affectations(a, jeu, scenario),
-      vivier(a, jeu, scenario),
-      listeScenario<PosteDjango>(a, jeu, scenario, 'postes'),
-      listeScenario<CandidatureDjango>(a, jeu, scenario, 'candidatures'),
-      a.lire<{ controles: ControleDjango[] }>(`jeux/${jeu}/scenarios/${scenario}/invariants/`),
-      listeScenario<JournalDjango>(a, jeu, scenario, 'journal'),
-    ])
+    const [detail, brut, settings, attrition, ecoles, aff, viv, postes, candidatures, controles, journal] =
+      await Promise.all([
+        a.lire<ScenarioDjango>(`jeux/${jeu}/scenarios/${scenario}/`),
+        a.lire<{ synthese: SyntheseDjango }>(`jeux/${jeu}/scenarios/${scenario}/resultat/`),
+        parametres(a, jeu),
+        attritionDuJeu(a, jeu),
+        diagnosticsParId(a, jeu),
+        affectations(a, jeu, scenario),
+        vivier(a, jeu, scenario),
+        listeScenario<PosteDjango>(a, jeu, scenario, 'postes'),
+        listeScenario<CandidatureDjango>(a, jeu, scenario, 'candidatures'),
+        a.lire<{ controles: ControleDjango[] }>(`jeux/${jeu}/scenarios/${scenario}/invariants/`),
+        listeScenario<JournalDjango>(a, jeu, scenario, 'journal'),
+      ])
     return versResultat({
       scenario: detail,
       settings: detail.configuration ? versEngineSettings(detail.configuration) : settings,
+      attrition,
       synthese: brut.synthese,
       affectations: aff,
       vivier: viv,

@@ -16,6 +16,7 @@ import {
   type DemandePage,
   type IdJeu,
   type IssueCandidature,
+  SELECTION_NATIONALE,
   type TerritorySelection,
 } from '../../shared/api'
 import { useEcritureJeu, useLectureJeu } from '../../shared/requetes'
@@ -24,11 +25,11 @@ import {
   creerScenario,
   executerScenario,
   expliquerAffectation,
+  lireEncadrement,
   lireComparaison,
   lireFlux,
   lireInvariants,
   lireJournal,
-  lireProjections,
   lireRecrutes,
   lireResultat,
   lireScenario,
@@ -138,6 +139,17 @@ export function useExplication(jeu: IdJeu | null, scenario: string | null, matri
   )
 }
 
+/** Taux d'encadrement et turnover, avant et après le scénario. */
+export function useEncadrementScenario(
+  jeu: IdJeu | null,
+  scenario: string | null,
+  selection: TerritorySelection = SELECTION_NATIONALE,
+) {
+  return useSectionScenario(jeu, scenario, 'encadrement', [selection], (ref, signal) =>
+    lireEncadrement(ref, selection, signal),
+  )
+}
+
 /** Enseignants du vivier restés sans affectation. */
 export function useNonAffectes(jeu: IdJeu | null, scenario: string | null, page: DemandePage = {}) {
   return useSectionScenario(jeu, scenario, 'non-affectes', [page], (ref, signal) =>
@@ -188,11 +200,6 @@ export function useJournalSimulation(jeu: IdJeu | null, scenario: string | null)
 /** Contrôles métier du résultat. */
 export function useInvariants(jeu: IdJeu | null, scenario: string | null) {
   return useSectionScenario(jeu, scenario, 'invariants', [], lireInvariants)
-}
-
-/** Projection N+1 → N+3 du scénario (remplacée par la planification sur cinq ans). */
-export function useProjectionsScenario(jeu: IdJeu | null, scenario: string | null) {
-  return useSectionScenario(jeu, scenario, 'projections', [], lireProjections)
 }
 
 /** Déploiement des recrues du scénario. */

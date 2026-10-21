@@ -45,10 +45,6 @@ export function ParametrageApplique({ parametres: p, parDefaut }: ProprietesPara
           valeur={p.mobilite.ordreExamen === 'voeux' ? 'Ordre de l’enseignant' : 'Poids des écoles'}
           texte
         />
-        <Valeur
-          libelle="Attrition hors retraite"
-          valeur={`${p.recrutement.tauxAttritionHorsRetraite.toLocaleString('fr-FR')} %`}
-        />
         <Valeur libelle="Source des postes" valeur={LIBELLE_SOURCE_POSTES[p.sourceDesPostes]} texte />
         <Valeur libelle="Seuil déficit faible" valeur={`${Math.round(p.seuilsSeverite.faible * 100)} %`} />
         <Valeur libelle="Seuil déficit important" valeur={`${Math.round(p.seuilsSeverite.important * 100)} %`} />

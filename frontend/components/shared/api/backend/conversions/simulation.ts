@@ -11,15 +11,14 @@ import type {
   Candidature,
   CombinaisonArbitrage,
   EngineSettings,
+  FaitPrinceApplique,
   GeographicScope,
   InvariantCheck,
   JournalSimulation,
+  LieuPrince,
   NatureMouvement,
   PoolTeacher,
   PresetScenario,
-  ProjectionEcole,
-  ProjectionsScenario,
-  ProjectionTerritoire,
   ProposedAssignment,
   ProximityLevel,
   RedeploymentPool,
@@ -32,6 +31,7 @@ import type {
   TeachingPost,
   VoeuExamine,
 } from '../../contrat'
+import type { HypotheseAttrition } from '../moteur/attrition'
 import { syntheseTerritoriale } from '../moteur/synthese'
 import { versTeacher, type EnseignantDjango } from './enseignants'
 import { versEngineSettings, type ConfigDjango } from './parametres'
@@ -88,6 +88,10 @@ export interface AffectationDjango {
   score_affectation: number
   motif_derogation: string
   arbitrage: string
+  /** École d'attache de l'agent avant l'affectation (école de référence). */
+  id_etab_origine?: string
+  /** Fait du Prince seulement : alertes de la décision. */
+  alertes_prince?: string[]
 }
 
 export interface PosteDjango {
@@ -116,6 +120,17 @@ export interface CandidatureDjango {
   statut: 'SATISFAIT' | 'ECOLE_INCONNUE' | 'AUCUN_POSTE' | 'INCOMPATIBLE' | 'NON_RETENU' | string
   motif: string
   bareme: number
+  /** Score d'appariement complet contre un poste de l'école visée ; `null` sans poste ouvert. */
+  detail_score?: {
+    total: number
+    composantes: {
+      Z1_bareme_individu: number
+      Z2_poids_poste_Up: number
+      Z3_proximite: number
+      Z4_ajustements: number
+    }
+    ajustements_contextuels: number
+  } | null
 }
 
 export interface ControleDjango {
@@ -148,8 +163,6 @@ export interface CombinaisonDjango {
   }[]
   nb_postes_compatibles: number
 }
-
-export type ProjectionDjango = Record<string, string | number>
 
 // --- Libellés ---------------------------------------------------------------------------------
 
@@ -247,6 +260,8 @@ export function versScenarioCalcule(
 export interface DonneesResultat {
   scenario: ScenarioDjango
   settings: EngineSettings
+  /** Attrition hors retraite : hypothèses de planification du jeu. */
+  attrition: HypotheseAttrition
   synthese: SyntheseDjango
   affectations: AffectationDjango[]
   /** Vivier complet, avec l'indicateur `affecte`. */
@@ -259,15 +274,15 @@ export interface DonneesResultat {
   ecoles: Map<string, SchoolDiagnostic>
 }
 
-const NIVEAUX: ProximityLevel[] = ['meme_commune', 'meme_iaeb', 'meme_departement', 'meme_region', 'hors_region']
+const NIVEAUX: ProximityLevel[] = ['meme_commune', 'meme_departement', 'meme_region', 'hors_region']
 
-function proximite(
+export function proximite(
   origine: { commune: string; iaeb: string; departement: string; region: string },
   destination: { commune: string; iaeb: string; departement: string; region: string },
 ): ProximityLevel {
   const egal = (a: string, b: string) => a !== '' && normaliser(a) === normaliser(b)
-  if (egal(origine.commune, destination.commune)) return 'meme_commune'
-  if (egal(origine.iaeb, destination.iaeb)) return 'meme_iaeb'
+  // Même commune ou même circonscription IAEB : un seul niveau (une IAEB est une commune ou la regroupe).
+  if (egal(origine.commune, destination.commune) || egal(origine.iaeb, destination.iaeb)) return 'meme_commune'
   if (egal(origine.departement, destination.departement)) return 'meme_departement'
   if (egal(origine.region, destination.region)) return 'meme_region'
   return 'hors_region'
@@ -279,7 +294,7 @@ export function versProposition(
   enseignant: EnseignantDjango | undefined,
   ecoles: Map<string, SchoolDiagnostic>,
 ): ProposedAssignment {
-  const origineId = enseignant?.Ecole_Attache_Actuelle ?? ''
+  const origineId = a.id_etab_origine ?? enseignant?.Ecole_Attache_Actuelle ?? ''
   const origine = ecoles.get(origineId)?.school
   const destination = ecoles.get(a.id_etab)?.school
   const voeu = /^phase1_voeu_(\d)$/.exec(a.phase)
@@ -341,6 +356,7 @@ export function versPool(vivier: EnseignantDjango[], ecoles: Map<string, SchoolD
       rangDansEcole: rang,
       protege: false,
       affecte: Boolean(t.affecte),
+      horsRegion: t.motif_non_affectation === 'hors_region',
     }
   })
 }
@@ -401,6 +417,7 @@ export function versPoste(p: PosteDjango, rang: number, ecoles: Map<string, Scho
       indice: nombre(p.Up),
       zoneSecurite: zs,
       zoneRouge: Boolean(p.est_zone_rouge),
+      rang: d?.priorite.rang ?? null,
     },
     rang,
     pourvu: Boolean(p.pourvu),
@@ -464,15 +481,23 @@ export function versCandidatures(
       .sort((a, b) => a.rang_voeu - b.rang_voeu)
       .map(v => {
         const ecole = ecoles.get(v.id_etab)
+        const detail = v.detail_score ?? null
         return {
           rang: v.rang_voeu,
           code: v.id_etab,
           schoolId: ecole ? v.id_etab : null,
           nomEtab: ecole?.school.nom ?? v.id_etab,
           statut: STATUTS_VOEU[v.statut] ?? 'examine',
-          bonification: 0,
-          score: nombre(v.bareme),
-          poidsExamen: 0,
+          score: detail ? nombre(detail.total) : null,
+          ajustementsContextuels: detail ? nombre(detail.ajustements_contextuels) : null,
+          composantes: detail
+            ? {
+                bareme: nombre(detail.composantes.Z1_bareme_individu),
+                poidsPoste: nombre(detail.composantes.Z2_poids_poste_Up),
+                proximite: nombre(detail.composantes.Z3_proximite),
+                ajustements: nombre(detail.composantes.Z4_ajustements),
+              }
+            : null,
           interregional: Boolean(ecole && origine && ecole.school.region !== origine.school.region),
         }
       })
@@ -592,6 +617,47 @@ function situation(ecoles: Iterable<SchoolDiagnostic>, couverts: Map<string, num
   }
 }
 
+function lieuPrince(id: string, ecoles: Map<string, SchoolDiagnostic>): LieuPrince {
+  const s = ecoles.get(id)?.school
+  return {
+    id,
+    nom: s?.nom ?? id,
+    commune: s?.commune ?? '',
+    departement: s?.departement ?? '',
+    region: s?.region ?? '',
+  }
+}
+
+/**
+ * Décisions du Prince prises en compte par le scénario : les affectations de phase `effet_de_prince`. L'école de
+ * référence est celle du fichier importé, la destination est celle que la décision a fixée. La date est celle du calcul.
+ */
+export function versFaitsPrince(
+  affectations: AffectationDjango[],
+  ecoles: Map<string, SchoolDiagnostic>,
+  calculeLe: string,
+): FaitPrinceApplique[] {
+  return affectations
+    .filter(a => a.phase === 'effet_de_prince')
+    .map(a => ({
+      fait: {
+        id: a.id_poste,
+        teacherId: a.id_ens,
+        schoolDestinationId: a.id_etab,
+        reference: texte(a.motif_derogation),
+        decideLe: calculeLe,
+        enseignant: `${texte(a.prenom_ens)} ${texte(a.nom_ens)}`.trim() || a.id_ens,
+        origine: lieuPrince(a.id_etab_origine ?? '', ecoles),
+        destination: lieuPrince(a.id_etab, ecoles),
+      },
+      statut: a.alertes_prince && a.alertes_prince.length > 0 ? 'applique_avec_alerte' : 'applique',
+      motif:
+        a.alertes_prince && a.alertes_prince.length > 0
+          ? a.alertes_prince.join(' ; ')
+          : 'Décision appliquée aux bases.',
+    }))
+}
+
 /** Résultat national complet du contrat. */
 export function versResultat(d: DonneesResultat): SimulationResult {
   const vivier = new Map(d.vivier.map(t => [t.Matricule_Enseignant, t]))
@@ -653,91 +719,14 @@ export function versResultat(d: DonneesResultat): SimulationResult {
     postesProjetesN2: 0,
     recrutes: null,
     arbitrages: [],
-    syntheseAvant: syntheseTerritoriale(diagnostics, d.settings),
-    syntheseApres: syntheseTerritoriale(diagnostics, d.settings, effectifs),
-    projectionPluriannuelle: { ecoles: [], territoire: [] },
+    syntheseAvant: syntheseTerritoriale(diagnostics, d.attrition),
+    syntheseApres: syntheseTerritoriale(diagnostics, d.attrition, effectifs),
     postesZoneRougeNonPourvus: uncoveredPosts.filter(p => p.priorite.zoneRouge).length,
     before: situation(diagnostics, new Map()),
     after: situation(diagnostics, couverts),
-    faitsPrince: [],
+    faitsPrince: versFaitsPrince(d.affectations, d.ecoles, d.scenario.calcule_le ?? ''),
     invariants: versInvariants(d.invariants),
     logs: versJournal(d.journal, d.scenario.calcule_le).logs,
     computedAt: d.scenario.calcule_le ?? '',
   }
-}
-
-// --- Projections ------------------------------------------------------------------------------
-
-const ANNEES = ['N+1', 'N+2', 'N+3'] as const
-
-/** Projections N à N+3 du serveur → projections école par école et par sous-système. */
-export function versProjections(
-  lignes: ProjectionDjango[],
-  ecoles: Map<string, SchoolDiagnostic>,
-  resultat: SimulationResult,
-  settings: EngineSettings,
-): ProjectionsScenario {
-  const arrivants = new Map<string, string[]>()
-  const sortants = new Map<string, string[]>()
-  for (const a of resultat.assignments) {
-    arrivants.set(a.schoolDestinationId, [...(arrivants.get(a.schoolDestinationId) ?? []), a.teacherId])
-    if (a.schoolOrigineId) sortants.set(a.schoolOrigineId, [...(sortants.get(a.schoolOrigineId) ?? []), a.teacherId])
-  }
-  const tau = Math.max(0, settings.recrutement.tauxAttritionHorsRetraite)
-
-  const ecolesProjetees: ProjectionEcole[] = lignes.map(l => {
-    const id = String(l.Identifiant_Ecole)
-    const d = ecoles.get(id)
-    const entrent = arrivants.get(id) ?? []
-    const partent = sortants.get(id) ?? []
-    let effectif = (d?.calcul.enseignantsRetenus ?? 0) + entrent.length - partent.length
-    const besoins = [l['Besoin_Projete_N+1'], l['Quota_Recrutement_Estime_N+2'], l['Quota_Recrutement_Estime_N+3']]
-    return {
-      schoolId: id,
-      nomEtab: d?.school.nom ?? id,
-      sousSysteme: sousSysteme(l.Sous_Systeme),
-      region: d?.school.region ?? '',
-      departement: d?.school.departement ?? '',
-      commune: d?.school.commune ?? '',
-      indicePriorite: nombre(l['Poids_Du_Poste (Up)']),
-      bmax: nombre(l['Capacite_Physique (BMAX)']),
-      dotation: nombre(l['Dotation_Theorique (De)']),
-      cible: d?.calcul.cible ?? 0,
-      besoinAvantPlan: nombre(l['Besoin_Ouvert_N (be)']),
-      excedentAvantPlan: nombre(l['Excedent_Mobilisable_N (xe)']),
-      arrivants: entrent,
-      sortants: partent,
-      sallesManquantes: nombre(l['Salles_Manquantes_N (se)']),
-      annees: ANNEES.map((annee, i) => {
-        const departs = nombre(l[`Departs_Retraite_${annee}`])
-        effectif = Math.max(0, effectif - departs)
-        return { annee, departsRetraite: departs, effectif, besoin: nombre(besoins[i]), excedent: 0 }
-      }),
-    }
-  })
-
-  const territoire = new Map<string, ProjectionTerritoire>()
-  for (const e of ecolesProjetees) {
-    for (const a of e.annees) {
-      const ss = e.sousSysteme ?? 'non_renseigne'
-      const cle = `${a.annee}|${ss}`
-      const t = territoire.get(cle) ?? {
-        annee: a.annee,
-        sousSysteme: ss,
-        effectif: 0,
-        departsRetraite: 0,
-        attrition: 0,
-        besoin: 0,
-        excedent: 0,
-        recrutementAPrevoir: 0,
-      }
-      t.effectif += a.effectif
-      t.departsRetraite += a.departsRetraite
-      t.besoin += a.besoin
-      t.recrutementAPrevoir += a.besoin
-      territoire.set(cle, t)
-    }
-  }
-  for (const t of territoire.values()) t.attrition = Math.ceil((tau * t.effectif) / 100)
-  return { ecoles: ecolesProjetees, territoire: [...territoire.values()] }
 }

@@ -6,3 +6,4 @@
  */
 
 export * from './application/hooks'
+export { BandeauPrince } from './ui/composants/BandeauPrince'

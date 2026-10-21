@@ -31,7 +31,7 @@ export function EtatPlanificationPanel({ jeu }: { jeu: IdJeu }) {
     <Panel
       kicker="Base de la projection"
       title="Scénario retenu et état du calcul"
-      hint="Les mouvements du scénario retenu (redéploiements validés), les nominations et les recrues fixent les effectifs de départ ; la projection est recalculée après chaque décision."
+      hint="Les mouvements du scénario retenu (faits du Prince compris) fixent les effectifs de départ ; les nominations et les mouvements enregistrés alimentent le suivi. Les nouvelles recrues importées ne sont pas encore comptées dans les effectifs projetés. La projection est recalculée après chaque décision."
     >
       {!retenu && (
         <Notice tone="warn" title="Aucun scénario retenu.">

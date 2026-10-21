@@ -3,7 +3,7 @@
  */
 
 import type { DecisionReport, DecisionReportSection } from '../../contrat'
-import { ANNEE_SCOLAIRE } from '../conversions/parametres'
+import * as source from '../sources'
 import { libellePhase, type SyntheseDjango } from '../conversions/simulation'
 import { valeur } from '../liste'
 import type { Conversion } from '../types'
@@ -11,6 +11,12 @@ import type { Conversion } from '../types'
 /** Rapport tel que le sert le serveur (`domaine/rapport/rapport.py`). */
 interface RapportDjango {
   titre: string
+  jeu?: {
+    statut?: string
+    valide_par?: string | null
+    valide_le?: string | null
+    reserve_drh?: { motif: string; auteur: string; le: string; controles: { libelle: string; detail: string }[] } | null
+  }
   genere_le: string
   scenario: { nom: string; description: string }
   perimetre: { titre: string }
@@ -24,15 +30,88 @@ interface RapportDjango {
   faits_prince: { nombre: number; details: { id_ens: string; id_etab: string; motif?: string }[] }
   arbitrages: { nombre: number; details: { id_ens: string; id_etab: string; motif?: string }[] }
   invariants: { tous_respectes: boolean; controles: { libelle: string; ok: boolean; details: string }[] }
-  projections: { quota_recrutement_n2: number; quota_recrutement_n3: number; departs_retraite_n1: number }
   recommandations: string[]
+}
+
+/** Projection sur cinq ans du périmètre, telle que la sert la planification (`jeux/{jeu}/planification/`). */
+interface ProjectionDjango {
+  annees: {
+    annee: string
+    effectif_debut: number
+    departs_retraite: number
+    departs_attrition: number
+    directeurs_decharges?: number
+    recrutement?: number
+    effectif_fin?: number
+    quota_calcule: number
+    besoin: number
+  }[]
 }
 
 const n = (v: number) => new Intl.NumberFormat('fr-FR').format(Math.round(v))
 
-function sections(r: RapportDjango): DecisionReportSection[] {
+/** Statut de validation du jeu, dit sans ambiguïté, réserve DRH comprise. */
+export function statutDonnees(jeu: RapportDjango['jeu']): string[] {
+  if (jeu?.statut !== 'valide') {
+    return [
+      'Jeu de données non validé (brouillon) : les chiffres de ce rapport ne reposent pas sur une référence validée.',
+    ]
+  }
+  const par = jeu.valide_par ? ` par ${jeu.valide_par}` : ''
+  const le = jeu.valide_le ? ` le ${new Date(jeu.valide_le).toLocaleDateString('fr-FR')}` : ''
+  if (!jeu.reserve_drh) return [`Jeu de données validé${par}${le}, sans réserve.`]
+  return [
+    `Jeu de données validé AVEC RÉSERVE DE LA DRH${par}${le}.`,
+    `Motif de la réserve : ${jeu.reserve_drh.motif}`,
+    `Contrôle(s) en réserve : ${jeu.reserve_drh.controles.map(c => c.libelle).join(' ; ')}. Les calculs partent des effectifs déclarés des établissements ; la liste nominative des enseignants peut être incomplète pour les écoles concernées.`,
+  ]
+}
+
+/** Projection N+1 à N+5 : les chiffres de la planification, qui lit le taux d'attrition des hypothèses du jeu. */
+function sectionProjection(projection: ProjectionDjango | null): DecisionReportSection {
+  if (!projection || projection.annees.length === 0) {
+    return {
+      titre: 'Projection de N+1 à N+5',
+      paragraphes: ['La projection pluriannuelle de la planification n’a pas pu être lue pour ce périmètre.'],
+    }
+  }
+  return {
+    titre: 'Projection de N+1 à N+5',
+    paragraphes: [
+      'Chiffres de la planification du jeu (hypothèses de retraite, d’attrition et de quotas en vigueur) ; l’effectif de fin d’une année est celui de début de la suivante.',
+    ],
+    tableau: {
+      entetes: [
+        'Année',
+        'Effectif au début',
+        'Retraites',
+        'Attrition',
+        'Directeurs déchargés',
+        'Recrutements',
+        'Effectif à la fin',
+        'Quota calculé',
+      ],
+      lignes: projection.annees.map(a => [
+        a.annee,
+        a.effectif_debut,
+        a.departs_retraite,
+        a.departs_attrition,
+        a.directeurs_decharges ?? '',
+        a.recrutement ?? '',
+        a.effectif_fin ?? '',
+        a.quota_calcule,
+      ]),
+    },
+  }
+}
+
+function sections(r: RapportDjango, projection: ProjectionDjango | null): DecisionReportSection[] {
   const s = r.synthese
   const liste: DecisionReportSection[] = [
+    {
+      titre: 'Statut des données de référence',
+      paragraphes: statutDonnees(r.jeu),
+    },
     {
       titre: 'Synthèse',
       paragraphes: [`Scénario : ${r.scenario.nom}. ${r.scenario.description}`, r.narratif],
@@ -41,7 +120,7 @@ function sections(r: RapportDjango): DecisionReportSection[] {
         lignes: [
           ['Postes à pourvoir', s.besoin_total],
           ['Enseignants mobilisables', s.disponibles],
-          ['Affectations proposées', s.affectes],
+          ['Affectations proposées', s.affectes + s.effet_de_prince],
           ['dont faits du Prince', s.effet_de_prince],
           ['Postes non pourvus', s.postes_non_pourvus],
           ['dont en zone rouge', s.postes_rouge_non_pourvus],
@@ -103,13 +182,7 @@ function sections(r: RapportDjango): DecisionReportSection[] {
         lignes: r.invariants.controles.map(c => [c.libelle, c.ok ? 'Respecté' : 'En écart', c.details]),
       },
     },
-    {
-      titre: 'Projections',
-      paragraphes: [
-        `Départs à la retraite attendus en N+1 : ${n(r.projections.departs_retraite_n1)}.`,
-        `Quota de recrutement estimé : ${n(r.projections.quota_recrutement_n2)} en N+2, ${n(r.projections.quota_recrutement_n3)} en N+3.`,
-      ],
-    },
+    sectionProjection(projection),
     { titre: 'Recommandations', paragraphes: [], points: r.recommandations },
   ]
   return liste
@@ -124,6 +197,22 @@ export const conversionsRapports: Record<string, Conversion> = {
       commune: valeur(q.commune),
       scenario: valeur(q.scenario),
     })
-    return { genereLe: r.genere_le, anneeScolaire: ANNEE_SCOLAIRE, perimetre: r.perimetre.titre, sections: sections(r) }
+    const [{ anneeScolaire }, projection] = await Promise.all([
+      source.parametres(acces, p.jeu),
+      acces
+        .lire<ProjectionDjango>(`jeux/${p.jeu}/planification/`, {
+          region: valeur(q.region),
+          departement: valeur(q.departement),
+          commune: valeur(q.commune),
+          scenario: valeur(q.scenario),
+        })
+        .catch(() => null),
+    ])
+    return {
+      genereLe: r.genere_le,
+      anneeScolaire,
+      perimetre: r.perimetre.titre,
+      sections: sections(r, projection),
+    }
   },
 }

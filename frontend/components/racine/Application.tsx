@@ -17,15 +17,24 @@ import type { SessionAcces } from '@components/acces'
 import { WelcomePage } from '@components/bienvenue'
 import { useOptionsFiltres } from '@components/diagnostic'
 import { useJeu, useSupprimerJeu } from '@components/donnees'
+import { useFaitsPrince } from '@components/prince'
 import { SANS_SCENARIO, useScenarioAffiche } from '@components/simulation'
 import { ApiError, FILTRES_VIDES } from '@shared/api'
 import { LIBELLE_SCOPE, selectionLabel } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { Notice } from '@shared/ui/commun'
-import { EtapesRubrique, FilterBar, PageHeader, Sidebar, TerritoryBreadcrumb, Topbar } from '@shared/ui/coquille'
+import {
+  BoutonContinuer,
+  EtapesRubrique,
+  FilterBar,
+  PageHeader,
+  Sidebar,
+  TerritoryBreadcrumb,
+  Topbar,
+} from '@shared/ui/coquille'
 import { CameroonFlagRail } from '@shared/ui/coquille/CameroonFlagRail'
 import { BandeauMiseAJour, useMiseAJour } from '@shared/ui/coquille/MiseAJour'
-import { pageReserveeAuDrh, type PageKey } from '@shared/ui/coquille/navigation'
+import { pageAnalysteSeule, pageReserveeAuDrh, type PageKey } from '@shared/ui/coquille/navigation'
 import { ErreurAction, ErreurApi } from '@shared/ui/etats'
 import { PageTransition } from '@shared/ui/motion'
 
@@ -76,6 +85,7 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
     setPage,
     mode,
     changerMode,
+    interdireAnalyste,
     theme,
     changerTheme,
     menuOuvert,
@@ -91,6 +101,9 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
   } = useSession()
 
   const meta = useJeu(jeu)
+  // Le Fait de Prince est facultatif : « Continuer » le saute tant qu'aucune décision n'est enregistrée.
+  const faitsPrince = useFaitsPrince(utilisateur.role === 'drh' ? jeu : null)
+  const sansFaitPrince = utilisateur.role !== 'drh' || (!!faitsPrince.data && faitsPrince.data.length === 0)
   const affiche = useScenarioAffiche()
   const options = useOptionsFiltres(jeu, filtres.territoire)
   const suppression = useSupprimerJeu()
@@ -102,12 +115,17 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
     if (jeuDisparu) fermerJeu()
   }, [jeuDisparu, fermerJeu])
 
+  // La Vue analyste (dont « Fait de Prince ») n'est ouverte qu'au DRH.
+  useEffect(() => {
+    interdireAnalyste(utilisateur.role !== 'drh')
+  }, [interdireAnalyste, utilisateur.role])
+
   const donneesChargees = !!meta.data
   const simulationPrete = affiche.calcules.length > 0
   const estDrh = utilisateur.role === 'drh'
   const regionImposee = utilisateur.role === 'delegue' ? utilisateur.region : null
   /** Une page réservée au DRH n'est jamais rendue pour un délégué ; le serveur refuse de toute façon ses routes. */
-  const pageInterdite = !estDrh && pageReserveeAuDrh(page)
+  const pageInterdite = !estDrh && (pageReserveeAuDrh(page) || pageAnalysteSeule(page))
   /** Le DRH ne modifie que les jeux nationaux ; le serveur refuse les autres écritures. */
   const jeuModifiable = !estDrh || meta.data?.portee === 'national'
 
@@ -135,6 +153,7 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
         <Topbar
           mode={mode}
           onModeChange={changerMode}
+          analysteDisponible={estDrh}
           theme={theme}
           onThemeChange={changerTheme}
           onOuvrirMenu={() => setMenuOuvert(true)}
@@ -183,6 +202,15 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
                 role={utilisateur.role}
                 donneesChargees={donneesChargees}
                 simulationPrete={simulationPrete}
+              />
+              <BoutonContinuer
+                page={page}
+                onNavigate={setPage}
+                mode={mode}
+                role={utilisateur.role}
+                donneesChargees={donneesChargees}
+                simulationPrete={simulationPrete}
+                ignorer={sansFaitPrince ? ['prince'] : []}
               />
 
               <div className="stack">

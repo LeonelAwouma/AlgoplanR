@@ -17,6 +17,7 @@ import type {
   DetailVersionPlanification,
   DocumentationHypotheses,
   EducationTerritory,
+  DegreAlea,
   EstimationAttrition,
   EtatPlanification,
   EvenementQuota,
@@ -81,6 +82,12 @@ interface AnneeDjango {
   deploiements_prevus: number
   deploiements_realises: number
   besoin_restant: number
+  directeurs_decharges?: number
+  recrutement?: number
+  effectif_fin?: number
+  taux_attrition?: number
+  eleves?: number
+  rem?: number | null
 }
 
 interface TableauDjango {
@@ -175,6 +182,12 @@ export function versAnnee(a: AnneeDjango): IndicateursAnnee {
     deploiementsPrevus: a.deploiements_prevus,
     deploiementsRealises: a.deploiements_realises,
     besoinRestant: a.besoin_restant,
+    directeursDecharges: a.directeurs_decharges,
+    recrutement: a.recrutement,
+    effectifFin: a.effectif_fin,
+    tauxAttrition: a.taux_attrition,
+    eleves: a.eleves,
+    rem: a.rem,
   }
 }
 
@@ -466,6 +479,8 @@ export const conversionsPlanification: Record<string, Conversion> = {
     )
     return { global: versLigneFiabilite(f.global), parTerritoire: f.par_territoire.map(versLigneFiabilite) }
   },
+  'GET jeux/{jeu}/planification/alea/': async (r, acces, p): Promise<DegreAlea> =>
+    camelProfond(await lire<unknown>(acces, `${P(p.jeu)}alea/`, r.query)),
   // Tableaux du rapport DRH : les clés du serveur sont des noms de champs, jamais des données (régions…).
   'GET jeux/{jeu}/planification/rapport/': async (r, acces, p): Promise<RapportPrevisionnel> =>
     camelProfond(await lire<unknown>(acces, `${P(p.jeu)}rapport/`, r.query)),

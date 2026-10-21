@@ -198,21 +198,28 @@ ETAB = ("Identifiant_Ecole,Region,Departement,Commune,Effectif_Eleves_Attendus,E
         "E1,Centre,Mfoundi,Yaounde 1,120,3\nE2,CENTRE,Lekie,Obala,80,2\nE3,Littoral,Wouri,Douala 1,90,2\n")
 
 
-def test_import_refuse_entierement_une_region_etrangere(centre):
+def test_fichier_multi_regions_reconnu_comme_base_nationale(centre):
+    # Aucune déclaration : un fichier qui porte d'autres régions est reconnu national, la région sera extraite.
+    r = centre.post(B + "fichiers/", {"type": "etablissements", "fichier": _csv(ETAB, "e.csv")})
+    assert r.status_code == 201 and r.json()["base_nationale"] is True, r.content
+    # Fichier d'une seule région : régional, contrôlé ligne à ligne.
+    r = centre.post(B + "fichiers/", {"type": "etablissements",
+                                      "fichier": _csv(ETAB.rsplit("E3", 1)[0], "r.csv")})
+    assert r.status_code == 201 and r.json()["base_nationale"] is False
+
+
+def test_import_regional_refuse_region_vide_ou_inconnue(centre):
     from contextes.donnees.models import FichierImporte
 
-    r = centre.post(B + "fichiers/", {"type": "etablissements", "fichier": _csv(ETAB, "e.csv")})
-    assert r.status_code == 422
-    corps = r.json()
-    assert corps["code"] == "region_non_autorisee"
-    assert [l["ligne"] for l in corps["details"]["lignes"]] == [4]
-    assert corps["details"]["lignes"][0]["valeur"] == "Littoral"
-    assert any("Ligne 4" in m for m in corps["motifs"])
-    assert FichierImporte.objects.count() == 0
-    # Région vide : refusée aussi (impossible de vérifier la ligne).
+    # Région vide ou illisible dans un fichier régional : refusé (impossible de rattacher la ligne).
     r = centre.post(B + "fichiers/", {"type": "etablissements",
                                       "fichier": _csv("Identifiant_Ecole,Region\nE1,Centre\nE2,\n", "v.csv")})
-    assert r.status_code == 422 and r.json()["details"]["lignes"][0]["motif"] == "région manquante"
+    assert r.status_code == 422 and r.json()["code"] == "region_non_autorisee"
+    assert r.json()["details"]["lignes"][0]["motif"] == "région manquante"
+    r = centre.post(B + "fichiers/", {"type": "etablissements",
+                                      "fichier": _csv("Identifiant_Ecole,Region\nE1,Centre\nE2,Atlantis\n", "i.csv")})
+    assert r.status_code == 422 and r.json()["details"]["lignes"][0]["motif"] == "région inconnue"
+    assert FichierImporte.objects.count() == 0
 
 
 def test_import_regional_conforme_et_enseignants_hors_region(centre):
@@ -278,11 +285,10 @@ def test_drh_importe_la_base_nationale(drh, centre):
 
 
 def test_delegue_extrait_sa_region_de_la_base_nationale(centre, littoral):
-    # Sans le drapeau, le fichier national reste refusé en entier.
-    e, _ = _envoyer_base_nationale(centre, base_nationale=False)
-    assert e.status_code == 422 and e.json()["code"] == "region_non_autorisee"
-    for client, region, ecoles, enseignants in ((centre, "Centre", 2, 2), (littoral, "Littoral", 1, 1)):
-        e, n = _envoyer_base_nationale(client)
+    # Avec ou sans drapeau, le fichier national est reconnu et sa région extraite.
+    for client, region, ecoles, enseignants, drapeau in ((centre, "Centre", 2, 2, False),
+                                                         (littoral, "Littoral", 1, 1, True)):
+        e, n = _envoyer_base_nationale(client, base_nationale=drapeau)
         assert e.status_code == 201 and e.json()["base_nationale"] is True, e.content
         r = client.post(B + "jeux/", {"fichier_etablissements": e.json()["id"],
                                       "fichier_enseignants": n.json()["id"]}, content_type="application/json")
@@ -345,7 +351,8 @@ def test_un_delegue_ne_voit_pas_les_donnees_d_une_autre_region(centre, littoral)
     for url in (f"jeux/{jeu}/", f"jeux/{jeu}/etablissements/", f"jeux/{jeu}/enseignants/",
                 f"jeux/{jeu}/recherche/enseignants/?q=a", f"jeux/{jeu}/diagnostic/", f"jeux/{jeu}/synthese/",
                 f"jeux/{jeu}/scenarios/{sid}/affectations/", f"jeux/{jeu}/scenarios/{sid}/export/",
-                f"jeux/{jeu}/rapport/", f"jeux/{jeu}/parametres/"):
+                f"jeux/{jeu}/rapport/", f"jeux/{jeu}/rapports/territorial/",
+                f"jeux/{jeu}/rapports/territorial/export/?format=xlsx", f"jeux/{jeu}/parametres/"):
         assert centre.get(B + url).status_code == 404, url
     assert centre.delete(B + f"jeux/{jeu}/").status_code == 404
     assert centre.post(B + f"jeux/{jeu}/scenarios/base/").status_code == 404

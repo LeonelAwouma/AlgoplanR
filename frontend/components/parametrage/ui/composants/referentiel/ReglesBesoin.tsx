@@ -9,6 +9,7 @@
 import type { EngineSettings, ReglesBesoin as Regles } from '@shared/api'
 import { Panel } from '@shared/ui/commun'
 
+import { estNonApplique } from '../../../domain/champsMoteur'
 import { nombreSaisi, type MajParametres } from '../../../domain/edition'
 import { Interrupteur, Regle } from '../ChampsRegles'
 
@@ -29,15 +30,10 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
         <div className="regles">
           <Regle
             enonce="Le plan prépare la rentrée de l’année scolaire"
-            precision="Les départs à la retraite sont repérés à la date du 1er septembre de cette rentrée ; la projection N+2 porte sur la rentrée suivante."
+            precision="Fixée à la création du jeu de données (écran d’import) : elle date les projections et les rapports. Pour la changer, importez à nouveau le jeu."
             htmlFor="r-annee"
           >
-            <input
-              id="r-annee"
-              type="text"
-              value={parametres.anneeScolaire}
-              onChange={e => maj(s => ({ ...s, anneeScolaire: e.target.value }))}
-            />
+            <input id="r-annee" type="text" readOnly value={parametres.anneeScolaire} />
           </Regle>
         </div>
       </Panel>
@@ -50,7 +46,7 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
         <div className="regles">
           <Regle
             enonce="La norme d’encadrement est d’un maître pour"
-            precision="Note de cadrage : 60 élèves. 250 élèves demandent alors ⌈250 ÷ 60⌉ = 5 maîtres."
+            precision="Note de cadrage : 60 élèves. Le moteur compte une première section jusqu’à la tolérance ci-dessous (20 par défaut) : 250 élèves demandent ⌈(250 − 20) ÷ 60⌉ = 4 maîtres."
             htmlFor="r-norme"
           >
             <input
@@ -110,8 +106,9 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
           </Regle>
           <Regle
             enonce="Sans effectif d’élèves, une classe nécessite"
-            precision="Repli signalé : le référentiel calcule le besoin à partir des élèves attendus. Les écoles concernées sont listées dans la qualité des données."
+            precision="Le calcul compte alors 0 élève, donc un seul maître ; les écoles concernées sont listées dans la qualité des données."
             htmlFor="r-repli"
+            nonApplique={estNonApplique('besoin', 'enseignantsParClasseRepli')}
           >
             <input
               id="r-repli"
@@ -119,6 +116,7 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
               min={0.5}
               max={3}
               step={0.1}
+              disabled
               value={b.enseignantsParClasseRepli}
               onChange={e => besoin('enseignantsParClasseRepli', nombreSaisi(e.target.value))}
             />
@@ -126,11 +124,13 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
           </Regle>
           <Regle
             enonce="Les postes à pourvoir sont établis à partir"
-            precision="Le besoin calculé suit la règle du référentiel. Les postes déclarés proviennent du fichier importé, quand il les contient."
+            precision="Le serveur n’utilise que le besoin calculé par le référentiel."
             htmlFor="r-source"
+            nonApplique={estNonApplique('sourceDesPostes')}
           >
             <select
               id="r-source"
+              disabled
               value={parametres.sourceDesPostes}
               onChange={e => maj(s => ({ ...s, sourceDesPostes: e.target.value as EngineSettings['sourceDesPostes'] }))}
             >
@@ -158,6 +158,7 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
             texte="Les maîtres qui partent à la retraite à la rentrée ne sont pas comptés dans l’effectif E."
             coche={b.deduireDepartsConnus}
             onChange={v => besoin('deduireDepartsConnus', v)}
+            nonApplique={estNonApplique('besoin', 'deduireDepartsConnus')}
           />
         </div>
       </Panel>

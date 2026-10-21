@@ -9,7 +9,7 @@
 import { ArrowRight, Download, Trash2 } from 'lucide-react'
 
 import type { FaitPrinceApplique, IdJeu } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { LIBELLE_STATUT_PRINCE } from '@shared/kernel'
 import { DataTable, Panel, Pill, fmt, type Colonne } from '@shared/ui/commun'
 import { EtatRequetes, ErreurAction } from '@shared/ui/etats'
@@ -37,18 +37,19 @@ export function ListeFaitsPrince({ jeu, onOuvrirEcole, onAnnule }: ProprietesLis
 
   if (!faits.data) return <EtatRequetes requetes={[faits]} />
 
-  const actifs = faits.data.filter(f => f.statut === 'applique').length
+  const appliquee = (f: FaitPrinceApplique) => f.statut === 'applique' || f.statut === 'applique_avec_alerte'
+  const actifs = faits.data.filter(appliquee).length
 
   function exporter(lignes: FaitPrinceApplique[]) {
-    exporterCSV(
-      `faits-de-prince-${meta.data?.anneeScolaire ?? 'exercice'}.csv`,
+    void exporterTableauXLSX(
+      `faits-de-prince-${meta.data?.anneeScolaire ?? 'exercice'}.xlsx`,
       [
         'Matricule',
         'Enseignant',
-        'École origine',
-        'Commune origine',
-        'École destination',
-        'Commune destination',
+        'École de référence',
+        'Commune de l’école de référence',
+        'Destination décidée',
+        'Commune de la destination',
         'Décidé le',
         'Référence',
         'État',
@@ -81,7 +82,7 @@ export function ListeFaitsPrince({ jeu, onOuvrirEcole, onAnnule }: ProprietesLis
     },
     {
       cle: 'mouvement',
-      entete: 'Redéploiement',
+      entete: 'École de référence → destination décidée',
       rendu: a => (
         <span>
           <button type="button" className="row-action" onClick={() => onOuvrirEcole(a.fait.origine.id)}>
@@ -101,7 +102,9 @@ export function ListeFaitsPrince({ jeu, onOuvrirEcole, onAnnule }: ProprietesLis
       entete: 'État',
       rendu: a => (
         <span>
-          <Pill tone={a.statut === 'applique' ? 'ok' : 'warn'}>{LIBELLE_STATUT_PRINCE[a.statut]}</Pill>
+          <Pill tone={a.statut === 'applique' ? 'ok' : appliquee(a) ? 'info' : 'warn'}>
+            {LIBELLE_STATUT_PRINCE[a.statut]}
+          </Pill>
           {a.statut !== 'applique' && <small className="motif-etroit">{a.motif}</small>}
         </span>
       ),
@@ -135,7 +138,7 @@ export function ListeFaitsPrince({ jeu, onOuvrirEcole, onAnnule }: ProprietesLis
       actions={
         faits.data.length > 0 ? (
           <button type="button" className="btn btn-sm" onClick={() => exporter(faits.data)}>
-            <Download size={13} aria-hidden="true" /> Exporter (CSV)
+            <Download size={13} aria-hidden="true" /> Exporter (Excel)
           </button>
         ) : undefined
       }

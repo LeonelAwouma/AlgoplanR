@@ -27,11 +27,6 @@ def construire_rapport(res: Dict[str, Any], *, jeu: dict, scenario: dict, faits_
         "faits_prince": {"nombre": len(faits_prince), "details": faits_prince},
         "arbitrages": {"nombre": len(arbitrages), "details": arbitrages},
         "invariants": {"tous_respectes": all(i["ok"] for i in inv), "controles": inv},
-        "projections": {
-            "quota_recrutement_n2": sum(int(l["Quota_Recrutement_Estime_N+2"]) for l in res["projections_n3"]),
-            "quota_recrutement_n3": sum(int(l["Quota_Recrutement_Estime_N+3"]) for l in res["projections_n3"]),
-            "departs_retraite_n1": sum(int(l["Departs_Retraite_N+1"]) for l in res["projections_n3"]),
-        },
         "recommandations": _recommandations(s),
     }
 

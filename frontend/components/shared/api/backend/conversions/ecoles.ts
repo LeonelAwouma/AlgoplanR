@@ -38,6 +38,11 @@ export interface EcoleDjango {
   Accessibilite_Zone: string
   Securite_Zone: string
   Classes_Multigrades: string
+  /** Optionnelle : nombre de classes réellement ouvertes. */
+  Classes_Ouvertes?: number | null
+  /** Le fichier renseigne l'effectif d'élèves / les salles (absent des anciennes données : renseigné). */
+  effectif_connu?: boolean
+  salles_connues?: boolean
   nom_etab: string
   type_etab: string
   Pe: number
@@ -61,15 +66,18 @@ export interface EcoleDjango {
   est_necessiteuse: boolean
   est_excedentaire: boolean
   est_zone_rouge: boolean
+  /** Rang d'accueil calculé par le serveur ; `null` pour une école sans besoin. */
+  rang_priorite?: number | null
   latitude?: number
   longitude?: number
 }
 
 /** Établissement du contrat. `ligne` : rang de l'école dans le fichier (à partir de 1). */
 export function versSchool(e: EcoleDjango, ligne: number): School {
+  const sallesRenseignees = e.salles_connues !== false
   const salles = nombre(e.Salles_Simple_Flux) + nombre(e.Salles_Double_Flux)
   const multigrade = texte(e.Classes_Multigrades)
-  const eleves = nombreOuNull(e.Effectif_Eleves_Attendus)
+  const eleves = e.effectif_connu === false ? null : nombreOuNull(e.Effectif_Eleves_Attendus)
   return {
     id: e.Identifiant_Ecole,
     codeEcole: e.Identifiant_Ecole,
@@ -83,10 +91,12 @@ export function versSchool(e: EcoleDjango, ligne: number): School {
     zone: zone(e.Accessibilite_Zone),
     zoneBrute: texte(e.Accessibilite_Zone),
     typeEtab: texte(e.type_etab),
-    // Le serveur compte une classe par salle simple flux et deux par salle double flux (BMAX).
-    nbClasses: nombre(e.BMAX),
-    nbSallesClasse: salles,
-    sallesDoubleFlux: nombre(e.Salles_Double_Flux),
+    // BMAX est une capacité en maîtres (une par salle simple flux, deux par salle double flux), pas un nombre de classes.
+    capaciteMaitres: nombre(e.BMAX),
+    nombreClassesOuvertes: nombreOuNull(e.Classes_Ouvertes),
+    sallesRenseignees,
+    nbSallesClasse: sallesRenseignees ? salles : null,
+    sallesDoubleFlux: sallesRenseignees ? nombre(e.Salles_Double_Flux) : null,
     niveauxOuverts: null,
     departsConnusDeclares: null,
     sousSysteme: sousSysteme(e.Sous_Systeme),
@@ -130,7 +140,6 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
 
   const diagnostic: SchoolDiagnostic = {
     school,
-    nbClasses: school.nbClasses,
     enseignantsEtat: enseignants,
     enseignantsMinimumAConserver: nombre(e.De),
     besoinTheorique: besoin,
@@ -146,14 +155,14 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
       norme: nombre(e.Pe),
       minimumPedagogique: nombre(e.me),
       dotation: nombre(e.De),
-      bmax: nombreOuNull(e.BMAX),
+      bmax: school.sallesRenseignees ? nombreOuNull(e.BMAX) : null,
       cible,
       besoin,
       excedent,
       surnombre: nombre(e.ae),
       sallesManquantes: nombre(e.se),
       remActuel: parEnseignant == null ? null : round2(parEnseignant),
-      methode: 'norme_eleves',
+      methode: eleves == null ? 'repli_classes' : 'norme_eleves',
     },
     classement: classer(e),
     priorite: {
@@ -165,11 +174,14 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
       indice: nombre(e.Up),
       zoneSecurite: zs,
       zoneRouge: Boolean(e.est_zone_rouge),
+      rang: e.rang_priorite ?? null,
     },
     elevesParEnseignant: parEnseignant == null ? null : round2(parEnseignant),
     elevesParEnseignantEtat: parEnseignant == null ? null : round2(parEnseignant),
+    // Sans le nombre de classes ouvertes, le ratio n'est pas calculable : BMAX est une capacité, pas un effectif de classes.
     elevesParClasse: (() => {
-      const r = ratio(eleves, school.nbClasses > 0 ? school.nbClasses : null)
+      const classes = school.nombreClassesOuvertes
+      const r = ratio(eleves, classes != null && classes > 0 ? classes : null)
       return r == null ? null : round2(r)
     })(),
     effectifMoyenParNiveau: null,

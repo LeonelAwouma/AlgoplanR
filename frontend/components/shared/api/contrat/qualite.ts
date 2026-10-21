@@ -42,6 +42,32 @@ export interface TerritorialCompleteness {
   tauxComplet: number
 }
 
+/** École dont l'effectif déclaré diffère du nombre de matricules rattachés. */
+export interface EcartEffectifEcole {
+  ecole: string
+  nomEcole: string
+  enseignantsDeclares: number
+  matriculesRattaches: number
+  /** Déclarés − rattachés : positif quand des matricules manquent au fichier des enseignants. */
+  ecart: number
+}
+
+/**
+ * Réconciliation des effectifs, pour toutes les écoles. Règle : l'effectif déclaré fait foi ; l'écart est un
+ * avertissement, bloquant seulement pour une école touchée par un fait du Prince.
+ */
+export interface ReconciliationEffectifs {
+  ecolesComparees: number
+  ecolesEnEcart: number
+  ecolesSansEffectifDeclare: number
+  ecartTotal: number
+  ecartAbsoluTotal: number
+  /** Les plus grands écarts d'abord ; limitée, voir `listeTronquee`. */
+  ecoles: EcartEffectifEcole[]
+  listeTronquee: boolean
+  regle: string
+}
+
 export interface DataQualityReport {
   /** Score sur 100, obtenu en retirant les pénalités listées dans `issues`. */
   score: number
@@ -67,6 +93,8 @@ export interface DataQualityReport {
   donneesElevesDisponibles: boolean
   /** Détail des points retirés, pour rendre le score explicable. */
   detailScore: { label: string; points: number }[]
+  /** `null` quand les fichiers ne permettent pas la comparaison (colonne d'effectif ou de rattachement absente). */
+  reconciliationEffectifs?: ReconciliationEffectifs | null
 }
 
 /** Résultat de la reconnaissance d'une colonne du classeur (§10 étape 3). */
@@ -85,7 +113,7 @@ export interface ColumnMatch {
 
 /** Table de correspondance complète d'un fichier importé. */
 export interface ColumnMappingReport {
-  dataset: 'etablissements' | 'enseignants'
+  dataset: 'etablissements' | 'enseignants' | 'prince'
   enTetes: string[]
   matches: ColumnMatch[]
   /** En-têtes du fichier qui n'ont été rattachés à aucun champ métier. */

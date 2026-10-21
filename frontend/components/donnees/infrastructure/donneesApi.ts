@@ -44,7 +44,7 @@ import {
   type SchoolDiagnostic,
   type Teacher,
   type TypeColonnes,
-  type TypeFichier,
+  type TypeFichierEnvoi,
   type ValidationJeu,
 } from '../../shared/api'
 
@@ -91,7 +91,7 @@ export function listerColonnesAttendues(type: TypeColonnes, signal?: AbortSignal
  *   régional de délégué contient une autre région.
  */
 export function envoyerFichier(
-  type: TypeFichier,
+  type: TypeFichierEnvoi,
   fichier: Blob,
   feuille?: string,
   baseNationale = false,
@@ -160,8 +160,9 @@ export function lireValidation(jeu: IdJeu, signal?: AbortSignal): Promise<Valida
  *
  * @throws ApiError 422 si un contrôle bloquant échoue ; le détail est dans `details`.
  */
-export function validerJeu(jeu: IdJeu, auteur: string): Promise<ValidationJeu> {
-  return appeler(ROUTES.validerJeu, { params: { jeu }, corps: { auteur } })
+/** Valide le jeu ; `reserve` : motif de la validation « avec réserve DRH » (écarts d'effectif dérogeables). */
+export function validerJeu(jeu: IdJeu, auteur: string, reserve?: string): Promise<ValidationJeu> {
+  return appeler(ROUTES.validerJeu, { params: { jeu }, corps: reserve ? { auteur, reserve } : { auteur } })
 }
 
 export function listerActualisations(jeu: IdJeu, signal?: AbortSignal): Promise<Actualisation[]> {

@@ -5,7 +5,7 @@
 import { Download } from 'lucide-react'
 
 import { SELECTION_NATIONALE, type ProposedAssignment } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { LIBELLE_PROXIMITE } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { EtatRequetes } from '@shared/ui/etats'
@@ -15,20 +15,20 @@ import { useScenarioAffiche } from '../../application/scenarioAffiche'
 import { PropositionsPanel } from '../composants/PropositionsPanel'
 import { SansScenario } from '../composants/SansScenario'
 
-/** Exporte les affectations en CSV. */
+/** Exporte les affectations en Excel. */
 function exporterAffectations(affectations: ProposedAssignment[]) {
-  exporterCSV(
-    'affectations.csv',
+  void exporterTableauXLSX(
+    'affectations.xlsx',
     [
       'Phase',
       'Poste',
       'Matricule',
       'Nom',
       'Prénom',
-      'École origine',
-      'Commune origine',
-      'École destination',
-      'Commune destination',
+      'École de référence',
+      'Commune de l’école de référence',
+      'Destination projetée',
+      'Commune de la destination',
       'Périmètre',
       'Barème',
       'Score',
@@ -66,7 +66,7 @@ export function AffectationsPage() {
       <div className="filter-bar">
         <div className="filter-bar-actions">
           <button type="button" className="btn btn-sm" onClick={() => exporterAffectations(r.assignments)}>
-            <Download size={13} aria-hidden="true" /> Exporter (CSV)
+            <Download size={13} aria-hidden="true" /> Exporter (Excel)
           </button>
         </div>
       </div>

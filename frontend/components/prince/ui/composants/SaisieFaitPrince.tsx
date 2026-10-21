@@ -56,9 +56,10 @@ export function SaisieFaitPrince({ jeu, onEnregistre }: ProprietesSaisieFaitPrin
   function enregistrer() {
     if (!corps || !enseignant || !destination) return
     enregistrement.mutate(corps, {
-      onSuccess: () => {
+      onSuccess: fait => {
+        const alertes = fait.statut === 'applique_avec_alerte' ? ` À vérifier : ${fait.motif}` : ''
         onEnregistre(
-          `${enseignant.nom} ${enseignant.prenom} est désormais rattaché à ${destination.school.nom}. Le diagnostic et les simulations ont été recalculés.`,
+          `${enseignant.nom} ${enseignant.prenom} est désormais rattaché à ${destination.school.nom}. Le diagnostic et les simulations ont été recalculés.${alertes}`,
         )
         effacer()
       },

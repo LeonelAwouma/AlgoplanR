@@ -7,6 +7,7 @@ from contextes.acces.perimetre import jeu_autorise
 from contextes.arbitrage.models import DecisionArbitrage
 from contextes.commun.erreurs import RefusMetier
 from contextes.commun.outils import perimetre_depuis, reponse_paginee
+from contextes.donnees import depots
 from contextes.donnees.lecteur import ecrire_excel
 from domaine.donnees import colonnes as C
 from domaine.diagnostic.territoires import restreindre_resultat
@@ -105,7 +106,9 @@ postes_rouge = _liste("postes_rouge_non_pourvus", "Postes non pourvus en zone ro
 ecoles_besoin = _liste("ecoles_en_besoin", "Écoles en besoin", "-Up")
 ecoles_fournisseurs = _liste("ecoles_fournisseurs", "Écoles fournissant le vivier", "-nb_enseignants_vivier")
 journal = _liste("journal_audit", "Journal des tours de l'appariement")
-projections = _liste("projections_n3", "Projections pluriannuelles N à N+3")
+# OBSOLÈTE : projection N à N+3 du moteur d'affectation (domaine/mobilite/projection.py), à taux d'attrition fixe de 2 %.
+# Aucun écran ni rapport ne la lit plus ; les projections font foi dans la planification (jeux/{jeu}/planification/).
+projections = _liste("projections_n3", "OBSOLÈTE — projections N à N+3 du moteur (attrition fixe) ; voir planification/")
 
 
 @extend_schema(parameters=GEO, responses=OBJ, summary="Postes non couverts regroupés par sous-système, région, département")
@@ -135,11 +138,28 @@ def explication(request, jeu, sid, matricule):
     return Response(out)
 
 
+@extend_schema(responses=OBJ, summary="Taux d'encadrement et turnover, avant (fichier d'origine) et après le scénario")
+@api_view(["GET"])
+def encadrement(request, jeu, sid):
+    from contextes.diagnostic.services import preparer
+    j = jeu_autorise(request, jeu)
+    sc = sim.scenario_du_jeu(j, sid)
+    perimetre = perimetre_depuis(request)
+    res = restreindre_resultat(sim.charger_resultat(sc), perimetre)       # le périmètre s'applique comme ailleurs
+    ids = {e["Identifiant_Ecole"] for e in res["etab_enrichi"]}
+    enseignants = [t for t in depots.charger_enseignants(j) if t.ecole_attache in ids]
+    # « Avant » : effectifs déclarés des bases importées, avant les faits du Prince et avant l'algorithme.
+    importes = {e.id: e.enseignants_actuels for e in preparer(j).avant().ecoles}
+    return Response({"scenario": sc.pk, **an.comparer_encadrement_turnover(
+        res, enseignants, sim.config_resultat(sc), effectifs_import=importes,
+        libelle="National" if perimetre.national else perimetre.titre)})
+
+
 @extend_schema(parameters=PAGE, responses=OBJ, summary="Vœux et leur statut")
 @api_view(["GET"])
 def candidatures(request, jeu, sid):
     _, sc, r = _ctx(request, jeu, sid)
-    lignes = an.candidatures(r)
+    lignes = an.candidatures(r, sim.config_resultat(sc))
     q = request.query_params
     if q.get("statut"):
         lignes = [l for l in lignes if l["statut"] == q["statut"]]
@@ -195,7 +215,7 @@ def comparaison(request, jeu):
     j = jeu_autorise(request, jeu)
     scs = [s for s in j.scenarios.filter(geographique=True)] or sim.creer_scenarios_base(j)
     return Response({"scenarios": comparer({s.code or str(s.pk): sim.charger_resultat(s) for s in scs}),
-                     "obsoletes": [s.pk for s in scs if s.obsolete]})
+                     "obsoletes": [s.pk for s in scs if sim.est_obsolete(s)]})
 
 @extend_schema(request=OBJ, responses=OBJ,
                summary="Retenir le scénario dont les mouvements alimentent la planification et les nominations {scenario}")
@@ -248,8 +268,6 @@ def exporter(request, jeu, sid):
                      "Vivier_Detail": r["vivier"]})
     if r["postes_rouge_non_pourvus"]:
         feuilles["Postes_Zone_Rouge"] = r["postes_rouge_non_pourvus"]
-    if r["projections_n3"]:
-        feuilles["Projections_N_a_N3"] = r["projections_n3"]
     if r["journal_audit"]:
         feuilles["Journal_Audit"] = r["journal_audit"]
     rep = HttpResponse(ecrire_excel(feuilles),

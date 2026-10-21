@@ -225,7 +225,8 @@ def synthese(reg: Registre) -> dict:
     par_region: Dict[str, List[str]] = defaultdict(list)
     for n in noms:
         par_region[poste_de(reg, n).get("region") or "Région non renseignée"].append(n.statut)
-    return {"par_statut": cycle.compter(n.statut for n in noms),
+    return {"scenario_reference": reg.scenario.nom, "scenario_obsolete": sim.est_obsolete(reg.scenario),
+            "par_statut": cycle.compter(n.statut for n in noms),
             "par_territoire": [{"territoire": r, "par_statut": cycle.compter(s)}
                                for r, s in sorted(par_region.items())],
             "par_annee": [{"annee": a, "par_statut": cycle.compter(n.statut for n in noms if n.annee == a)}
@@ -250,6 +251,7 @@ def _nom(personne: dict) -> str:
 @transaction.atomic
 def proposer(reg: Registre, personne_id: str, poste_id: str, annee: str, motif: str, *, origine: str, request,
              auteur: str) -> Nomination:
+    sim.exiger_a_jour(reg.scenario)
     personne = reg.vivier_par_id.get(personne_id)
     poste = reg.postes_par_id.get(poste_id)
     if personne is None:
@@ -280,6 +282,8 @@ def proposer(reg: Registre, personne_id: str, poste_id: str, annee: str, motif: 
 @transaction.atomic
 def changer_statut(reg: Registre, n: Nomination, vers: str, *, request, auteur: str, motif: Optional[str] = None,
                    reference: Optional[str] = None, date_effet: Optional[str] = None) -> Nomination:
+    if vers in ("validee", "mise_en_oeuvre"):       # rejeter ou annuler reste possible sur un scénario obsolète
+        sim.exiger_a_jour(reg.scenario)
     refus = cycle.refus_transition(n.statut, vers)
     if refus:
         raise Conflit(refus)
@@ -407,6 +411,7 @@ def mouvements(reg: Registre) -> List[dict]:
 
 @transaction.atomic
 def realiser_mouvement(reg: Registre, m: dict, *, date_effet: str, reference_acte: str, request, auteur: str) -> None:
+    sim.exiger_a_jour(reg.scenario)
     if m["statut"] == "realise":
         raise Conflit("Ce mouvement est déjà réalisé.")
     if m["type"] == "nomination":

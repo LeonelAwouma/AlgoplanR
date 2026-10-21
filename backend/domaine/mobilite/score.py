@@ -1,8 +1,9 @@
 """Score d'appariement enseignant/poste (Z1 à Z4) — fidèle à score_enseignant_poste."""
 from __future__ import annotations
 
-from ..commun.texte import est_oui, est_vide, norm
+from ..commun.texte import est_oui, norm
 from ..donnees.modeles import Enseignant, Poste
+from .bonification import ecole_bonifiee
 
 
 def score_proximite(e: Enseignant, p: Poste, cfg: dict) -> float:
@@ -17,6 +18,8 @@ def score_proximite(e: Enseignant, p: Poste, cfg: dict) -> float:
 
 
 def ajustements_contextuels(e: Enseignant, p: Poste, cfg: dict) -> float:
+    """Ajustements d'âge, de type de structure et de zone, et bonification ciblée sur l'école visée par le motif
+    (voir `bonification.ecole_bonifiee`)."""
     pts = 0.0
     age = float(e.age or 35)
     seuils = cfg["seuils"]
@@ -36,20 +39,8 @@ def ajustements_contextuels(e: Enseignant, p: Poste, cfg: dict) -> float:
     if "rural" in z_from and ("urbain" in z_to or "semi" in z_to) and float(e.anciennete_poste or 0) >= 5:
         pts += ajust["transition_rural_urbain"]
 
-    motif = (e.motif_bonification or "").strip()
-    if not est_vide(motif):
-        id_poste_etab = p.id_etab.strip()
-        voeux = [v.strip() for v in e.voeux if v and not est_vide(v)]
-        cible = None
-        for v in voeux:
-            if v and v.lower() in motif.lower():
-                cible = v
-                break
-        if cible:
-            if id_poste_etab == cible:
-                pts += ajust["bonification_ciblee"]
-        elif id_poste_etab in voeux:
-            pts += ajust["bonification_ciblee"]
+    if ecole_bonifiee(e) == p.id_etab.strip():
+        pts += ajust["bonification_ciblee"]
     return float(pts)
 
 

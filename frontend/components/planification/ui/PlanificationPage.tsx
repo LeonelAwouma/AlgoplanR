@@ -6,7 +6,8 @@
  * Tableau prévisionnel N+1 → N+5 du périmètre sélectionné dans la barre de
  * filtres : effectifs, départs, besoins, ressources du vivier, quotas,
  * nominations et déploiements, besoin restant. Les ventilations, le plan des
- * départs, la fiabilité des données et les versions sont en onglets.
+ * départs, la fiabilité des données et les versions sont en onglets, dont la projection N+1 à N+5 (lecture
+ * seule : effectifs, départs, recrutements, taux d’encadrement).
  */
 
 import { useState } from 'react'
@@ -23,12 +24,14 @@ import { EcolesPlanification } from './composants/EcolesPlanification'
 import { EtatPlanificationPanel } from './composants/EtatPlanificationPanel'
 import { FiabilitePanel } from './composants/FiabilitePanel'
 import { PlanDepartsPanel } from './composants/PlanDepartsPanel'
+import { ProjectionCinqAns } from './composants/ProjectionCinqAns'
 import { TableauCinqAns } from './composants/TableauCinqAns'
 import { VentilationSousSystemes, VentilationTerritoriale } from './composants/Ventilations'
 import { VersionsPanel } from './composants/VersionsPanel'
 
 /** Onglets de détail, sous le tableau principal. */
 const ONGLETS = [
+  { cle: 'projection', libelle: 'Projection N+1 à N+5' },
   { cle: 'territoires', libelle: 'Par territoire' },
   { cle: 'sous-systemes', libelle: 'Par sous-système' },
   { cle: 'ecoles', libelle: 'Écoles' },
@@ -43,7 +46,7 @@ type CleOnglet = (typeof ONGLETS)[number]['cle']
 export function PlanificationPage() {
   const { jeu, filtres, setFiltres } = useSession()
   const [sousSysteme, setSousSysteme] = useState<SousSysteme | null>(null)
-  const [onglet, setOnglet] = useState<CleOnglet>('territoires')
+  const [onglet, setOnglet] = useState<CleOnglet>('projection')
 
   const requete: RequetePlanification = {
     niveau: selectionLevel(filtres.territoire),
@@ -91,6 +94,8 @@ export function PlanificationPage() {
       <Panel kicker="Détail" title="Ventilations et suivi" flush>
         <Onglets onglets={ONGLETS} actif={onglet} onChange={setOnglet} libelle="Détail de la planification">
           <div className="onglet-contenu">
+            {onglet === 'projection' &&
+              (tableau.data ? <ProjectionCinqAns tableau={tableau.data} /> : <EtatRequetes requetes={[tableau]} />)}
             {onglet === 'territoires' && <VentilationTerritoriale jeu={jeu} requete={requete} onExplorer={explorer} />}
             {onglet === 'sous-systemes' && <VentilationSousSystemes jeu={jeu} requete={requete} />}
             {onglet === 'ecoles' && <EcolesPlanification jeu={jeu} requete={requete} />}

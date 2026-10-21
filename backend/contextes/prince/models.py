@@ -8,7 +8,9 @@ class FaitPrince(models.Model):
     id_ens = models.CharField(max_length=100)
     id_etab = models.CharField(max_length=100)
     motif = models.CharField(max_length=500, blank=True, default="")
-    statut = models.CharField(max_length=20, default="ACTIF")   # ACTIF | ANNULE
+    statut = models.CharField(max_length=20, default="ACTIF")   # ACTIF | ANNULE | INVALIDE
+    # INVALIDE : devenu impossible après une actualisation des données ; jamais appliqué, motif conservé.
+    motif_invalidite = models.CharField(max_length=500, blank=True, default="")
     cree_le = models.DateTimeField(auto_now_add=True)
 
     class Meta:

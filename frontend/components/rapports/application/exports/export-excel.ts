@@ -31,6 +31,7 @@ import {
   libelleZoneSecurite,
 } from '../../../shared/kernel'
 import type { CellValue } from '../../../shared/exports/export-csv'
+import { classeurEnOctets, type FeuilleXlsx } from '../../../shared/exports/export-xlsx'
 
 const SEVERITE_LABEL: Record<SchoolDiagnostic['severite'], string> = {
   excedent: 'Excédent mobilisable',
@@ -65,7 +66,7 @@ function lignesTerritoriales(arbre: TerritorialSummary): CellValue[][] {
         noeud.totals.ecolesAnalysees,
         noeud.totals.ecolesEnDeficit,
         noeud.totals.ecolesAvecExcedent,
-        noeud.totals.classes,
+        noeud.totals.classes ?? '',
         noeud.totals.enseignantsEtat,
         noeud.totals.postesNecessaires,
         noeud.totals.postesDeclares ?? '',
@@ -81,13 +82,10 @@ function lignesTerritoriales(arbre: TerritorialSummary): CellValue[][] {
 }
 
 export async function exporterClasseurComplet(input: ExcelExportInput): Promise<Uint8Array> {
-  const XLSX = await import('xlsx')
-  const wb = XLSX.utils.book_new()
-
+  const feuilles: FeuilleXlsx[] = []
+  // Mise en forme (en-têtes, filtre, formats, noms d'onglets de 31 caractères au plus) : export-xlsx.ts.
   const ajouter = (nom: string, entetes: string[], lignes: CellValue[][]) => {
-    const feuille = XLSX.utils.aoa_to_sheet([entetes, ...lignes])
-    // Excel limite les noms d'onglets à 31 caractères.
-    XLSX.utils.book_append_sheet(wb, feuille, nom.slice(0, 31))
+    feuilles.push({ nom, entetes, lignes })
   }
 
   const { ecoles: diagnostics, parametres, arbre, qualite, resultat, comparaison, rapport } = input
@@ -105,7 +103,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         `Établissements en ${LIBELLE_ZONE_SECURITE[z].toLowerCase()}`,
         diagnostics.filter(d => (d.school.zoneSecurite ?? 'verte') === z).length,
       ]),
-      ['Classes', t.classes],
+      ['Classes ouvertes', t.classes ?? 'Non renseigné'],
       ["Enseignants payés par l'État", t.enseignantsEtat],
       ['Postes nécessaires (besoin calculé)', t.postesNecessaires],
       ['Postes officiellement déclarés', t.postesDeclares ?? 'Non renseigné'],
@@ -130,8 +128,9 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Zone de sécurité',
       'Type',
       'Sous-système',
-      'Classes',
-      'Groupes pédagogiques',
+      'Salles',
+      'Classes ouvertes',
+      'Capacité en maîtres (BMAX)',
       'Élèves N',
       'Maîtres en poste',
       'Départs connus',
@@ -148,7 +147,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Classement',
       'Postes déclarés',
       'Écart déclaré/calculé',
-      'REM actuel',
+      'Taux d’encadrement actuel',
       'Accessibilité α',
       'Sécurité σ',
       'Poids w',
@@ -169,7 +168,8 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       d.school.typeEtab,
       d.school.sousSysteme ?? '',
       d.school.nbSallesClasse ?? '',
-      d.nbClasses,
+      d.school.nombreClassesOuvertes ?? '',
+      d.school.sallesRenseignees ? d.school.capaciteMaitres : 'Inconnue',
       d.calcul.eleves ?? '',
       d.calcul.enseignantsEnPoste,
       d.calcul.departsConnus,
@@ -193,7 +193,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       d.priorite.niveauDifficulte,
       d.priorite.pointsBesoin,
       d.priorite.indice,
-      d.calcul.methode === 'norme_eleves' ? 'Norme élèves' : 'Repli : une classe = un maître',
+      d.calcul.methode === 'norme_eleves' ? 'Norme élèves' : 'Repli : effectif d’élèves inconnu',
       SEVERITE_LABEL[d.severite],
     ]),
   )
@@ -206,7 +206,6 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Dont zone non renseignée',
       'En déficit',
       'Postes manquants',
-      'Points de sécurité σ',
       'Restant après simulation',
       'Règle appliquée',
     ],
@@ -218,11 +217,10 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         z === 'verte' ? ecoles.filter(d => d.school.zoneSecurite === null).length : 0,
         ecoles.filter(d => d.besoinTheorique > 0).length,
         ecoles.reduce((s, d) => s + d.besoinTheorique, 0),
-        parametres.priorite.pointsSecurite[z],
         resultat
           ? resultat.uncoveredPosts.filter(p => (p.priorite.zoneSecurite ?? 'verte') === z).length
           : 'Aucune simulation',
-        z === 'rouge' && parametres.mobilite.regleZoneRouge
+        z === 'rouge'
           ? 'Aucun poste imposé ni proposé hors vœux : volontaires, primes ou recrutement'
           : 'Affectations ordinaires',
       ]
@@ -416,7 +414,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         'Salles manquantes',
         'Effectif E',
         'Recrutement à prévoir',
-        "Degré d'aléa",
+        'Taux de déséquilibre des dotations',
       ],
       (['avant', 'apres'] as const).flatMap(moment => {
         const s = moment === 'avant' ? resultat.syntheseAvant : resultat.syntheseApres
@@ -452,75 +450,6 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       }),
     )
 
-    ajouter(
-      'Projections_N1_a_N3',
-      [
-        'Code',
-        'École',
-        'Sous-système',
-        'Région',
-        'Département',
-        'Commune',
-        'Indice u',
-        'BMAX',
-        'Dotation D',
-        'Cible K',
-        'Besoin avant plan',
-        'Excédent avant plan',
-        'Arrivants',
-        'Sortants',
-        'Salles manquantes',
-        ...['N+1', 'N+2', 'N+3'].flatMap(a => [
-          `Départs retraite ${a}`,
-          `Effectif ${a}`,
-          `Besoin ${a}`,
-          `Excédent ${a}`,
-        ]),
-      ],
-      resultat.projectionPluriannuelle.ecoles.map(e => [
-        e.schoolId,
-        e.nomEtab,
-        e.sousSysteme ?? '',
-        e.region,
-        e.departement,
-        e.commune,
-        e.indicePriorite,
-        e.bmax ?? '',
-        e.dotation,
-        e.cible,
-        e.besoinAvantPlan,
-        e.excedentAvantPlan,
-        e.arrivants.join(', '),
-        e.sortants.join(', '),
-        e.sallesManquantes,
-        ...e.annees.flatMap(a => [a.departsRetraite, a.effectif, a.besoin, a.excedent]),
-      ]),
-    )
-
-    ajouter(
-      'Projection_Territoire',
-      [
-        'Rentrée',
-        'Sous-système',
-        'Effectif',
-        'Départs retraite',
-        'Attrition attendue',
-        'Besoin B',
-        'Excédent X',
-        'Recrutement à prévoir',
-      ],
-      resultat.projectionPluriannuelle.territoire.map(t => [
-        t.annee,
-        LIBELLE_SOUS_SYSTEME[t.sousSysteme],
-        t.effectif,
-        t.departsRetraite,
-        t.attrition,
-        t.besoin,
-        t.excedent,
-        t.recrutementAPrevoir,
-      ]),
-    )
-
     const rouges = resultat.uncoveredPosts.filter(p => p.priorite.zoneRouge)
     if (rouges.length > 0) {
       ajouter(
@@ -552,7 +481,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
 
     // Journal d'audit : chaque décision et chaque proposition, horodatées, avec leur statut.
     const journal: CellValue[][] = []
-    for (const { fait } of resultat.faitsPrince.filter(e => e.statut === 'applique')) {
+    for (const { fait } of resultat.faitsPrince.filter(e => e.statut !== 'rejete')) {
       journal.push([
         fait.decideLe,
         'Fait de Prince',
@@ -825,18 +754,20 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
     )
   }
 
-  const decisionsPrince = (resultat?.faitsPrince ?? []).filter(e => e.statut === 'applique')
+  const decisionsPrince = (resultat?.faitsPrince ?? []).filter(
+    e => e.statut === 'applique' || e.statut === 'applique_avec_alerte',
+  )
   if (decisionsPrince.length > 0) {
     ajouter(
       'Fait_De_Prince',
       [
         'Matricule',
         'Enseignant',
-        'École origine',
-        'Commune origine',
-        'École destination',
-        'Commune destination',
-        'Décidé le',
+        'École de référence',
+        'Commune de l’école de référence',
+        'Destination décidée',
+        'Commune de la destination',
+        'Pris en compte le',
         'Référence',
       ],
       decisionsPrince.map(({ fait }) => [
@@ -846,7 +777,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         fait.origine.commune,
         fait.destination.nom,
         fait.destination.commune,
-        new Date(fait.decideLe).toLocaleDateString('fr-FR'),
+        fait.decideLe ? new Date(fait.decideLe).toLocaleDateString('fr-FR') : '',
         fait.reference,
       ]),
     )
@@ -879,5 +810,5 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
     ajouter('Rapport_Decisionnel', ['Section', 'Contenu'], lignes)
   }
 
-  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as Uint8Array
+  return classeurEnOctets(feuilles)
 }

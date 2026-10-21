@@ -21,7 +21,8 @@ def config_jeu(jeu) -> Dict[str, Any]:
 
 
 def _enregistrer(jeu, regles: Dict[str, Any]) -> dict:
-    cfg, avertissements = cfg_dom.valider(regles)       # lève ParametresInvalides -> 422
+    regles = cfg_dom.sans_cles_abandonnees(regles)
+    cfg,avertissements = cfg_dom.valider(regles)       # lève ParametresInvalides -> 422
     Parametres.objects.update_or_create(jeu=jeu, defaults={"regles": regles})
     # Règle de recalcul : cache du diagnostic invalidé, scénarios marqués obsolètes.
     from contextes.diagnostic.services import invalider_cache

@@ -8,8 +8,9 @@
  *   GET  jeux/{jeu}/scenarios/                 POST jeux/{jeu}/scenarios/       POST jeux/{jeu}/scenarios/base/
  *   GET  jeux/{jeu}/scenarios/{scenario}/      DELETE …/{scenario}/             POST …/{scenario}/executer/
  *   GET  …/{scenario}/resultat/                …/affectations/                  …/affectations/{matricule}/explication/
+ *        …/{scenario}/encadrement/
  *        …/non-affectes/  …/vivier/  …/postes/  …/postes-non-couverts/  …/candidatures/  …/combinaisons/
- *        …/journal/  …/invariants/  …/projections/  …/recrutes/  …/flux/
+ *        …/journal/  …/invariants/  …/recrutes/  …/flux/
  *   GET  jeux/{jeu}/comparaison/               PUT  jeux/{jeu}/scenario-retenu/
  *
  * Les résultats sont restreints par le serveur au territoire demandé
@@ -24,6 +25,7 @@ import {
   route,
   type Candidature,
   type CombinaisonArbitrage,
+  type ComparaisonEncadrement,
   type ComparaisonScenarios,
   type CorpsCreationScenario,
   type CorpsScenarioRetenu,
@@ -40,13 +42,13 @@ import {
   type Page,
   type PoolTeacher,
   type PresetScenario,
-  type ProjectionsScenario,
   type ProposedAssignment,
   type RedeploymentPool,
   type ResultatRecrutes,
   type ScenarioCalcule,
   type SimulationResult,
   type TeachingPost,
+  SELECTION_NATIONALE,
   type TerritorySelection,
 } from '../../shared/api'
 
@@ -63,6 +65,7 @@ const ROUTES = {
   resultat: route<SimulationResult>()('GET', `${S}/resultat/`),
   affectations: route<Page<ProposedAssignment>>()('GET', `${S}/affectations/`),
   explication: route<ExplicationProposition>()('GET', `${S}/affectations/{matricule}/explication/`),
+  encadrement: route<ComparaisonEncadrement>()('GET', `${S}/encadrement/`),
   nonAffectes: route<Page<PoolTeacher>>()('GET', `${S}/non-affectes/`),
   vivier: route<RedeploymentPool>()('GET', `${S}/vivier/`),
   postes: route<Page<TeachingPost>>()('GET', `${S}/postes/`),
@@ -71,7 +74,6 @@ const ROUTES = {
   combinaisons: route<CombinaisonArbitrage[]>()('GET', `${S}/combinaisons/`),
   journal: route<JournalSimulation>()('GET', `${S}/journal/`),
   invariants: route<InvariantCheck[]>()('GET', `${S}/invariants/`),
-  projections: route<ProjectionsScenario>()('GET', `${S}/projections/`),
   recrutes: route<ResultatRecrutes | null>()('GET', `${S}/recrutes/`),
   flux: route<FluxTerritorial>()('GET', `${S}/flux/`),
   comparaison: route<ComparaisonScenarios>()('GET', 'jeux/{jeu}/comparaison/'),
@@ -179,6 +181,18 @@ export function expliquerAffectation(
   return appeler(ROUTES.explication, { params: { ...ref, matricule }, signal })
 }
 
+/**
+ * Taux d'encadrement et turnover du scénario, avant (bases importées) et après l'algorithme, sur le territoire
+ * sélectionné (national par défaut).
+ */
+export function lireEncadrement(
+  ref: RefScenario,
+  selection: TerritorySelection = SELECTION_NATIONALE,
+  signal?: AbortSignal,
+): Promise<ComparaisonEncadrement> {
+  return appeler(ROUTES.encadrement, { params: { ...ref }, query: querySelection(selection), signal })
+}
+
 /** Enseignants du vivier restés sans affectation. */
 export function listerNonAffectes(
   ref: RefScenario,
@@ -237,16 +251,6 @@ export function lireJournal(ref: RefScenario, signal?: AbortSignal): Promise<Jou
 /** Contrôles métier vérifiés après le calcul. */
 export function lireInvariants(ref: RefScenario, signal?: AbortSignal): Promise<InvariantCheck[]> {
   return appeler(ROUTES.invariants, { params: { ...ref }, signal })
-}
-
-/**
- * Projection N+1 → N+3 du scénario.
- *
- * @deprecated remplacée par la planification sur cinq ans (`contextes/planification`) ;
- *   conservée tant que le backend sert les deux.
- */
-export function lireProjections(ref: RefScenario, signal?: AbortSignal): Promise<ProjectionsScenario> {
-  return appeler(ROUTES.projections, { params: { ...ref }, signal })
 }
 
 /** Déploiement des recrues sur les postes restés vacants, `null` sans recrue importée. */

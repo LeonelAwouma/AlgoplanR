@@ -1,9 +1,9 @@
 """Cas d'usage du contexte Données : import, jeux, qualité.
 
-Un délégué régional importe les classeurs de sa seule région : chaque colonne « Région » est contrôlée ligne
-par ligne, et le fichier entier est refusé à la moindre ligne d'une autre région. Il peut aussi importer le
-fichier de la base nationale (toutes régions, `base_nationale`) : seules les écoles de sa région et les
-enseignants qui y sont attachés sont alors retenus, puis soumis aux mêmes contrôles.
+Un délégué régional importe les classeurs de sa région ou ceux de la base nationale. Un fichier qui porte des
+écoles d'autres régions est reconnu automatiquement comme national (`base_nationale`) : seules les écoles de sa
+région et les enseignants qui y sont attachés sont retenus, puis soumis aux contrôles régionaux. Un fichier d'une
+seule région est contrôlé ligne par ligne : région vide ou illisible, il est refusé en entier.
 
 Le DRH importe la base nationale telle quelle (jeu national). Les postes étant autonomes, il n'existe plus de
 consolidation des jeux régionaux ; les jeux consolidés enregistrés auparavant restent consultables.
@@ -19,13 +19,15 @@ from django.http import Http404
 from contextes.acces.controle_import import colonnes_region, refuser_si_hors_region
 from contextes.acces.perimetre import PORTEE_NATIONALE, PORTEE_REGIONALE
 from contextes.commun.erreurs import RefusMetier
-from domaine.acces.controle_regions import motifs_lisibles, numero_ligne
+from domaine.acces.controle_regions import contient_autres_regions, motifs_lisibles, numero_ligne
 from domaine.acces.regions import region_canonique
 from domaine.commun.texte import texte
 from domaine.donnees import colonnes as C
+from domaine.donnees.annee_scolaire import normaliser_annee_scolaire
 from domaine.donnees import correspondance as corr
 from domaine.donnees.demonstration import construire_jeu_demonstration
 from domaine.donnees.modeles import construire_ecole, construire_enseignant
+from domaine.donnees.sous_systemes import completer_sous_systemes
 from domaine.parametrage import config as cfg_dom
 from domaine.qualite.rapport import controler
 
@@ -33,7 +35,7 @@ from . import depots
 from .lecteur import FichierIllisible, lire_classeur_numerote
 from .models import FichierImporte, JeuDeDonnees, RapportQualite
 
-TYPES = ("etablissements", "enseignants")
+TYPES = ("etablissements", "enseignants", "prince")
 MAX_LIGNES_RAPPORT = 200
 
 
@@ -41,9 +43,9 @@ def recevoir_fichier(type_fichier: str, upload, feuille: Optional[str] = None, *
                      base_nationale: bool = False) -> FichierImporte:
     """Lit un classeur envoyé et le rattache au compte qui l'envoie.
 
-    Fichier régional d'un délégué : toute colonne « Région » est vérifiée dès l'envoi, et à la moindre ligne d'une
-    autre région rien n'est enregistré. Fichier de la base nationale : les autres régions sont écartées à la
-    création du jeu.
+    Fichier régional d'un délégué : toute colonne « Région » est vérifiée dès l'envoi, et à la moindre ligne
+    sans région exploitable rien n'est enregistré. Fichier de la base nationale (déclaré, ou reconnu à ses
+    régions multiples) : les autres régions sont écartées à la création du jeu.
     """
     if type_fichier not in TYPES:
         raise RefusMetier("Type de fichier invalide", [f"type doit valoir {' ou '.join(TYPES)}"])
@@ -53,8 +55,14 @@ def recevoir_fichier(type_fichier: str, upload, feuille: Optional[str] = None, *
         raise RefusMetier(str(exc), code="fichier_illisible")
     if not lignes:
         raise RefusMetier("Le fichier ne contient aucune ligne de données", code="fichier_vide")
-    if compte is not None and compte.est_delegue and not base_nationale:
-        refuser_si_hors_region(compte.region, lignes, numeros, colonnes_region(entetes), upload.name)
+    if compte is not None and compte.est_delegue:
+        colonnes = colonnes_region(entetes)
+        # Un fichier qui porte des écoles d'autres régions est la base nationale : on en extrait la région du
+        # délégué à la création du jeu, sans qu'il ait à le déclarer.
+        if any(contient_autres_regions(lignes, c, compte.region) for c in colonnes):
+            base_nationale = True
+        if not base_nationale:
+            refuser_si_hors_region(compte.region, lignes, numeros, colonnes, upload.name)
     det = corr.detecter(type_fichier, entetes)
     return FichierImporte.objects.create(
         type=type_fichier, nom_fichier=upload.name, feuille=lue, feuilles=feuilles, entetes=entetes,
@@ -100,7 +108,7 @@ def corriger_correspondance(fichier: FichierImporte, correspondance: Dict[str, s
     fichier.a_confirmer = [
         {"colonne": c, "obligatoire": c in corr.OBLIGATOIRES[fichier.type], "suggestions": []}
         for c in corr.COLONNES_PAR_TYPE[fichier.type]
-        if c not in nouvelle and c not in C.COLONNES_OPTIONNELLES_ETAB + C.COLONNES_OPTIONNELLES_ENS]
+        if c not in nouvelle and c not in corr.OPTIONNELLES]
     fichier.save(update_fields=["correspondance", "a_confirmer"])
     return fichier
 
@@ -156,7 +164,9 @@ def _extraire_region(region: str, e: _Selection, n: _Selection) -> Tuple[_Select
             raise RefusMetier(f"Aucune école de la région {region} dans « {e.fichier.nom_fichier} »",
                               ["Vérifiez que la colonne associée à « Region » porte bien le nom des régions"],
                               code="region_absente", details={"region_autorisee": region})
-    if n.fichier.base_nationale:
+    # Enseignants : triés d'après les écoles retenues dès que l'un des deux fichiers est national (le fichier des
+    # enseignants n'a souvent aucune colonne Région).
+    if n.fichier.base_nationale or e.fichier.base_nationale:
         ecoles = {texte(l.get(C.COL_ETAB_ID)) for l in e.normalisees}
         n = n.garder([i for i, l in enumerate(n.normalisees) if texte(l.get(C.COL_ENS_ETAB)) in ecoles])
     return e, n
@@ -194,11 +204,35 @@ def _lignes_du_jeu(compte, f_etab: FichierImporte, f_ens: FichierImporte) -> Tup
         for l in e.normalisees:
             if officielle := region_canonique(l.get(C.COL_ETAB_REGION)):
                 l[C.COL_ETAB_REGION] = officielle
+    # Sous-système des enseignants absent du fichier : celui de leur école (sinon ils seraient sans contrainte).
+    completer_sous_systemes(e.normalisees, n.normalisees)
     return e.normalisees, n.normalisees
 
 
+def preparer_fichier_prince(compte, id_fichier) -> Tuple[FichierImporte, List[dict]]:
+    """Fichier des faits du Prince joint à la création d'un jeu : vérifié avant que le jeu soit créé.
+
+    Réservé au DRH, comme la page « Fait de Prince ». Les lignes sont celles de la correspondance des colonnes.
+    """
+    if not compte.est_drh:
+        raise RefusMetier("Fichier du Prince réservé au DRH", ["Seul le DRH peut joindre des faits du Prince"],
+                          code="prince_reserve_drh")
+    f = fichier_du_compte(compte, id_fichier)
+    if f.type != "prince":
+        raise RefusMetier("Type de fichier incorrect", ["fichier_prince doit être de type prince"])
+    return f, _lignes_normalisees(f)
+
+
+def _annee_scolaire(valeur: Optional[str]) -> str:
+    try:
+        return normaliser_annee_scolaire(valeur)
+    except ValueError as exc:
+        raise RefusMetier("Année scolaire invalide", [str(exc)], code="annee_scolaire_invalide")
+
+
 @transaction.atomic
-def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte) -> JeuDeDonnees:
+def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte, fichier_prince: Optional[FichierImporte] = None,
+              annee_scolaire: Optional[str] = None) -> JeuDeDonnees:
     """Crée un jeu à partir de deux fichiers envoyés par le même compte : régional pour un délégué (sa région
     seule, même depuis la base nationale), national pour le DRH."""
     f_etab = fichier_du_compte(compte, id_fichier_etab)
@@ -207,6 +241,7 @@ def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte) -> JeuDeDonn
         raise RefusMetier("Types de fichiers inversés ou incorrects",
                           ["fichier_etablissements doit être de type etablissements",
                            "fichier_enseignants doit être de type enseignants"])
+    annee = _annee_scolaire(annee_scolaire)
     l_etab, l_ens = _lignes_du_jeu(compte, f_etab, f_ens)
     rapport = controler(l_etab, l_ens, cfg_dom.defaut())
     if not rapport["valide"]:
@@ -218,29 +253,31 @@ def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte) -> JeuDeDonn
     else:
         portee, region, defaut = PORTEE_NATIONALE, None, f"Base nationale ({f_etab.nom_fichier})"
     jeu = JeuDeDonnees.objects.create(nom=nom or defaut, source="import", portee=portee, region=region,
-                                      cree_par=compte)
+                                      cree_par=compte, annee_scolaire=annee)
     depots.enregistrer(jeu, [construire_ecole(l) for l in l_etab], [construire_enseignant(l) for l in l_ens])
     RapportQualite.objects.create(jeu=jeu, contenu=rapport)
-    for f in (f_etab, f_ens):
-        f.jeu = jeu
-        f.save(update_fields=["jeu"])
+    for f in (f_etab, f_ens, fichier_prince):
+        if f is not None:
+            f.jeu = jeu
+            f.save(update_fields=["jeu"])
     return jeu
 
 
 @transaction.atomic
 def creer_demonstration(nom: str = "", graine: int = 2026, nb_ecoles: int = 60, nb_enseignants: int = 420, *,
-                        compte) -> JeuDeDonnees:
+                        compte, annee_scolaire: Optional[str] = None) -> JeuDeDonnees:
     """Jeu fictif. Pour un délégué, toutes les écoles fictives sont placées dans sa région (jeu régional)."""
+    annee = _annee_scolaire(annee_scolaire)
     l_etab, l_ens = construire_jeu_demonstration(graine, nb_ecoles, nb_enseignants)
     if compte.est_delegue:
         for l in l_etab:
             l[C.COL_ETAB_REGION] = compte.region
         jeu = JeuDeDonnees.objects.create(nom=nom or f"Jeu de démonstration ({compte.region})",
                                           source="demonstration", portee=PORTEE_REGIONALE, region=compte.region,
-                                          cree_par=compte)
+                                          cree_par=compte, annee_scolaire=annee)
     else:
         jeu = JeuDeDonnees.objects.create(nom=nom or "Jeu de démonstration", source="demonstration",
-                                          portee=PORTEE_NATIONALE, cree_par=compte)
+                                          portee=PORTEE_NATIONALE, cree_par=compte, annee_scolaire=annee)
     depots.enregistrer(jeu, [construire_ecole(l) for l in l_etab], [construire_enseignant(l) for l in l_ens])
     RapportQualite.objects.create(jeu=jeu, contenu=controler(l_etab, l_ens, cfg_dom.defaut()))
     return jeu
@@ -249,12 +286,17 @@ def creer_demonstration(nom: str = "", graine: int = 2026, nb_ecoles: int = 60, 
 def resume_jeu(jeu: JeuDeDonnees) -> dict:
     return {
         "id": str(jeu.id), "nom": jeu.nom, "source": jeu.source, "cree_le": jeu.cree_le,
+        "annee_scolaire": jeu.annee_scolaire,
         "portee": jeu.portee, "region": jeu.region, "consolide_depuis": jeu.consolide_depuis,
         "cree_par": jeu.cree_par.identifiant if jeu.cree_par_id else None,
         "nb_etablissements": jeu.etablissements.count(), "nb_enseignants": jeu.enseignants.count(),
         "nb_scenarios": jeu.scenarios.count(),
         "nb_faits_prince": jeu.faits_prince.filter(statut="ACTIF").count(),
         "nb_arbitrages": jeu.arbitrages.count(), "nb_recrues": jeu.recrues.count(),
+        "donnees_manquantes": {
+            "ecoles_sans_effectif": jeu.etablissements.filter(effectif_connu=False).count(),
+            "ecoles_sans_salles": jeu.etablissements.filter(salles_connues=False).count(),
+            "enseignants_sans_age": jeu.enseignants.filter(age_connu=False).count()},
         "statut": jeu.statut, "valide_le": jeu.valide_le, "valide_par": jeu.valide_par or None,
         "scenario_retenu_id": str(jeu.scenario_retenu_id) if jeu.scenario_retenu_id else None,
         "fichiers_source": {f.type: f.nom_fichier for f in jeu.fichiers.order_by("cree_le")},
@@ -272,27 +314,81 @@ def _rapport_qualite(jeu: JeuDeDonnees) -> Optional[dict]:
 
 
 def validation(jeu: JeuDeDonnees) -> dict:
+    from contextes.diagnostic.services import preparer
     from domaine.donnees.validation import controles_validation
+    application = preparer(jeu).application
+    rejetes = [{"id_ens": d.id_ens, "motifs": list(d.rejets)} for d in (application.decisions if application else [])
+               if not d.appliquee]
     return {"statut": jeu.statut, "valide_le": jeu.valide_le, "valide_par": jeu.valide_par or None,
+            "reserve": jeu.validation_reserve,
             "controles": controles_validation(depots.charger_ecoles(jeu), depots.charger_enseignants(jeu),
-                                              _rapport_qualite(jeu))}
+                                              _rapport_qualite(jeu),
+                                              application.ecarts_effectifs if application else (), rejetes)}
 
 
 @transaction.atomic
-def valider(jeu: JeuDeDonnees, *, request, auteur: str) -> dict:
+def valider(jeu: JeuDeDonnees, *, request, auteur: str, reserve: Optional[str] = None) -> dict:
+    """Valide le jeu comme référence des projections.
+
+    - Validation normale : aucun contrôle bloquant en échec.
+    - Validation **avec réserve DRH** : seuls les contrôles bloquants *dérogeables* (écarts d'effectif des écoles
+      touchées par un fait du Prince) peuvent être en échec ; un motif est obligatoire, la réserve est réservée à la
+      DRH, tracée au journal et reprise dans les rapports. Les incohérences structurelles ne se dérogent jamais.
+    """
     from django.utils import timezone
 
     from contextes.audit.services import journaliser
     v = validation(jeu)
     bloquants = [c for c in v["controles"] if c["bloquant"] and not c["ok"]]
-    if bloquants:
-        raise RefusMetier(f"Validation impossible : {', '.join(c['libelle'] for c in bloquants)}.",
-                          [c["detail"] for c in bloquants], code="validation_bloquee", details={"controles": bloquants})
-    jeu.statut, jeu.valide_le, jeu.valide_par = "valide", timezone.now(), auteur
-    jeu.save(update_fields=["statut", "valide_le", "valide_par"])
-    journaliser(jeu, "validation_donnees", "validé", "Jeu validé comme référence des projections", request=request,
-                auteur=auteur, objet=("jeu", jeu.id), avant={"statut": "brouillon"}, apres={"statut": "valide"})
+    structurels = [c for c in bloquants if not c["derogeable"]]
+    derogeables = [c for c in bloquants if c["derogeable"]]
+    motif = (reserve or "").strip()
+    if structurels:
+        raise RefusMetier(f"Validation impossible : {', '.join(c['libelle'] for c in structurels)}.",
+                          [c["detail"] for c in structurels], code="validation_bloquee",
+                          details={"controles": bloquants, "derogation_possible": False})
+    if derogeables and not motif:
+        raise RefusMetier(f"Validation impossible : {', '.join(c['libelle'] for c in derogeables)}.",
+                          [c["detail"] for c in derogeables] + [
+                              "La DRH peut valider avec réserve en motivant sa décision."],
+                          code="validation_bloquee", details={"controles": bloquants, "derogation_possible": True})
+    if derogeables and not getattr(request.user, "est_drh", False):
+        raise RefusMetier("La validation avec réserve est réservée à la DRH",
+                          ["Seul le DRH peut déroger aux contrôles d'effectif"], code="derogation_reservee_drh")
+    maintenant = timezone.now()
+    jeu.validation_reserve = ({"motif": motif, "auteur": auteur, "le": maintenant.isoformat(timespec="seconds"),
+                               "controles": [{"code": c["code"], "libelle": c["libelle"], "detail": c["detail"]}
+                                             for c in derogeables]} if derogeables else None)
+    jeu.statut, jeu.valide_le, jeu.valide_par = "valide", maintenant, auteur
+    jeu.save(update_fields=["statut", "valide_le", "valide_par", "validation_reserve"])
+    journaliser(jeu, "validation_donnees", "validé avec réserve" if derogeables else "validé",
+                "Jeu validé avec réserve DRH : " + motif if derogeables
+                else "Jeu validé comme référence des projections", request=request,
+                auteur=auteur, objet=("jeu", jeu.id), avant={"statut": "brouillon"},
+                apres={"statut": "valide", "reserve": jeu.validation_reserve})
     return validation(jeu)
+
+
+def _reevaluer_faits_prince(jeu: JeuDeDonnees) -> List[dict]:
+    """Réévalue les faits du Prince actifs sur les données actualisées. Un fait devenu impossible (agent déjà dans
+    l'école de destination, école d'origine vide…) passe à l'état INVALIDE avec son motif : il n'est jamais appliqué en
+    silence et reste visible dans la liste des faits et dans les écarts de l'actualisation."""
+    from contextes.diagnostic.services import preparer
+    from domaine.prince.projection import appliquer_effets_prince
+    faits = list(jeu.faits_prince.filter(statut="ACTIF").order_by("id"))
+    if not faits:
+        return []
+    avant = preparer(jeu).avant()
+    app = appliquer_effets_prince(avant.ecoles, list(avant.enseignants.values()),
+                                  [{"id_ens": f.id_ens, "id_etab": f.id_etab, "motif": f.motif} for f in faits],
+                                  avant.cfg)
+    invalidees = []
+    for f, d in zip(faits, app.decisions):
+        if d.rejets:
+            f.statut, f.motif_invalidite = "INVALIDE", " ; ".join(d.rejets)[:500]
+            f.save(update_fields=["statut", "motif_invalidite"])
+            invalidees.append({"type": "fait_prince", "id": str(f.pk), "motif": f.motif_invalidite})
+    return invalidees
 
 
 def _invalider_decisions(jeu: JeuDeDonnees, ids_ecoles: set, matricules: set) -> List[dict]:
@@ -366,9 +462,10 @@ def actualiser(jeu: JeuDeDonnees, id_fichier_etab, id_fichier_ens, *, compte, re
     for f in (f_etab, f_ens):
         f.jeu = jeu
         f.save(update_fields=["jeu"])
-    jeu.statut, jeu.valide_le, jeu.valide_par = "brouillon", None, ""
-    jeu.save(update_fields=["statut", "valide_le", "valide_par"])
+    jeu.statut, jeu.valide_le, jeu.valide_par, jeu.validation_reserve = "brouillon", None, "", None
+    jeu.save(update_fields=["statut", "valide_le", "valide_par", "validation_reserve"])
     invalider_cache(jeu)
+    invalidees += _reevaluer_faits_prince(jeu)       # sur les nouvelles données : un fait impossible n'est jamais appliqué
     recalculer_scenarios(jeu)
     act = Actualisation.objects.create(
         jeu=jeu, realisee_par=auteur, fichier_etablissements=f_etab.nom_fichier, fichier_enseignants=f_ens.nom_fichier,

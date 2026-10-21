@@ -9,12 +9,14 @@
  *
  *   C_T   = Σ_s min(B_T,s ; X_T,s)               couvrable par redéploiement
  *   R_T   = Σ_s max(0 ; B_T,s − X_T,s)           besoin restant
- *   REC_T = Σ_s R_T,s + ⌈τ* × E_T,s ÷ 100⌉       recrutement à prévoir
+ *   REC_T = Σ_s R_T,s + attrition(E_T,s)        recrutement à prévoir ; l'attrition est celle des hypothèses de
+ *                                               planification, arrondie à l'entier le plus proche comme le serveur
  *   aléa  = (B_T + X_T) ÷ Σ K                    part de la dotation mal répartie
  */
 
 import type { SchoolDiagnostic } from '../../contrat'
-import type { AgregatSousSysteme, EngineSettings, SyntheseTerritoriale } from '../../contrat'
+import type { AgregatSousSysteme, SyntheseTerritoriale } from '../../contrat'
+import { departsAttrition, type EffectifEcole, type HypotheseAttrition } from './attrition'
 import { round4 } from './nombres'
 
 /**
@@ -23,11 +25,11 @@ import { round4 } from './nombres'
  */
 export function syntheseTerritoriale(
   diagnostics: SchoolDiagnostic[],
-  settings: EngineSettings,
+  attrition: HypotheseAttrition,
   effectifs?: Map<string, number>,
 ): SyntheseTerritoriale {
   const groupes = new Map<AgregatSousSysteme['sousSysteme'], AgregatSousSysteme>()
-  const tau = Math.max(0, settings.recrutement.tauxAttritionHorsRetraite)
+  const ecolesDuGroupe = new Map<AgregatSousSysteme['sousSysteme'], EffectifEcole[]>()
 
   for (const d of diagnostics) {
     const cle = d.school.sousSysteme ?? 'non_renseigne'
@@ -49,12 +51,16 @@ export function syntheseTerritoriale(
     g.effectif += E
     g.sommeCibles += d.calcul.cible
     groupes.set(cle, g)
+    const ecoles = ecolesDuGroupe.get(cle) ?? []
+    ecoles.push({ region: d.school.region, sousSysteme: d.school.sousSysteme ?? null, effectif: E })
+    ecolesDuGroupe.set(cle, ecoles)
   }
 
   const parSousSysteme = [...groupes.values()].map(g => {
     const couvrable = Math.min(g.besoin, g.excedent)
     const restant = Math.max(0, g.besoin - g.excedent)
-    return { ...g, couvrable, restant, recrutementAPrevoir: restant + Math.ceil((tau * g.effectif) / 100) }
+    const departs = departsAttrition(attrition, ecolesDuGroupe.get(g.sousSysteme) ?? [], g.effectif)
+    return { ...g, couvrable, restant, recrutementAPrevoir: restant + departs }
   })
   parSousSysteme.sort((a, b) => a.sousSysteme.localeCompare(b.sousSysteme))
 

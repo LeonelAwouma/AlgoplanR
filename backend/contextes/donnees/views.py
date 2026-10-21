@@ -77,12 +77,29 @@ def jeux(request):
     ide, idn = d.get("fichier_etablissements"), d.get("fichier_enseignants")
     if not ide or not idn:
         raise RefusMetier("Fichiers manquants", ["fichier_etablissements et fichier_enseignants sont requis"])
-    jeu = services.creer_jeu(d.get("nom", ""), ide, idn, compte=request.user)
+    # Fichier des faits du Prince (facultatif) : vérifié avant la création, appliqué avant le premier calcul.
+    f_prince, lignes_prince = None, []
+    if d.get("fichier_prince"):
+        from contextes.prince.services import code_requis_ok
+        if not code_requis_ok(request):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Code d'accès Effet de Prince manquant ou invalide")
+        f_prince, lignes_prince = services.preparer_fichier_prince(request.user, d["fichier_prince"])
+    jeu = services.creer_jeu(d.get("nom", ""), ide, idn, compte=request.user, fichier_prince=f_prince,
+                             annee_scolaire=d.get("annee_scolaire"))
+    bilan_prince = None
+    if f_prince is not None:
+        from contextes.audit.services import decision
+        from contextes.prince.services import importer as importer_faits_prince
+        bilan_prince = importer_faits_prince(jeu, lignes_prince)
+        decision(jeu, "fait_prince", "import", f"Import de faits du Prince ({f_prince.nom_fichier})", request=request,
+                 declencheur="Import de faits du Prince", objet=("fait_prince", "import"), apres=bilan_prince)
     from contextes.simulation.services import creer_scenarios_base
     creer_scenarios_base(jeu)
     _journal_creation(request, jeu, "Import des fichiers de la région" if request.user.est_delegue
                       else "Import de la base nationale")
-    return Response({**services.resume_jeu(jeu), "qualite": jeu.rapport_qualite.contenu}, status=201)
+    return Response({**services.resume_jeu(jeu), "qualite": jeu.rapport_qualite.contenu,
+                     **({"prince": bilan_prince} if bilan_prince is not None else {})}, status=201)
 
 
 @extend_schema(request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT,
@@ -91,7 +108,8 @@ def jeux(request):
 def jeu_demonstration(request):
     d = request.data if isinstance(request.data, dict) else {}
     jeu = services.creer_demonstration(d.get("nom", ""), int(d.get("graine", 2026)), int(d.get("nb_ecoles", 60)),
-                                       int(d.get("nb_enseignants", 420)), compte=request.user)
+                                       int(d.get("nb_enseignants", 420)), compte=request.user,
+                                       annee_scolaire=d.get("annee_scolaire"))
     from contextes.simulation.services import creer_scenarios_base
     creer_scenarios_base(jeu)
     _journal_creation(request, jeu, "Ouverture du jeu de démonstration")
@@ -193,6 +211,9 @@ def enseignant_detail(request, jeu, matricule):
     elig = diagnostiquer_eligibilite(e, prep.ecoles_par_id, prep.cfg, ids_vivier)
     if matricule in prep.exclus:
         elig = {"eligible": False, "code": "EXCLU", "raison": prep.exclus[matricule]}
+    elif prep.application is not None and matricule in prep.application.deplaces:
+        elig = {"eligible": False, "code": "FAIT_PRINCE",
+                "raison": "Déplacé par un fait du Prince : exclu de la mobilité ordinaire"}
     rang = next((i + 1 for i, x in enumerate(prep.vivier) if x.matricule == matricule), None)
     return Response({"enseignant": e.vers_dict(), "bareme": detail_bareme(e, prep.cfg), "eligibilite": elig,
                      "rang_dans_vivier": rang, "taille_vivier": len(prep.vivier)})
@@ -233,7 +254,8 @@ def validation(request, jeu):
     if request.method == "GET":
         return Response(services.validation(j))
     d = request.data if isinstance(request.data, dict) else {}
-    return Response(services.valider(j, request=request, auteur=auteur_de(request, d.get("auteur"))))
+    return Response(services.valider(j, request=request, auteur=auteur_de(request, d.get("auteur")),
+                                     reserve=d.get("reserve")))
 
 
 @extend_schema(methods=["GET"], responses=OpenApiTypes.OBJECT, summary="Actualisations du jeu, la plus récente d'abord")

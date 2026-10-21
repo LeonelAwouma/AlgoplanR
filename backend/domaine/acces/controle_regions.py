@@ -39,6 +39,19 @@ def anomalies_region(lignes: Sequence[Dict[str, Any]], numeros: Optional[Sequenc
     return anomalies
 
 
+def contient_autres_regions(lignes: Sequence[Dict[str, Any]], colonne: str, region_autorisee: str) -> bool:
+    """Vrai si au moins une ligne porte une région reconnue autre que `region_autorisee` : fichier multi-régions.
+
+    Une région vide ou illisible ne suffit pas : elle reste une anomalie d'un fichier régional.
+    """
+    autorisee = region_canonique(region_autorisee)
+    for ligne in lignes:
+        reconnue = region_canonique(texte(ligne.get(colonne)))
+        if reconnue is not None and reconnue != autorisee:
+            return True
+    return False
+
+
 def motifs_lisibles(anomalies: Sequence[dict], limite: int = 20) -> List[str]:
     """Motifs à afficher : « Ligne 14 : région « Littoral » différente de Centre »…, les premiers seulement."""
     sortie = []

@@ -90,9 +90,10 @@ export function HypothesesAttrition({ jeu, attrition, onChange }: ProprietesHypo
           </select>
         </div>
         <div className="field">
-          <label htmlFor="hy-arrondi">Arrondi appliqué au niveau</label>
+          <label htmlFor="hy-arrondi">Niveau d’arrondi — non appliqué</label>
           <select
             id="hy-arrondi"
+            disabled
             value={attrition.niveauArrondi}
             onChange={ev => onChange({ ...attrition, niveauArrondi: ev.target.value as NiveauTerritorial })}
           >
@@ -142,8 +143,10 @@ export function HypothesesAttrition({ jeu, attrition, onChange }: ProprietesHypo
       )}
 
       <p className="hint">
-        Arrondie territoire par territoire, l’attrition des régions peut dépasser le total national de quelques unités :
-        le niveau d’arrondi fixe où l’arrondi s’applique.
+        L’attrition est arrondie à l’entier le plus proche sur le territoire affiché : la somme des régions peut donc
+        différer du total national de quelques unités. Le niveau d’arrondi n’est pas appliqué par le calcul : le
+        modifier ne change aucun résultat. Le taux unique reste, quelle que soit la méthode, le taux de repli (région ou
+        sous-système non renseigné).
       </p>
 
       <div className="topbar-actions">

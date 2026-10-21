@@ -9,7 +9,8 @@ import { useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
 
 import type { PoolTeacher } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { DetailBareme } from '@components/donnees'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { correspondRecherche } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { DataTable, Panel, Pill, SearchField, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
@@ -19,8 +20,8 @@ import { useVivierScenario } from '../../application/hooks'
 import { useScenarioAffiche } from '../../application/scenarioAffiche'
 import { SansScenario } from '../composants/SansScenario'
 
-/** Colonnes de la liste du vivier. */
-const COLONNES: Colonne<PoolTeacher>[] = [
+/** Colonnes de la liste du vivier ; `ouvrirBareme` ouvre le détail du calcul du barème. */
+const colonnes = (ouvrirBareme: (matricule: string) => void): Colonne<PoolTeacher>[] => [
   { cle: 'id', entete: 'Matricule', rendu: p => <span className="mono">{p.teacher.id}</span>, tri: p => p.teacher.id },
   { cle: 'nom', entete: 'Enseignant', rendu: p => `${p.teacher.nom} ${p.teacher.prenom}`, tri: p => p.teacher.nom },
   {
@@ -48,7 +49,23 @@ const COLONNES: Colonne<PoolTeacher>[] = [
     rendu: p => fmt(p.rangDansEcole),
     tri: p => p.rangDansEcole,
   },
-  { cle: 'bareme', entete: 'Barème', numerique: true, rendu: p => fmtDec(p.bareme, 2), tri: p => p.bareme },
+  {
+    cle: 'bareme',
+    entete: 'Barème',
+    numerique: true,
+    rendu: p => (
+      <button
+        type="button"
+        className="btn-link"
+        title="Voir le calcul du barème"
+        aria-label={`Voir le calcul du barème de ${p.teacher.nom} ${p.teacher.prenom}`}
+        onClick={() => ouvrirBareme(p.teacher.id)}
+      >
+        {fmtDec(p.bareme, 2)}
+      </button>
+    ),
+    tri: p => p.bareme,
+  },
   {
     cle: 'affecte',
     entete: 'Affecté',
@@ -57,10 +74,10 @@ const COLONNES: Colonne<PoolTeacher>[] = [
   },
 ]
 
-/** Exporte le vivier affiché en CSV. */
+/** Exporte le vivier affiché en Excel. */
 function exporterVivier(lignes: PoolTeacher[]) {
-  exporterCSV(
-    'vivier.csv',
+  void exporterTableauXLSX(
+    'vivier.xlsx',
     ['Matricule', 'Nom', 'Prénom', 'École origine', 'Commune', 'Excédent école', 'Rang', 'Barème', 'Affecté'],
     lignes.map(p => [
       p.teacher.id,
@@ -82,6 +99,8 @@ export function VivierScenarioPage() {
   const { scenario } = useScenarioAffiche()
   const vivier = useVivierScenario(jeu, scenario)
   const [recherche, setRecherche] = useState('')
+  const [matriculeDetaille, setMatriculeDetaille] = useState<string | null>(null)
+  const colonnesVivier = useMemo(() => colonnes(setMatriculeDetaille), [])
 
   const lignes = useMemo(
     () =>
@@ -151,15 +170,19 @@ export function VivierScenarioPage() {
         />
         <div className="filter-bar-actions">
           <button type="button" className="btn btn-sm" onClick={() => exporterVivier(lignes)}>
-            <Download size={13} aria-hidden="true" /> Exporter (CSV)
+            <Download size={13} aria-hidden="true" /> Exporter (Excel)
           </button>
         </div>
       </div>
 
+      {matriculeDetaille && jeu && (
+        <DetailBareme jeu={jeu} matricule={matriculeDetaille} onFermer={() => setMatriculeDetaille(null)} />
+      )}
+
       <Panel kicker="Vivier" title={`${fmt(lignes.length)} enseignants mobilisables`} flush>
         <DataTable
           lignes={lignes}
-          colonnes={COLONNES}
+          colonnes={colonnesVivier}
           cle={p => p.teacher.id}
           legende="Vivier réellement redéployable"
         />

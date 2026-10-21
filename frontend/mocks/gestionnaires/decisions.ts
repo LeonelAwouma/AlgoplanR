@@ -25,7 +25,7 @@ import type {
 } from '../../components/shared/api'
 
 import { auditer, etat, maintenant, nouvelId } from '../etat'
-import { conflit, introuvable, ok, refus, sansContenu } from '../reponses'
+import { conflit, introuvable, nonSimule, ok, refus, sansContenu } from '../reponses'
 import { api, corps, jeuConnu, lireCatalogue, parametre } from './outils'
 
 const OBSERVATION_FACTICE =
@@ -46,6 +46,9 @@ function lieu(d: SchoolDiagnostic): LieuPrince {
 
 export const gestionnairesDecisions = [
   // --- Faits du Prince ---------------------------------------------------------------
+  // Appliquer les faits aux bases demande le serveur : les données factices ne recalculent ni les écoles ni le vivier.
+  http.get(api('jeux/:jeu/faits-prince/application/'), () => nonSimule('L’application des faits du Prince aux bases')),
+  http.get(api('jeux/:jeu/faits-prince/bases/:base/'), () => nonSimule('La consultation des bases après Prince')),
   http.get(api('jeux/:jeu/faits-prince/'), ({ params }) =>
     jeuConnu(params.jeu) ? ok(etat().faitsPrince) : introuvable(),
   ),

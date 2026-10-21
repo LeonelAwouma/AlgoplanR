@@ -6,7 +6,7 @@
  * que l'interface montre à l'utilisateur.
  */
 
-import type { ColumnMappingReport, ColumnMatch, TypeFichier } from '../../shared/api'
+import type { ColumnMappingReport, ColumnMatch, TypeFichier, TypeFichierEnvoi } from '../../shared/api'
 
 /** En dessous de cette confiance, un rapprochement est présenté comme « à confirmer ». */
 export const SEUIL_CONFIRMATION = 0.85
@@ -27,7 +27,7 @@ export function nombreDeColonnesReconnues(correspondances: ColumnMappingReport):
 }
 
 /** Présentation des deux classeurs attendus. */
-export const DESCRIPTION_FICHIER: Record<TypeFichier, { titre: string; texte: string }> = {
+export const DESCRIPTION_FICHIER: Record<TypeFichierEnvoi, { titre: string; texte: string }> = {
   etablissements: {
     titre: 'Établissements',
     texte:
@@ -37,6 +37,11 @@ export const DESCRIPTION_FICHIER: Record<TypeFichier, { titre: string; texte: st
     titre: 'Enseignants',
     texte:
       'La liste du personnel, avec son école de rattachement et les éléments du barème (ancienneté, situation familiale, formation continue).',
+  },
+  prince: {
+    titre: 'Faits du prince',
+    texte:
+      'Les décisions d’affectation de l’autorité : un enseignant du vivier et l’école où il est imposé. Elles passent avant l’algorithme, qui calcule ensuite normalement le reste.',
   },
 }
 

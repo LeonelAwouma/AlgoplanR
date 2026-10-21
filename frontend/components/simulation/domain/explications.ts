@@ -9,7 +9,6 @@ import type { GeographicScope, NatureMouvement, ProximityLevel } from '../../sha
 /** Niveaux de proximité, du plus proche au plus lointain. */
 export const NIVEAUX_PROXIMITE: readonly ProximityLevel[] = [
   'meme_commune',
-  'meme_iaeb',
   'meme_departement',
   'meme_region',
   'hors_region',
@@ -35,9 +34,12 @@ export const EXPLICATION_NATURE: Record<NatureMouvement, string> = {
   arbitrage: 'Affectation décidée par une commission d’arbitrage, consignée avec son motif et son instance.',
 }
 
-/** Libellé du total du score, selon la nature de la proposition. */
+/**
+ * Libellé du total du tableau de calcul. Le total est toujours le score d'appariement
+ * (Z1 + Z2 + Z3 + Z4), quelle que soit la nature du mouvement ; une décision de commission
+ * ou du prince n'est pas déterminée par ce score, qui reste indicatif.
+ */
 export function libelleTotalScore(nature: NatureMouvement): string {
-  if (nature === 'obligatoire') return 'Barème individuel'
-  if (nature === 'arbitrage') return 'Décision'
-  return 'Score de priorité S'
+  const total = "Score d'appariement (Z1 + Z2 + Z3 + Z4)"
+  return nature === 'arbitrage' ? `${total}, indicatif` : total
 }

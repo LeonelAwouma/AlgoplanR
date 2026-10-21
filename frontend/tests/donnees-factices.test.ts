@@ -90,8 +90,16 @@ describe(
         actualisation: 'aucune',
         identifiant: 'drh',
       }
-      // Aucune actualisation dans le jeu de démonstration : ses écarts n'existent pas.
-      const sansDonnees = new Set(['jeux/{jeu}/actualisations/{actualisation}/ecarts/'])
+      // Aucune actualisation dans le jeu de démonstration : ses écarts n'existent pas. L'encadrement, le
+      // turnover après l'algorithme et le degré d'aléa demandent le moteur : les données factices le disent au
+      // lieu de l'inventer.
+      const sansDonnees = new Set([
+        'jeux/{jeu}/planification/alea/',
+        'jeux/{jeu}/faits-prince/application/',
+        'jeux/{jeu}/faits-prince/bases/{base}/',
+        'jeux/{jeu}/actualisations/{actualisation}/ecarts/',
+        'jeux/{jeu}/scenarios/{scenario}/encadrement/',
+      ])
       const manquantes: string[] = []
       for (const route of routesDuManifeste()) {
         const [methode, gabarit] = route.split(' ')

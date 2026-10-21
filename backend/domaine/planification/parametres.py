@@ -1,9 +1,12 @@
 """Hypothèses de la planification : valeurs par défaut, normalisation et contrôle.
 
-Les 13 arbitrages du rapport DRH d'octobre 2026 (codeSource, `DEFAULT_PLANNING_PARAMS` et
+Les arbitrages du rapport DRH d'octobre 2026 (codeSource, `DEFAULT_PLANNING_PARAMS` et
 `Planification5YearsService.normaliser_parametres`) sont conservés dans le bloc `drh` des hypothèses, à côté des
 hypothèses documentées du contrat (retraite, attrition, quotas, vivier). Seuls les paramètres du primaire servent :
-les jeux importés ne distinguent pas la maternelle.
+les jeux importés ne distinguent pas la maternelle. Les anciens paramètres propres à la maternelle
+(REM_REF_MAT, G_MAT_PCT, A_AUT_MAT_PCT, DIR_H_MAT_PCT, PLAF_MAT) ne sont plus des réglages actifs : ils sont
+seulement ignorés s'ils apparaissent encore dans une configuration ou un jeu de hypothèses enregistré plus ancien
+(lecture tolérante, sans migration).
 """
 from __future__ import annotations
 
@@ -26,26 +29,40 @@ STOCK_NATIONAL_PRIMAIRE = 44232
 #: Part du primaire dans les prises de fonction de directeurs (codeSource, tableau 6 : 12 704 / 16 475).
 PART_DIRECTEURS_PRIMAIRE = 12704 / 16475
 
-# Paramètres par défaut du rapport officiel DRH (codeSource, DEFAULT_PLANNING_PARAMS).
+# Paramètres par défaut du rapport officiel DRH (codeSource, DEFAULT_PLANNING_PARAMS). Primaire uniquement : les
+# anciens paramètres de maternelle (REM_REF_MAT, G_MAT_PCT, A_AUT_MAT_PCT, DIR_H_MAT_PCT, PLAF_MAT) ne sont plus
+# des réglages actifs (voir module docstring).
 DRH_DEFAUT: Dict[str, Any] = {
     "REM_REF_PRI": 74.4,
-    "REM_REF_MAT": 25.0,
     "G_PRI_PCT": 2.70,
-    "G_MAT_PCT": 1.27,
     "AGE_RETRAITE": 60,
     "CORR_60": True,
     "A_TOT_PRI_PCT": 3.33,
     "R_PRI_PCT": 1.08,
     "A_AUT_PRI_PCT": 2.25,
-    "A_AUT_MAT_PCT": 1.70,
     "ATTR_REG": False,
     "DIR_NOM_AN": 856,
     "DIR_H_PRI_PCT": 15.4,
-    "DIR_H_MAT_PCT": 17.7,
     "ETAL_N": 5,
     "PLAF_PRI": 3000,
-    "PLAF_MAT": 0,
     "PLANCHER_RET": True,
+}
+
+#: Référentiel du modèle officiel M1 du SIGE (validation métier, lot 4) : constante en lecture seule, jamais
+#: versionnée ni modifiable via les hypothèses. Exposée en API sous la clé `reference_attrition`, séparément du
+#: bloc `attrition` (qui porte le taux réellement appliqué aux projections).
+REFERENTIEL_ATTRITION_M1: Dict[str, Any] = {
+    "modele": "M1",
+    "formule": "Effectif(t+1) − Recrues(t+1) = β × Effectif(t) ; attrition totale = 1 − β",
+    "perimetre": "primaire",
+    "attrition_totale_pct": 3.33,
+    "intervalle_confiance_points": 0.41,
+    "retraites_pct": 1.08,
+    "autres_departs_pct": 2.25,
+    "fenetre_donnees": "SIGE 2018-2019 à 2024-2025",
+    "nombre_regions": 10,
+    "nombre_transitions_annuelles": 6,
+    "source": "Rapport DRH d'octobre 2026, modèle officiel M1 du SIGE",
 }
 
 
@@ -60,25 +77,19 @@ def normaliser_drh(params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         p["A_AUT_PRI_PCT"] = max(0.0, min(100.0, float(p.pop("A_AUT_PRI_PCT_EXPLICIT"))))
     else:
         p["A_AUT_PRI_PCT"] = max(0.0, min(100.0, p["A_TOT_PRI_PCT"] - p["R_PRI_PCT"]))
-    ratio_attr = p["A_TOT_PRI_PCT"] / 3.33 if p["A_TOT_PRI_PCT"] >= 0 else 1.0
-    if "A_AUT_MAT_PCT_EXPLICIT" in p:
-        p["A_AUT_MAT_PCT"] = max(0.0, min(100.0, float(p.pop("A_AUT_MAT_PCT_EXPLICIT"))))
-    else:
-        p["A_AUT_MAT_PCT"] = max(0.0, min(100.0, round(1.70 * ratio_attr, 2)))
     p["REM_REF_PRI"] = max(5.0, float(p.get("REM_REF_PRI", 74.4)))
-    p["REM_REF_MAT"] = max(5.0, float(p.get("REM_REF_MAT", 25.0)))
     p["G_PRI_PCT"] = max(-50.0, min(100.0, float(p.get("G_PRI_PCT", 2.70))))
-    p["G_MAT_PCT"] = max(-50.0, min(100.0, float(p.get("G_MAT_PCT", 1.27))))
     p["AGE_RETRAITE"] = max(45, min(75, int(p.get("AGE_RETRAITE", 60))))
     p["CORR_60"] = bool(p.get("CORR_60", True))
     p["ATTR_REG"] = bool(p.get("ATTR_REG", False))
     p["DIR_NOM_AN"] = max(0, int(p.get("DIR_NOM_AN", 856)))
     p["DIR_H_PRI_PCT"] = max(0.0, min(100.0, float(p.get("DIR_H_PRI_PCT", 15.4))))
-    p["DIR_H_MAT_PCT"] = max(0.0, min(100.0, float(p.get("DIR_H_MAT_PCT", 17.7))))
     p["ETAL_N"] = max(1, min(15, int(p.get("ETAL_N", 5))))
     p["PLAF_PRI"] = max(0, int(p.get("PLAF_PRI", 3000)))
-    p["PLAF_MAT"] = max(0, int(p.get("PLAF_MAT", 0)))
     p["PLANCHER_RET"] = bool(p.get("PLANCHER_RET", True))
+    # Les anciennes clés de maternelle (voir module docstring) ne sont plus normalisées : si elles étaient
+    # présentes dans `params` (config ou hypothèses d'un jeu plus ancien), elles sont simplement ignorées ici,
+    # car `p` ne les reprend déjà plus de DRH_DEFAUT.
     return p
 
 
@@ -106,10 +117,16 @@ def hypotheses_par_defaut(cfg: Optional[dict] = None) -> Dict[str, Any]:
             "exceptions": [],
         },
         "attrition": {
-            "source": "Rapport DRH d'octobre 2026, modèle M1 (A_TOT_PRI_PCT, R_PRI_PCT)",
-            "justification": (f"Attrition totale de {drh['A_TOT_PRI_PCT']} % par an au primaire, dont "
-                              f"{drh['R_PRI_PCT']} % de retraites, comptées ici nominativement : reste "
-                              f"{drh['A_AUT_PRI_PCT']} % d'autres départs (mutations hors champ, abandons, décès)."),
+            "source": "Rapport DRH d'octobre 2026, modèle officiel M1 du SIGE (A_TOT_PRI_PCT, R_PRI_PCT)",
+            "justification": (
+                f"Modèle M1 du SIGE : attrition totale de {drh['A_TOT_PRI_PCT']} % par an au primaire "
+                f"(± {REFERENTIEL_ATTRITION_M1['intervalle_confiance_points']} point, {REFERENTIEL_ATTRITION_M1['fenetre_donnees']}, "
+                f"{REFERENTIEL_ATTRITION_M1['nombre_regions']} régions, {REFERENTIEL_ATTRITION_M1['nombre_transitions_annuelles']} "
+                f"transitions annuelles), dont {drh['R_PRI_PCT']} % de retraites — calculées nominativement par le "
+                f"backend d'après les dates de naissance, jamais par ce taux — soit {drh['A_AUT_PRI_PCT']} % "
+                "d'autres départs (mutations hors champ, abandons, décès) appliqués aux projections. Hypothèse "
+                "nationale, non un taux observé sur ce jeu ; voir `reference_attrition` pour les chiffres du "
+                "rapport DRH et l'estimation du taux observé via l'endpoint dédié."),
             "methode": "taux_unique",
             "taux_unique": drh["A_AUT_PRI_PCT"],
             "par_sous_systeme": {},

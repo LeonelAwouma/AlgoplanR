@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
 
 import { SANS_PAGINATION, type SchoolDiagnostic } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import {
   LIBELLE_SEVERITE,
   LIBELLE_ZONE,
@@ -20,17 +20,19 @@ import {
   triClasses,
 } from '@shared/kernel'
 import { useSession } from '@shared/session'
-import { DataTable, Panel, SearchField, ZoneSecuritePill, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
+import { BandeauPrince } from '@components/prince'
+import { useEffetsScenario, useScenarioAffiche } from '@components/simulation'
+import { DataTable, Notice, Panel, SearchField, ZoneSecuritePill, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
 import { EtatRequetes } from '@shared/ui/etats'
 import { SeveritePill } from '@shared/ui/pastilles'
 
 import { useEtablissements } from '../application/hooks'
 import { FicheEcole } from './FicheEcole'
 
-/** Exporte la liste affichée en CSV. */
+/** Exporte la liste affichée en Excel. */
 function exporterListe(lignes: SchoolDiagnostic[]) {
-  exporterCSV(
-    'etablissements.csv',
+  void exporterTableauXLSX(
+    'etablissements.xlsx',
     [
       'Code',
       'Établissement',
@@ -74,6 +76,8 @@ function exporterListe(lignes: SchoolDiagnostic[]) {
 export function EcolesPage() {
   const { jeu, filtres, ecoleSelectionnee, setEcoleSelectionnee, ouvrirEcole } = useSession()
   const etablissements = useEtablissements(jeu, filtres, SANS_PAGINATION)
+  const { scenario, detail } = useScenarioAffiche()
+  const { effetDe, erreur } = useEffetsScenario(jeu, scenario)
   const [recherche, setRecherche] = useState('')
 
   const lignes = useMemo(
@@ -169,10 +173,48 @@ export function EcolesPage() {
       tri: d => d.elevesParEnseignantEtat ?? -1,
     },
     { cle: 'situation', entete: 'Situation', rendu: d => <SeveritePill severite={d.severite} /> },
+    ...(scenario
+      ? ([
+          {
+            cle: 'sc-recus',
+            entete: 'Reçus (scénario)',
+            numerique: true,
+            rendu: d => fmt(effetDe(d.school.id).recus),
+            tri: d => effetDe(d.school.id).recus,
+          },
+          {
+            cle: 'sc-sortants',
+            entete: 'Sortants (scénario)',
+            numerique: true,
+            rendu: d => fmt(effetDe(d.school.id).sortants),
+            tri: d => effetDe(d.school.id).sortants,
+          },
+          {
+            cle: 'sc-restants',
+            entete: 'Reste à pourvoir',
+            numerique: true,
+            rendu: d => <strong>{fmt(effetDe(d.school.id).restants)}</strong>,
+            tri: d => effetDe(d.school.id).restants,
+          },
+        ] satisfies Colonne<SchoolDiagnostic>[])
+      : []),
   ]
 
   return (
     <div className="stack">
+      <BandeauPrince />
+      {scenario && detail ? (
+        <Notice tone="info" title={`Scénario affiché : ${detail.scenario.nom}.`}>
+          {erreur
+            ? 'Les effets du scénario n’ont pas pu être chargés ; seul le besoin de départ est affiché.'
+            : 'Le besoin de départ ne change pas : les colonnes « scénario » indiquent, école par école, les enseignants que le scénario y envoie, en retire, et les postes qui restent à pourvoir.'}
+        </Notice>
+      ) : (
+        <Notice tone="neutral" title="Situation actuelle.">
+          Aucun scénario n’est affiché : choisissez-en un dans « Scénario affiché » pour voir ses effets école par
+          école.
+        </Notice>
+      )}
       <div className="filter-bar">
         <SearchField
           value={recherche}
@@ -182,7 +224,7 @@ export function EcolesPage() {
         />
         <div className="filter-bar-actions">
           <button type="button" className="btn btn-sm" onClick={() => exporterListe(lignes)}>
-            <Download size={13} aria-hidden="true" /> Exporter la liste (CSV)
+            <Download size={13} aria-hidden="true" /> Exporter la liste (Excel)
           </button>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Exports du rapport : impression, liste des écoles en CSV, rapport Word et
+ * Exports du rapport : impression, liste des écoles en Excel, rapport Word et
  * classeur Excel complet. Les fichiers sont produits dans le navigateur à
  * partir des données lues sur le serveur.
  */
@@ -18,11 +18,13 @@ import {
   type SimulationResult,
   type TerritorialSummary,
 } from '@shared/api'
-import { exporterCSV, telechargerFichier } from '@shared/exports/export-csv'
+import { telechargerFichier } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { classesDe } from '@shared/kernel'
 import { Notice, Panel } from '@shared/ui/commun'
 
 import { construireRapportDocx } from '../../application/exports/export-docx'
+import { ENTETES_AFFECTATIONS, lignesAffectations } from '../../domain/affectations'
 import { exporterClasseurComplet } from '../../application/exports/export-excel'
 
 /** Types MIME des fichiers produits. */
@@ -43,10 +45,10 @@ export interface ProprietesExportsRapport {
   comparaison: SimulationResult[]
 }
 
-/** Exporte la liste des écoles du périmètre en CSV. */
+/** Exporte la liste des écoles du périmètre en Excel. */
 function exporterEcoles(ecoles: SchoolDiagnostic[], annee: string) {
-  exporterCSV(
-    `diagnostic-ecoles-${annee}.csv`,
+  void exporterTableauXLSX(
+    `diagnostic-ecoles-${annee}.xlsx`,
     [
       'Code',
       'Établissement',
@@ -102,7 +104,16 @@ export function ExportsRapport(props: ProprietesExportsRapport) {
 
   const exporterWord = () =>
     exporter('word', async () => {
-      const blob = await construireRapportDocx({ rapport, scenarioNom, donneesDemonstration: demonstration })
+      // Toutes les propositions du périmètre du rapport : l'annexe ne dépend pas de la page consultée à l'écran.
+      const annexeAffectations = resultat
+        ? { entetes: ENTETES_AFFECTATIONS, lignes: lignesAffectations(resultat.assignments) }
+        : undefined
+      const blob = await construireRapportDocx({
+        rapport,
+        scenarioNom,
+        donneesDemonstration: demonstration,
+        annexeAffectations,
+      })
       telechargerFichier(blob, `rapport-affectation-${annee}.docx`, MIME_DOCX)
     })
 
@@ -132,7 +143,7 @@ export function ExportsRapport(props: ProprietesExportsRapport) {
             <Printer size={14} aria-hidden="true" /> Imprimer / PDF
           </button>
           <button type="button" className="btn" onClick={() => exporterEcoles(ecoles, annee)}>
-            <Table size={14} aria-hidden="true" /> Écoles (CSV)
+            <Table size={14} aria-hidden="true" /> Écoles (Excel)
           </button>
           <button
             type="button"

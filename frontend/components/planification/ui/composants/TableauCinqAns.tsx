@@ -9,7 +9,7 @@
 import { Download } from 'lucide-react'
 
 import type { IndicateursAnnee, TableauPlanification } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { Panel, Pill, fmt, type Tone } from '@shared/ui/commun'
 
 import { LIBELLE_FIABILITE, LIGNES_INDICATEURS, valeurAbsente, type CleIndicateur } from '../../domain/indicateurs'
@@ -23,10 +23,10 @@ function valeur(annee: IndicateursAnnee, cle: CleIndicateur): string {
   return v == null ? valeurAbsente(cle) : fmt(v)
 }
 
-/** Exporte le tableau affiché en CSV. */
+/** Exporte le tableau affiché en Excel. */
 function exporterTableau(tableau: TableauPlanification) {
-  exporterCSV(
-    `planification-5-ans-${tableau.perimetre}.csv`,
+  void exporterTableauXLSX(
+    `planification-5-ans-${tableau.perimetre}.xlsx`,
     ['Indicateur', ...tableau.annees.map(a => a.annee)],
     LIGNES_INDICATEURS.map(l => [l.libelle, ...tableau.annees.map(a => a[l.cle])]),
   )
@@ -43,7 +43,7 @@ export function TableauCinqAns({ tableau }: { tableau: TableauPlanification }) {
       hint={`Version ${tableau.version}, calculée le ${new Date(tableau.calculeLe).toLocaleString('fr-FR')}. Une projection n’est pas un engagement : elle dépend des hypothèses de calcul.`}
       actions={
         <button type="button" className="btn btn-sm" onClick={() => exporterTableau(tableau)}>
-          <Download size={13} aria-hidden="true" /> Exporter (CSV)
+          <Download size={13} aria-hidden="true" /> Exporter (Excel)
         </button>
       }
       flush

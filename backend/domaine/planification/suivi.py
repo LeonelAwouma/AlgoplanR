@@ -14,7 +14,10 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from ..commun.encadrement import taux_encadrement
 from ..commun.texte import norm
+from .projection import arrondi
+from .rapport import stock_fin
 
 
 def dans(lieu: Optional[Dict[str, str]], p: Dict[str, Optional[str]]) -> bool:
@@ -32,7 +35,7 @@ def dans(lieu: Optional[Dict[str, str]], p: Dict[str, Optional[str]]) -> bool:
 
 
 def quota_retenu(annee: str, p: Dict[str, Optional[str]], quotas: List[dict]) -> Optional[int]:
-    if p.get("departement") or p.get("commune") or p.get("iaeb"):
+    if p.get("departement") or p.get("commune") or p.get("iaeb") or p.get("ecole"):
         return None
     retenus = [q for q in quotas if q["annee"] == annee
                and (not p.get("region") or norm(q["territoire"]) == norm(p["region"]))
@@ -44,22 +47,50 @@ def quota_retenu(annee: str, p: Dict[str, Optional[str]], quotas: List[dict]) ->
 
 def appliquer_suivi(annees: List[dict], p: Dict[str, Optional[str]], *, quotas: List[dict],
                     nominations: List[dict], mouvements: List[dict], recrutements_supposes: bool) -> List[dict]:
-    """`nominations` : {annee, statut, lieu} ; `mouvements` : {type, annee, statut, lieu} (lieu de destination)."""
+    """`nominations` : {annee, statut, lieu} ; `mouvements` : {type, annee, statut, lieu} (lieu de destination).
+
+    Quand un quota retenu s'écarte du quota calculé, le modèle M1 (attrition appliquée à Effectif(t)) impose de
+    recalculer l'attrition de l'année sur l'effectif de début réellement ajusté, et non sur l'effectif de la
+    trajectoire théorique d'origine (lot 4, E3). La variation d'attrition qui en résulte est répercutée sur le
+    besoin de l'année (même convention additive que `calculer_annees`, où l'attrition cumulée entre dans le
+    besoin cumulé), puis l'écart se propage à l'année suivante via l'effectif de fin d'année, qu'il vienne d'une
+    recrue différente du quota calculé ou d'une attrition elle-même modifiée par l'ajustement précédent.
+    """
     ecart = 0
     sortie = []
-    for a in annees:
+    for k, a in enumerate(annees):
         retenu = quota_retenu(a["annee"], p, quotas)
         compte_n = lambda statut: sum(1 for n in nominations  # noqa: E731
                                       if n["annee"] == a["annee"] and n["statut"] == statut and dans(n["lieu"], p))
         compte_m = lambda statut: sum(1 for m in mouvements  # noqa: E731
                                       if m["type"] != "nomination" and m["annee"] == a["annee"]
                                       and m["statut"] == statut and dans(m["lieu"], p))
-        ligne = {**a, "effectif_debut": max(0, a["effectif_debut"] + ecart), "quota_retenu": retenu,
+        debut = max(0, a["effectif_debut"] + ecart)
+        # Attrition M1 recalculée sur l'effectif de début réellement ajusté (E3) ; inchangée si aucun écart ne
+        # s'est encore propagé (debut == a["effectif_debut"]).
+        attrition_ajustee = arrondi(a.get("taux_attrition", 0) * debut / 100.0)
+        delta_attrition = attrition_ajustee - a["departs_attrition"]
+        besoin_ajuste = max(0, a["besoin"] + delta_attrition)
+        # Recrues de l'année : celles du scénario de calcul, ou le quota retenu quand l'administration l'a fixé.
+        recrutement = a.get("recrutement", 0)
+        if recrutements_supposes and retenu is not None:
+            recrutement = retenu
+        ligne = {**a, "effectif_debut": debut, "departs_attrition": attrition_ajustee, "besoin": besoin_ajuste,
+                 "quota_retenu": retenu, "recrutement": recrutement,
                  "nominations_prevues": compte_n("validee"), "nominations_realisees": compte_n("mise_en_oeuvre"),
                  "deploiements_prevus": compte_m("prevu"), "deploiements_realises": compte_m("realise"),
-                 "besoin_restant": max(0, a["besoin"] - a["ressources_vivier"] - (retenu or 0))}
-        if recrutements_supposes and retenu is not None:
-            ecart += retenu - a["quota_calcule"]
+                 "besoin_restant": max(0, besoin_ajuste - a["ressources_vivier"] - (retenu or 0))}
+        ligne["effectif_fin"] = stock_fin(ligne)
+        if a.get("eleves"):                   # REM projeté : élèves de l'année ÷ effectif au début de l'année (ajusté)
+            ligne["rem"] = taux_encadrement(a["eleves"], debut, 1)
+        if recrutements_supposes and k + 1 < len(annees):
+            # Écart réellement transmis à l'année suivante : fin d'année ajustée moins le début théorique (non
+            # ajusté) de l'année suivante, tel que produit par `calculer_annees`. Capture à la fois l'écart de
+            # recrutement (retenu vs quota calculé, quand une décision existe pour cette année) et celui,
+            # désormais possible même sans nouvelle décision cette année-là, de l'attrition recalculée (E3) :
+            # un écart hérité d'une année précédente continue de déplacer l'attrition des années suivantes même
+            # quand aucun quota n'est retenu pour elles.
+            ecart = ligne["effectif_fin"] - annees[k + 1]["effectif_debut"]
         sortie.append(ligne)
     return sortie
 

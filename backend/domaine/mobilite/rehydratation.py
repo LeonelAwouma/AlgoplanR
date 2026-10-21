@@ -15,7 +15,7 @@ def enseignant_depuis_dict(d: Dict[str, Any]) -> Enseignant:
         annees_zone_2=d.get(C.COL_ENS_N2, 0) or 0, situation=d.get(C.COL_ENS_SITU, "") or "",
         enfants=d.get(C.COL_ENS_ENFANTS, 0) or 0, formations=d.get(C.COL_ENS_FORM, 0) or 0,
         voeux=(d.get(C.COL_ENS_V1, ""), d.get(C.COL_ENS_V2, ""), d.get(C.COL_ENS_V3, "")),
-        motif_bonification=d.get(C.COL_ENS_MOTIF, "") or "", nom=d.get("nom", ""), prenom=d.get("prenom", ""),
+        motif_bonification=d.get(C.COL_ENS_MOTIF, "") or "", age_connu=bool(d.get("age_connu", True)), nom=d.get("nom", ""), prenom=d.get("prenom", ""),
         commune_attache=d.get("commune_attache", ""), departement_attache=d.get("departement_attache", ""),
         region_attache=d.get("region_attache", ""), iaeb_attache=d.get("iaeb_attache", ""),
         zone_attache=d.get("zone_attache", ""), etab_attache_excedentaire=bool(d.get("etab_attache_excedentaire")),

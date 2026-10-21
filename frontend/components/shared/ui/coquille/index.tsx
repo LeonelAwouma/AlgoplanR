@@ -9,6 +9,7 @@ import Image from 'next/image'
 import { motion } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 import {
+  ArrowRight,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -37,9 +38,10 @@ import {
 import type { Theme } from '@shared/session/theme'
 import { Pill } from '@shared/ui/commun'
 import {
-  PAGE_ACCES,
   etapeAccessible,
+  etapeSuivante,
   etapesVisibles,
+  parcoursVisible,
   premiereEtapeAccessible,
   rubriqueDePage,
   rubriquesVisibles,
@@ -65,9 +67,9 @@ const INDISPONIBLE = 'Disponible une fois les données importées et analysées'
 const SANS_RESTAURATION_FIREFOX = { autoComplete: 'off' } as Record<string, string>
 
 /**
- * Barre latérale : une entrée par variable (rubrique). Elle ouvre le premier
- * écran disponible de la rubrique ; les autres se parcourent par les étapes
- * affichées en tête de page. Sur écran large, elle peut être réduite à ses icônes.
+ * Barre latérale : une entrée par menu, puis « Paramètres avancés » à part. Elle
+ * ouvre la première étape disponible du menu ; les autres se parcourent par les
+ * étapes affichées en tête de page. Sur écran large, elle peut être réduite à ses icônes.
  */
 export function Sidebar({
   page,
@@ -114,76 +116,54 @@ export function Sidebar({
         {reduite ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
       </button>
       <nav>
-        <ul className="nav-list">
-          {rubriquesVisibles(mode, role).map(rubrique => {
-            const cible = premiereEtapeAccessible(rubrique, mode, role, etat)
-            const Icone = rubrique.icon
-            const aide = cible ? rubrique.sousTitre : INDISPONIBLE
-            return (
-              <li key={rubrique.id}>
-                <button
-                  type="button"
-                  className="nav-item"
-                  aria-current={rubrique === rubriqueCourante ? 'page' : undefined}
-                  disabled={!cible}
-                  {...SANS_RESTAURATION_FIREFOX}
-                  // Réduite, la barre n'affiche plus que l'icône : le libellé passe dans l'infobulle.
-                  title={reduite ? `${rubrique.label} — ${aide}` : aide}
-                  aria-label={reduite ? rubrique.label : undefined}
-                  onClick={() => {
-                    if (!cible) return
-                    onNavigate(cible.id)
-                    onFermer()
-                  }}
-                >
-                  {/* Surbrillance de l'entrée active : elle glisse d'une entrée à l'autre. */}
-                  {rubrique === rubriqueCourante && (
-                    <motion.span
-                      className="nav-actif"
-                      layoutId="nav-actif"
-                      transition={{ type: 'spring', stiffness: 520, damping: 40 }}
-                      aria-hidden="true"
-                    />
-                  )}
-                  <Icone size={17} aria-hidden="true" />
-                  <span className="nav-item-texte">
-                    <span>{rubrique.label}</span>
-                    <small>{rubrique.sousTitre}</small>
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-          {role === 'drh' && (
-            <li>
-              <button
-                type="button"
-                className="nav-item"
-                aria-current={page === PAGE_ACCES.id ? 'page' : undefined}
-                title={reduite ? `${PAGE_ACCES.label} — ${PAGE_ACCES.sousTitre}` : PAGE_ACCES.sousTitre}
-                aria-label={reduite ? PAGE_ACCES.label : undefined}
-                onClick={() => {
-                  onNavigate(PAGE_ACCES.id)
-                  onFermer()
-                }}
-              >
-                {page === PAGE_ACCES.id && (
-                  <motion.span
-                    className="nav-actif"
-                    layoutId="nav-actif"
-                    transition={{ type: 'spring', stiffness: 520, damping: 40 }}
-                    aria-hidden="true"
-                  />
-                )}
-                <PAGE_ACCES.icon size={17} aria-hidden="true" />
-                <span className="nav-item-texte">
-                  <span>{PAGE_ACCES.label}</span>
-                  <small>{PAGE_ACCES.sousTitre}</small>
-                </span>
-              </button>
-            </li>
-          )}
-        </ul>
+        {[false, true].map(avance => {
+          const rubriques = rubriquesVisibles(mode, role).filter(r => !!r.avance === avance)
+          if (rubriques.length === 0) return null
+          return (
+            <ul className={avance ? 'nav-list nav-list-avancee' : 'nav-list'} key={avance ? 'avancee' : 'principale'}>
+              {rubriques.map(rubrique => {
+                const cible = premiereEtapeAccessible(rubrique, mode, role, etat)
+                const Icone = rubrique.icon
+                const aide = cible ? rubrique.sousTitre : INDISPONIBLE
+                return (
+                  <li key={rubrique.id}>
+                    <button
+                      type="button"
+                      className="nav-item"
+                      aria-current={rubrique === rubriqueCourante ? 'page' : undefined}
+                      disabled={!cible}
+                      {...SANS_RESTAURATION_FIREFOX}
+                      // Réduite, la barre n'affiche plus que l'icône : le libellé passe dans l'infobulle.
+                      title={reduite ? `${rubrique.label} — ${aide}` : aide}
+                      aria-label={reduite ? rubrique.label : undefined}
+                      onClick={() => {
+                        if (!cible) return
+                        onNavigate(cible.id)
+                        onFermer()
+                      }}
+                    >
+                      {/* Surbrillance de l'entrée active : elle glisse d'une entrée à l'autre. */}
+                      {rubrique === rubriqueCourante && (
+                        <motion.span
+                          className="nav-actif"
+                          layoutId="nav-actif"
+                          transition={{ type: 'spring', stiffness: 520, damping: 40 }}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <Icone size={17} aria-hidden="true" />
+                      <span className="nav-item-texte">
+                        <span>{rubrique.label}</span>
+                        {/* La vue Décideur reste sobre : le détail de chaque menu est dans l'infobulle. */}
+                        {mode === 'analyste' && <small>{rubrique.sousTitre}</small>}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )
+        })}
       </nav>
 
       <p className="privacy-note" title={reduite ? 'Traitement local' : undefined}>
@@ -205,6 +185,7 @@ export function Sidebar({
 export function Topbar({
   mode,
   onModeChange,
+  analysteDisponible = true,
   theme,
   onThemeChange,
   onOuvrirMenu,
@@ -220,6 +201,8 @@ export function Topbar({
 }: {
   mode: ViewMode
   onModeChange: (m: ViewMode) => void
+  /** La Vue analyste est réservée au DRH : le bouton n'est pas proposé aux délégués. */
+  analysteDisponible?: boolean
   theme: Theme
   onThemeChange: (t: Theme) => void
   onOuvrirMenu: () => void
@@ -289,11 +272,13 @@ export function Topbar({
         </button>
         <div className="mode-switch" role="group" aria-label="Mode d’affichage">
           <button type="button" aria-pressed={mode === 'simple'} onClick={() => onModeChange('simple')}>
-            Simplifiée
+            Décideur
           </button>
-          <button type="button" aria-pressed={mode === 'analyste'} onClick={() => onModeChange('analyste')}>
-            Analyste
-          </button>
+          {analysteDisponible && (
+            <button type="button" aria-pressed={mode === 'analyste'} onClick={() => onModeChange('analyste')}>
+              Analyste
+            </button>
+          )}
         </div>
         <button
           type="button"
@@ -355,8 +340,9 @@ export function PageHeader({ page, onAccueil }: { page: PageKey; onAccueil: () =
 }
 
 /**
- * Chaîne de la rubrique ouverte : les éléments qui composent la variable, dans
- * l'ordre du calcul, puis le choix final. Masquée quand la rubrique n'a qu'un écran.
+ * Parcours du menu ouvert : les étapes qui s'enchaînent, puis le choix final, et
+ * une barre d'onglets pour les écrans de détail. Rien n'est affiché quand le
+ * menu n'a qu'un écran.
  */
 export function EtapesRubrique({
   page,
@@ -375,12 +361,18 @@ export function EtapesRubrique({
 }) {
   const rubrique = rubriqueDePage(page)
   if (!rubrique) return null
-  const etapes = etapesVisibles(rubrique, mode, role)
-  if (etapes.length < 2) return null
+  const parcours = parcoursVisible(rubrique, mode, role)
+  const onglets = etapesVisibles(rubrique, mode, role).filter(e => e.onglet)
+  // Le menu qui n'a qu'une étape (le tableau de bord) la garde comme premier onglet, pour y revenir.
+  const detail = parcours.length === 1 ? [...parcours, ...onglets] : onglets
+  const avecParcours = parcours.length >= 2
+  // Un seul onglet de détail suffit quand le menu a un parcours : sinon « Qualité des données » serait inaccessible.
+  const avecDetail = onglets.length > 0 && (avecParcours || detail.length >= 2)
+  if (!avecParcours && !avecDetail) return null
 
   const etat: EtatJeu = { donneesChargees, simulationPrete }
-  const composantes = etapes.filter(e => !e.finale)
-  const finales = etapes.filter(e => e.finale)
+  const composantes = parcours.filter(e => !e.finale)
+  const finales = parcours.filter(e => e.finale)
 
   const bouton = (etape: NavItem, numero?: number) => {
     const accessible = etapeAccessible(etape, etat)
@@ -411,13 +403,84 @@ export function EtapesRubrique({
   }
 
   return (
-    <nav className="etapes no-print" aria-label={`Étapes : ${rubrique.label}`}>
-      <p className="etapes-titre">Éléments qui composent la variable, puis le choix final</p>
-      <ol>
-        {composantes.map((etape, i) => bouton(etape, i + 1))}
-        {finales.map(etape => bouton(etape))}
-      </ol>
-    </nav>
+    <>
+      {avecParcours && (
+        <nav className="etapes no-print" aria-label={`Étapes : ${rubrique.label}`}>
+          <p className="etapes-titre">Étapes à suivre, puis le choix final</p>
+          <ol>
+            {composantes.map((etape, i) => bouton(etape, i + 1))}
+            {finales.map(etape => bouton(etape))}
+          </ol>
+        </nav>
+      )}
+      {avecDetail && (
+        <nav className="onglets-detail no-print" aria-label={`Détails : ${rubrique.label}`}>
+          {avecParcours && <p className="etapes-titre">Détails</p>}
+          <ul>
+            {detail.map(etape => {
+              const accessible = etapeAccessible(etape, etat)
+              const Icone = etape.icon
+              return (
+                <li key={etape.id}>
+                  <button
+                    type="button"
+                    aria-current={etape.id === page ? 'page' : undefined}
+                    disabled={!accessible}
+                    {...SANS_RESTAURATION_FIREFOX}
+                    title={accessible ? etape.sousTitre : INDISPONIBLE}
+                    onClick={() => onNavigate(etape.id)}
+                  >
+                    <Icone size={14} aria-hidden="true" />
+                    {etape.label}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+      )}
+    </>
+  )
+}
+
+/**
+ * Bouton principal du parcours : mène à l'étape suivante sans chercher le bon
+ * menu. Absent sur un onglet de détail, sur les paramètres avancés et sur la
+ * dernière étape.
+ */
+export function BoutonContinuer({
+  page,
+  onNavigate,
+  mode,
+  role,
+  donneesChargees,
+  simulationPrete,
+  ignorer = [],
+}: {
+  page: PageKey
+  onNavigate: (page: PageKey) => void
+  mode: ViewMode
+  role: RoleAcces
+  donneesChargees: boolean
+  simulationPrete: boolean
+  /** Étapes facultatives sautées par le bouton, par exemple le Fait de Prince quand il n'y en a aucun. */
+  ignorer?: readonly PageKey[]
+}) {
+  const suivante = etapeSuivante(page, mode, role, { donneesChargees, simulationPrete }, ignorer)
+  if (!suivante) return null
+  return (
+    <div className="continuer no-print">
+      <button
+        type="button"
+        className="btn btn-primary"
+        disabled={!suivante.accessible}
+        {...SANS_RESTAURATION_FIREFOX}
+        title={suivante.accessible ? suivante.etape.sousTitre : INDISPONIBLE}
+        onClick={() => onNavigate(suivante.etape.id)}
+      >
+        Continuer : {suivante.etape.label} <ArrowRight size={15} aria-hidden="true" />
+      </button>
+    </div>
   )
 }
 

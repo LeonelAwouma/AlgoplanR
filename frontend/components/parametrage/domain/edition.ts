@@ -57,3 +57,27 @@ export function reequilibrerPoids<K extends string>(
   }
   return resultat
 }
+
+/**
+ * Déplace le poids de `cleB` en gardant constante la somme des poids de `cleA` et `cleB`.
+ *
+ * Sert à équilibrer le barème de l'enseignant (Z1) et le poids de l'école (Z2) : ce que l'un gagne, l'autre le
+ * perd, sans toucher aux autres poids du groupe (leur somme, donc celle du groupe, reste inchangée).
+ */
+export function reequilibrerPaire<K extends string>(
+  poids: Record<K, number>,
+  cleA: NoInfer<K>,
+  cleB: NoInfer<K>,
+  valeurB: number,
+): Record<K, number> {
+  const somme = centieme(poids[cleA] + poids[cleB])
+  const b = centieme(Math.min(somme, Math.max(0, valeurB)))
+  return { ...poids, [cleB]: b, [cleA]: centieme(somme - b) }
+}
+
+/** Valeurs par défaut de l'algorithme pour le poids de l'école (indice u) et le score d'appariement. */
+export const VALEURS_ALGORITHME = {
+  coefAccessibilite: 0.3,
+  coefSecurite: 0.7,
+  poidsScoreAppariement: { bareme: 0.25, poidsPoste: 0.25, proximite: 0.25, ajustements: 0.25 },
+} as const

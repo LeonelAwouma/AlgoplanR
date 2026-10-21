@@ -7,7 +7,9 @@ import type {
   ComparaisonScenarios,
   CorpsCreationScenario,
   EcoleNonCouverte,
+  ComparaisonEncadrement,
   ExplicationProposition,
+  IndicateursEncadrement,
   NatureMouvement,
   ProposedAssignment,
   ProximityLevel,
@@ -18,7 +20,7 @@ import type {
 import { ApiError } from '../../erreurs'
 import type { Acces } from '../acces'
 import { versJeu, type JeuDjango } from '../conversions/donnees'
-import { versBreakdown, type DetailDjango } from '../conversions/enseignants'
+import { formuleSomme, versBreakdown, type DetailDjango } from '../conversions/enseignants'
 import { versConfigDjango } from '../conversions/parametres'
 import { normaliser, texte } from '../conversions/referentiel'
 import {
@@ -29,14 +31,12 @@ import {
   versJournal,
   versPool,
   versPreset,
-  versProjections,
   versProposition,
   versScenarioCalcule,
   versVivier,
   type CombinaisonDjango,
   type ControleDjango,
   type JournalDjango,
-  type ProjectionDjango,
   type ScenarioDjango,
   type SyntheseDjango,
 } from '../conversions/simulation'
@@ -48,7 +48,45 @@ import type { Conversion } from '../types'
 import type { RecrueDjango } from './recrutement'
 
 const S = 'jeux/{jeu}/scenarios/{scenario}'
-const NIVEAUX: ProximityLevel[] = ['meme_commune', 'meme_iaeb', 'meme_departement', 'meme_region', 'hors_region']
+
+/** Indicateurs d'un territoire tels que le sert `analyses.comparer_encadrement_turnover`. */
+interface IndicateursDjango {
+  territoire: string
+  eleves: number
+  enseignants_avant: number
+  enseignants_apres: number
+  rem_avant: number
+  rem_apres: number
+  effectif: number
+  recents: number
+  deplaces: number
+  turnover_avant: number
+  turnover_apres: number
+}
+
+interface EncadrementDjango {
+  scenario: number
+  seuil_anciennete_ans: number
+  national: IndicateursDjango
+  par_region: IndicateursDjango[]
+}
+
+function versIndicateursEncadrement(i: IndicateursDjango): IndicateursEncadrement {
+  return {
+    territoire: i.territoire,
+    eleves: i.eleves,
+    enseignantsAvant: i.enseignants_avant,
+    enseignantsApres: i.enseignants_apres,
+    remAvant: i.rem_avant,
+    remApres: i.rem_apres,
+    effectif: i.effectif,
+    recents: i.recents,
+    deplaces: i.deplaces,
+    turnoverAvant: i.turnover_avant,
+    turnoverApres: i.turnover_apres,
+  }
+}
+const NIVEAUX: ProximityLevel[] = ['meme_commune', 'meme_departement', 'meme_region', 'hors_region']
 /** Ordre d'affichage : les trois modèles géographiques, du plus proche au plus étendu. */
 const ORDRE_GEOGRAPHIQUE = ['geo_iaeb', 'geo_departement', 'geo_region']
 
@@ -87,7 +125,7 @@ async function scenarioCalcule(acces: Acces, jeu: string, s: ScenarioDjango): Pr
       postesCouverts: syn.affectes,
       besoinResiduel: syn.postes_non_pourvus,
       tauxCouverture: besoinInitial > 0 ? syn.affectes / besoinInitial : 0,
-      enseignantsDeplaces: syn.affectes,
+      enseignantsDeplaces: syn.affectes + syn.effet_de_prince,
       mouvementsParPerimetre: NIVEAUX.map(niveau => ({ niveau, nombre: compteur.get(niveau) ?? 0 })).filter(
         m => m.nombre > 0,
       ),
@@ -201,8 +239,8 @@ export const conversionsSimulation: Record<string, Conversion> = {
     const lignes = [
       e.explication,
       ...(e.motif ? [`Motif : ${e.motif}.`] : []),
-      `Barème individuel : ${bareme.total.toFixed(2)} (${bareme.components.map(c => `${c.label} ${c.contribution.toFixed(2)}`).join(' ; ')}).`,
-      `Score d'appariement : ${score.total.toFixed(2)} (${score.components.map(c => `${c.label} ${c.contribution.toFixed(2)}`).join(' ; ')}).`,
+      `Barème individuel : ${bareme.total.toFixed(4)} = ${formuleSomme(bareme)}.`,
+      `Score d'appariement : ${score.total.toFixed(4)} = ${formuleSomme(score)}.`,
       ...e.alternatives_vacantes.map(
         alt => `Poste encore vacant : ${alt.id_etab} (${alt.id_poste}), score ${alt.score.toFixed(2)}.`,
       ),
@@ -211,6 +249,17 @@ export const conversionsSimulation: Record<string, Conversion> = {
       titre: `${libellePhase(e.phase)} : ${proposition.nomEns} ${proposition.prenomEns} vers ${proposition.nomEtabDestination}`,
       lignes,
       proposition: { ...proposition, breakdown: score },
+      bareme,
+    }
+  },
+
+  [`GET ${S}/encadrement/`]: async (r, acces, p): Promise<ComparaisonEncadrement> => {
+    const e = await acces.lire<EncadrementDjango>(`jeux/${p.jeu}/scenarios/${p.scenario}/encadrement/`, r.query)
+    return {
+      scenarioId: String(e.scenario),
+      seuilAncienneteAns: e.seuil_anciennete_ans,
+      national: versIndicateursEncadrement(e.national),
+      parRegion: e.par_region.map(versIndicateursEncadrement),
     }
   },
 
@@ -302,16 +351,6 @@ export const conversionsSimulation: Record<string, Conversion> = {
       (await acces.lire<{ controles: ControleDjango[] }>(`jeux/${p.jeu}/scenarios/${p.scenario}/invariants/`))
         .controles,
     ),
-
-  [`GET ${S}/projections/`]: async (_, acces, p) => {
-    const [lignes, ecoles, resultat, settings] = await Promise.all([
-      acces.toutes<ProjectionDjango>(`jeux/${p.jeu}/scenarios/${p.scenario}/projections/`),
-      source.diagnosticsParId(acces, p.jeu),
-      source.resultat(acces, p.jeu, p.scenario),
-      source.parametres(acces, p.jeu),
-    ])
-    return versProjections(lignes.lignes, ecoles, resultat, settings)
-  },
 
   [`GET ${S}/recrutes/`]: async (_, acces, p): Promise<ResultatRecrutes | null> => {
     const [recrues, r, ecoles] = await Promise.all([

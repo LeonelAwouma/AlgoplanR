@@ -4,7 +4,7 @@
    ALGOPLANR — Système de design
    Langage visuel inspiré d'OpenEMIS : fond gris clair, surfaces blanches, un seul
    bleu d'action, bandeau supérieur blanc, navigation latérale claire regroupée par
-   étape (Collecter, Analyser, Simuler, Restituer), tableaux et formulaires sobres.
+   étape (Importer, Analyser, Simuler, Restituer), tableaux et formulaires sobres.
    Lisible sur un écran d'administration comme sur un ordinateur portable. Contrastes vérifiés
    pour le texte courant (>= 4.5:1) et aucune information portée par la seule
    couleur : chaque état a un libellé, une valeur et une forme distincte.
@@ -829,6 +829,72 @@ a {
   opacity: 0.85;
 }
 
+/* --- Onglets de détail d'un menu, et bouton « Continuer » du parcours ----- */
+
+.onglets-detail {
+  margin: -4px 0 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.etapes + .onglets-detail {
+  margin-top: -8px;
+}
+.onglets-detail .etapes-titre {
+  margin: 0;
+}
+.onglets-detail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.onglets-detail button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.onglets-detail button:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--ink);
+}
+.onglets-detail button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.onglets-detail button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.onglets-detail button[aria-current='page'] {
+  background: var(--accent-bg);
+  border-color: var(--primary);
+  color: var(--accent-ink);
+}
+.continuer {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 14px;
+}
+/* « Paramètres avancés » : séparé des cinq menus du parcours. */
+.nav-list-avancee {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
 /* --- Fil d'Ariane et filtres --------------------------------------------- */
 
 .breadcrumb {
@@ -1348,6 +1414,15 @@ button.kpi:hover .kpi-link {
   overflow: auto;
   max-height: min(640px, calc(100vh - 300px));
   border-top: 1px solid var(--line);
+}
+/* Tableau consulté page par page : défilement horizontal seulement, jamais de fenêtre à hauteur fixe. */
+.table-defile-x {
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+}
+/* Contenu réservé au papier / PDF : absent de l'écran. */
+.print-only {
+  display: none;
 }
 table.data {
   width: 100%;
@@ -2235,6 +2310,10 @@ table.data .num strong {
   background: var(--surface-muted);
   font-weight: 650;
 }
+.report .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 
 /* --- États vides et chargement --------------------------------------------------- */
 
@@ -2647,6 +2726,43 @@ pre.code {
     break-before: avoid;
   }
 
+  /* Tableau complet des propositions : page en paysage, en-tête répété, lignes entières. */
+  @page affectations {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+  .report-affectations {
+    page: affectations;
+    break-before: page;
+  }
+  .report-affectations .table-scroll {
+    overflow: visible;
+  }
+  .print-only {
+    display: block;
+  }
+  .table-defile-x {
+    overflow: visible;
+  }
+  .report-affectations table {
+    font-size: 8pt;
+  }
+  .report-affectations th,
+  .report-affectations td {
+    padding: 3px 5px;
+    font-size: 8pt;
+  }
+  .report-affectations thead {
+    display: table-header-group;
+  }
+  .report-affectations tr {
+    break-inside: avoid;
+  }
+  .report-affectations th {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* L'alternative textuelle des graphiques fait double emploi sur papier :
      le graphique imprimé porte déjà ses valeurs chiffrées. */
   .report details.advanced {
@@ -2733,6 +2849,12 @@ pre.code {
 }
 .action-bar .hint {
   margin: 0;
+}
+.action-bar-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 1180px) {
@@ -4184,16 +4306,6 @@ pre.code {
   margin: 0;
   color: var(--ink-soft);
 }
-.origine-fichiers {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-.origine-fichiers .hint {
-  flex-basis: 100%;
-  margin: 0;
-}
 
 /* =====================================================================
    Progression de l'import (étapes réellement terminées)
@@ -4424,5 +4536,67 @@ button.kpi:hover {
   *::before,
   *::after {
     animation: none !important;
+  }
+}
+
+/* --- Écran de démarrage --------------------------------------------------------- */
+
+.demarrage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+}
+.demarrage-carte {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.demarrage-carte h1 {
+  margin: 10px 0 0;
+  font-size: 22px;
+  letter-spacing: 0.14em;
+}
+.demarrage-soustitre {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.demarrage-barre {
+  width: 220px;
+  height: 4px;
+  margin: 18px 0 10px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.demarrage-barre i {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--primary);
+  animation: demarrage-va 1.2s ease-in-out infinite;
+}
+.demarrage-libelle {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+@keyframes demarrage-va {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demarrage-barre i {
+    animation: none;
+    width: 100%;
   }
 }

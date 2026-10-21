@@ -8,5 +8,6 @@ cryptography>=42           # signature Ed25519 des fichiers d'activation (contex
 pandas>=2.2
 openpyxl>=3.1
 python-calamine>=0.3        # lecture rapide des classeurs (repli sur openpyxl sans lui)
+python-docx>=1.1            # exports Word des rapports territoriaux (lot 4)
 # IA (optionnel) : google-genai
 # Tests : pytest pytest-django

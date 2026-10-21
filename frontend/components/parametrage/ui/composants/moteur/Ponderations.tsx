@@ -8,7 +8,14 @@
 import type { EngineSettings, ScoringConfig } from '@shared/api'
 import { Panel } from '@shared/ui/commun'
 
-import { reequilibrerPoids, sommePoids, type MajParametres } from '../../../domain/edition'
+import { LIBELLES_AJUSTEMENTS, LIBELLES_PROXIMITE } from '../../../domain/champsMoteur'
+import {
+  reequilibrerPaire,
+  reequilibrerPoids,
+  sommePoids,
+  VALEURS_ALGORITHME,
+  type MajParametres,
+} from '../../../domain/edition'
 import { ChampNombre } from '../ChampsRegles'
 
 const LIBELLES_BAREME: Record<keyof ScoringConfig['poidsBaremeIndividuel'], string> = {
@@ -26,24 +33,8 @@ const LIBELLES_APPARIEMENT: Record<keyof ScoringConfig['poidsScoreAppariement'],
   ajustements: 'Z4 — ajustements contextuels',
 }
 
-const LIBELLES_PROXIMITE: Record<keyof ScoringConfig['pointsProximite'], string> = {
-  memeCommune: 'Même commune',
-  memeIaeb: 'Même IAEB (dans le département)',
-  memeDepartement: 'Même département',
-  memeRegion: 'Même région',
-  autre: 'Hors région',
-}
-
-const LIBELLES_AJUSTEMENTS: Record<keyof ScoringConfig['ajustements'], string> = {
-  jeuneVersMultigrades: 'Jeune vers une école à classes multigrades',
-  seniorVersEncadrement: 'Senior vers une structure d’encadrement',
-  allegementSenior: 'Senior vers une école sans multigrade',
-  transitionRuralUrbain: 'Rural vers urbain après 5 ans au poste',
-  bonificationCiblee: 'Bonification ciblée (motif justifié)',
-}
-
 /** Sous-sections numériques du barème, éditées champ par champ. */
-type SectionPoints = 'pointsProximite' | 'ajustements' | 'pointsCohorte' | 'seuils'
+type SectionPoints = 'pointsProximite' | 'ajustements' | 'seuils'
 
 /** Curseur de pondération entre 0 et 1. */
 function Curseur({
@@ -51,11 +42,13 @@ function Curseur({
   libelle,
   valeur,
   onChange,
+  max = 1,
 }: {
   id: string
   libelle: string
   valeur: number
   onChange: (v: number) => void
+  max?: number
 }) {
   return (
     <div className="slider-row">
@@ -64,7 +57,7 @@ function Curseur({
         id={id}
         type="range"
         min={0}
-        max={1}
+        max={max}
         step={0.01}
         value={valeur}
         onChange={e => onChange(Number(e.target.value))}
@@ -114,12 +107,41 @@ export function Ponderations({ parametres, maj }: { parametres: EngineSettings; 
     />
   )
 
+  const priorite = parametres.priorite
+  const appariement = scoring.poidsScoreAppariement
+  const sommePaire = sommePoids({ a: appariement.bareme, b: appariement.poidsPoste })
+
+  /** t1 + t2 = 1 : fixer l'un donne le complément à l'autre. */
+  const majCoefficients = (accessibilite: number) =>
+    maj(p => {
+      const t1 = Math.round(Math.min(1, Math.max(0, accessibilite)) * 100) / 100
+      return {
+        ...p,
+        priorite: { ...p.priorite, coefAccessibilite: t1, coefSecurite: Math.round((1 - t1) * 100) / 100 },
+      }
+    })
+  const majPaire = (poidsEcole: number) =>
+    majScoring(s => ({
+      ...s,
+      poidsScoreAppariement: reequilibrerPaire(s.poidsScoreAppariement, 'bareme', 'poidsPoste', poidsEcole),
+    }))
+  const retablirAlgorithme = () =>
+    maj(p => ({
+      ...p,
+      priorite: {
+        ...p.priorite,
+        coefAccessibilite: VALEURS_ALGORITHME.coefAccessibilite,
+        coefSecurite: VALEURS_ALGORITHME.coefSecurite,
+      },
+      scoring: { ...p.scoring, poidsScoreAppariement: { ...VALEURS_ALGORITHME.poidsScoreAppariement } },
+    }))
+
   return (
     <>
       <Panel
         kicker="Barème individuel"
         title="Étage 1 — barème individuel"
-        hint="C1 = ancienneté générale + points de zone difficile Z ; C2 = points d’ancienneté au poste A ; C3 = points de situation matrimoniale − points par enfant à charge ; C4 = formation continue (plafonnée) ; C5 = cohorte d’âge. Chaque critère est multiplié par son poids ; les cinq poids font 1. Le barème ordonne les départs imposés d’une école excédentaire (le plus élevé part le premier) et entre dans le score d’appariement. Un poids à 0 neutralise le critère."
+        hint="C1 = ancienneté de carrière × multiplicateur de zone difficile ; C2 = ancienneté au poste ; C3 = points de situation matrimoniale − points par enfant à charge ; C4 = formation continue (plafonnée) ; C5 = cohorte d’âge. Chaque critère est multiplié par son poids ; les cinq poids font 1. Le barème ordonne les départs imposés d’une école excédentaire (le plus élevé part le premier) et entre dans le score d’appariement. Un poids à 0 neutralise le critère."
       >
         {cles(LIBELLES_BAREME).map(cle => (
           <Curseur
@@ -134,39 +156,62 @@ export function Ponderations({ parametres, maj }: { parametres: EngineSettings; 
         ))}
         <SommePoids poids={scoring.poidsBaremeIndividuel} />
         <div className="param-grid grille-espacee">
-          <ChampNombre
-            id="e-enfant"
-            libelle="C3 — points retirés par enfant à charge"
-            max={10}
-            valeur={scoring.pointsParEnfant}
-            onChange={v => majScoring(s => ({ ...s, pointsParEnfant: v }))}
-          />
-          <ChampNombre
-            id="e-formation"
-            libelle="C4 — points par formation"
-            max={10}
-            valeur={scoring.pointsParFormation}
-            onChange={v => majScoring(s => ({ ...s, pointsParFormation: v }))}
-          />
-          <ChampNombre
-            id="e-formation-max"
-            libelle="C4 — plafond"
-            max={50}
-            valeur={scoring.plafondFormation}
-            onChange={v => majScoring(s => ({ ...s, plafondFormation: v }))}
-          />
           {champSection('seuils', 'ageJeuneAns', 'C5 — jeune avant (ans)')}
           {champSection('seuils', 'ageSeniorAns', 'C5 — senior à partir de (ans)')}
-          {champSection('pointsCohorte', 'jeune', 'C5 — points jeune')}
-          {champSection('pointsCohorte', 'median', 'C5 — points médiane')}
-          {champSection('pointsCohorte', 'senior', 'C5 — points senior')}
         </div>
+        <p className="hint">
+          Fixés dans le moteur, donc non modifiables ici (non appliqués s’ils étaient saisis) : C3 retire{' '}
+          {scoring.pointsParEnfant} points par enfant à charge ; C4 donne {scoring.pointsParFormation} points par
+          formation, plafonnés à {scoring.plafondFormation} ; C5 vaut {scoring.pointsCohorte.jeune} (jeune),{' '}
+          {scoring.pointsCohorte.median} (médiane) ou {scoring.pointsCohorte.senior} (senior).
+        </p>
       </Panel>
 
       <Panel
         kicker="Étage 2"
+        title="Poids de l’école (indice u)"
+        hint="u = t1 × α + t2 × σ + β : α points d’accessibilité de l’école, σ points de sécurité, β points selon le taux d’encadrement (élèves par enseignant). t1 et t2 pondèrent α et σ ; les valeurs de l’algorithme sont 0,30 et 0,70. Le poids de l’école u entre dans le score d’appariement par Z2, face au barème de l’enseignant Z1 : ce que l’un gagne, l’autre le perd."
+      >
+        <Curseur
+          id="e-ecole-t1"
+          libelle="t1 — accessibilité de l’école (α)"
+          valeur={priorite.coefAccessibilite}
+          onChange={v => majCoefficients(v)}
+        />
+        <Curseur
+          id="e-ecole-t2"
+          libelle="t2 — sécurité de l’école (σ)"
+          valeur={priorite.coefSecurite}
+          onChange={v => majCoefficients(1 - v)}
+        />
+        <p className="hint sous-titre-grille">Équilibre entre le barème de l’enseignant et le poids de l’école</p>
+        <Curseur
+          id="e-equilibre-bareme"
+          libelle="Z1 — barème individuel de l’enseignant"
+          valeur={appariement.bareme}
+          max={sommePaire}
+          onChange={v => majPaire(sommePaire - v)}
+        />
+        <Curseur
+          id="e-equilibre-ecole"
+          libelle="Z2 — poids de l’école (indice u)"
+          valeur={appariement.poidsPoste}
+          max={sommePaire}
+          onChange={v => majPaire(v)}
+        />
+        <p className="hint somme-poids" role="status">
+          Z1 + Z2 = <strong>{sommePaire.toFixed(2)}</strong> (constante) — le score d’appariement est recalculé avec ces
+          poids à l’enregistrement.
+        </p>
+        <button type="button" className="btn btn-sm" onClick={retablirAlgorithme}>
+          Valeurs de l’algorithme (t1 0,30 · t2 0,70 · Z 0,25 chacun)
+        </button>
+      </Panel>
+
+      <Panel
+        kicker="Étage 3"
         title="Score d’appariement enseignant ↔ poste"
-        hint="Score = Z1 × barème + Z2 × poids du poste u + Z3 × points de proximité + Z4 × ajustements. Il choisit, à proximité égale, le maître proposé en redéploiement obligatoire ; en variante (Référentiel), il classe aussi les candidats à une même école."
+        hint="Score = Z1 × barème + Z2 × poids du poste u + Z3 × points de proximité + Z4 × ajustements. Il classe les candidats à un même poste (acceptation différée) et choisit le meilleur poste libre des phases de proximité."
       >
         {cles(LIBELLES_APPARIEMENT).map(cle => (
           <Curseur
@@ -182,12 +227,16 @@ export function Ponderations({ parametres, maj }: { parametres: EngineSettings; 
         <SommePoids poids={scoring.poidsScoreAppariement} />
         <p className="hint sous-titre-grille">Points de proximité</p>
         <div className="param-grid">
-          {cles(LIBELLES_PROXIMITE).map(cle => champSection('pointsProximite', cle, LIBELLES_PROXIMITE[cle]))}
+          {cles(LIBELLES_PROXIMITE).map(cle => champSection('pointsProximite', cle, LIBELLES_PROXIMITE[cle] ?? cle))}
         </div>
         <p className="hint sous-titre-grille">Ajustements contextuels (points)</p>
         <div className="param-grid">
           {cles(LIBELLES_AJUSTEMENTS).map(cle => champSection('ajustements', cle, LIBELLES_AJUSTEMENTS[cle]))}
         </div>
+        <p className="hint">
+          Bonification ciblée : l’agent cite dans son motif (colonne Motif_Bonification) l’une de ses écoles demandées ;
+          les points ne vont qu’à cette école. Un motif qui ne désigne aucune école demandée ne rapporte aucun point.
+        </p>
       </Panel>
     </>
   )

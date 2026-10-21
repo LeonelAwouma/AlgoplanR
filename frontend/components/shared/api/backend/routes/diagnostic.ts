@@ -166,10 +166,10 @@ export const conversionsDiagnostic: Record<string, Conversion> = {
   },
 
   'GET jeux/{jeu}/synthese/': async (r, acces, p): Promise<SyntheseDiagnostic> => {
-    const [{ selection, noeud }, diagnostics, settings, complet] = await Promise.all([
+    const [{ selection, noeud }, diagnostics, attrition, complet] = await Promise.all([
       noeudDe(acces, p.jeu, r.query),
       source.diagnosticsFiltres(acces, p.jeu, r.query),
-      source.parametres(acces, p.jeu),
+      source.attritionDuJeu(acces, p.jeu),
       resultatDemande(acces, p.jeu, valeur(r.query.scenario)),
     ])
     const resultat = complet ? resultatDuPerimetre(complet, noeud) : null
@@ -181,7 +181,7 @@ export const conversionsDiagnostic: Record<string, Conversion> = {
       diagnosticTerritorial: diagnosticTerritorial(noeud.totals, noeud.totals.enseignantsEtat, resultat, perimetre),
       pointsAttention: pointsAttention(diagnostics, noeud, null),
       territoiresMixtes: territoiresMixtes(noeud.children),
-      syntheseTerritoriale: syntheseTerritoriale(diagnostics, settings),
+      syntheseTerritoriale: syntheseTerritoriale(diagnostics, attrition),
       parSeverite: Object.fromEntries(
         SEVERITES.map(s => [s, diagnostics.filter(d => d.severite === s).length]),
       ) as Record<SchoolSeverity, number>,

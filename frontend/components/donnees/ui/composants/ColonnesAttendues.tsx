@@ -6,7 +6,7 @@
  * les colonnes : elle ne peut donc pas s'en écarter.
  */
 
-import type { ColonneAttendue, TypeFichier } from '@shared/api'
+import type { ColonneAttendue, TypeFichierEnvoi } from '@shared/api'
 
 import { useColonnesAttendues } from '../../application/hooks'
 
@@ -27,7 +27,7 @@ function ListeColonnes({ colonnes }: { colonnes: ColonneAttendue[] }) {
 }
 
 /** Volet dépliable des colonnes attendues pour un type de classeur. */
-export function ColonnesAttendues({ type }: { type: TypeFichier }) {
+export function ColonnesAttendues({ type }: { type: TypeFichierEnvoi }) {
   const { data: colonnes } = useColonnesAttendues(type)
   // Aide facultative : tant que la liste n'est pas arrivée, rien n'est affiché.
   if (!colonnes) return null

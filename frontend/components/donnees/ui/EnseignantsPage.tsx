@@ -12,11 +12,12 @@ import { useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
 
 import { SANS_PAGINATION, type EnseignantResume } from '@shared/api'
-import { exporterCSV } from '@shared/exports/export-csv'
+import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { correspondRecherche } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { DataTable, Notice, Panel, Pill, SearchField, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
 import { EtatRequetes } from '@shared/ui/etats'
+import { BandeauPrince } from '@components/prince'
 import { useScenarioAffiche } from '@components/simulation'
 
 import { useEnseignants } from '../application/hooks'
@@ -37,15 +38,16 @@ function commentairePointsSituation(ligne: EnseignantResume): string {
   return teacher.situationFamiliale.trim() ? 'valeur non reconnue : 0 point' : 'non renseignée : 0 point'
 }
 
-/** Exporte la liste affichée en CSV. */
+/** Exporte la liste affichée en Excel. */
 function exporterListe(lignes: EnseignantResume[]) {
-  exporterCSV(
-    'enseignants.csv',
+  void exporterTableauXLSX(
+    'enseignants.xlsx',
     [
       'Matricule',
       'Nom',
       'Prénom',
-      'École',
+      'École de rattachement',
+      'École de référence',
       'Commune',
       'Département',
       'Âge',
@@ -66,6 +68,7 @@ function exporterListe(lignes: EnseignantResume[]) {
       l.teacher.nom,
       l.teacher.prenom,
       l.nomEtab,
+      l.teacher.nomEtabReference ?? l.nomEtab,
       l.teacher.communeAttache,
       l.teacher.departementAttache,
       ageRevolu(l),
@@ -133,10 +136,16 @@ export function EnseignantsPage() {
       entete: 'École de rattachement',
       rendu: l => (
         <button type="button" className="row-action" onClick={() => ouvrirEcole(l.teacher.idEtabAttache)}>
-          <strong>{l.nomEtab}</strong>
+          <strong>
+            {l.teacher.faitPrinceId ? 'Destination décidée : ' : ''}
+            {l.nomEtab}
+          </strong>
           <small>
             {l.teacher.communeAttache} · {l.teacher.departementAttache}
           </small>
+          {l.teacher.faitPrinceId && l.teacher.nomEtabReference && (
+            <small>École de référence : {l.teacher.nomEtabReference}</small>
+          )}
         </button>
       ),
       tri: l => l.nomEtab,
@@ -221,6 +230,7 @@ export function EnseignantsPage() {
 
   return (
     <div className="stack">
+      <BandeauPrince />
       <Notice tone="neutral" title="Mobilisable ne veut pas dire muté.">
         Un enseignant n’est considéré comme mobilisable que si son départ ne crée pas de déficit dans son établissement
         d’origine. Cette information décrit une possibilité arithmétique, pas une décision.
@@ -247,7 +257,7 @@ export function EnseignantsPage() {
         </div>
         <div className="filter-bar-actions">
           <button type="button" className="btn btn-sm" onClick={() => exporterListe(lignes)}>
-            <Download size={13} aria-hidden="true" /> Exporter (CSV)
+            <Download size={13} aria-hidden="true" /> Exporter (Excel)
           </button>
         </div>
       </div>

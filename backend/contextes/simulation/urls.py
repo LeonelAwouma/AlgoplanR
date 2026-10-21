@@ -25,6 +25,7 @@ urlpatterns = [
     path(S + "projections/", v.projections),
     path(S + "recrutes/", v.recrutes),
     path(S + "flux/", v.flux),
+    path(S + "encadrement/", v.encadrement),
     path(S + "export/", v.exporter),
     path("jeux/<uuid:jeu>/comparaison/", v.comparaison),
     path("jeux/<uuid:jeu>/scenario-retenu/", v.scenario_retenu),

@@ -68,7 +68,10 @@ export interface ScoringConfig {
     allegementSenior: number
     /** Enseignant d'une zone rurale, 5 ans au poste, vers une zone urbaine. */
     transitionRuralUrbain: number
-    /** École visée par un motif justifié (santé, regroupement familial). */
+    /**
+     * Bonification ciblée : l'agent cite dans son motif (rapprochement de conjoint, suivi médical) une de ses écoles
+     * demandées ; les points ne vont qu'à cette école. Sans école identifiée, aucun point.
+     */
     bonificationCiblee: number
   }
 }
@@ -120,13 +123,6 @@ export interface ReglesPriorite {
 /** Ordre dans lequel les vœux d'un enseignant sont examinés (§3.4). */
 export type OrdreExamenVoeux = 'voeux' | 'poids'
 
-/**
- * Comment un poste classe les candidats qui le demandent : par score
- * d'appariement Score(e, p) (note, par défaut) ou, en variante, par le score
- * de priorité S = A + Z + B de l'ancien référentiel.
- */
-export type ClassementCandidats = 'score_priorite' | 'score_appariement'
-
 /** Rotation, redéploiement et score de priorité (§3.2 à §3.9). */
 export interface ReglesMobilite {
   /**
@@ -148,12 +144,8 @@ export interface ReglesMobilite {
   pointsAnneeNiveau2: number
   /** Plancher du multiplicateur de zone : Z = max(plancher ; 2·n1 + n2), 10 par défaut. */
   plancherZoneDifficile: number
-  /** Bonification d'un motif justifié (santé, regroupement familial) sur l'école visée. */
-  bonificationMotif: number
   nombreMaxVoeux: number
   ordreExamen: OrdreExamenVoeux
-  /** Classement des candidats à un poste : Score(e, p) (note, par défaut) ou S = A + Z + B en variante. */
-  classementCandidats: ClassementCandidats
   /** Traiter les vœux des enseignants (phase 1). */
   phaseVoeux: boolean
   /** Exiger aussi la stabilité minimale au poste pour le redéploiement obligatoire. */
@@ -166,16 +158,15 @@ export interface ReglesMobilite {
   redeploiementObligatoire: boolean
   /** Règle de la zone rouge : aucun poste en zone rouge hors vœux ni par transfert imposé. */
   regleZoneRouge: boolean
+  /**
+   * Régions étanches : un enseignant n'est affecté que dans sa région. Ceux pour qui il ne reste de poste
+   * qu'ailleurs restent dans le vivier et vont à la commission d'arbitrage (le prince et la commission décident).
+   */
+  regionsEtanches: boolean
   /** Projeter le vivier sur l'année N+2 (§3.9). */
   projectionN2: boolean
   /** Nouveaux recrutés : à note égale, priorité à la candidate (règle à vérifier, désactivée par défaut). */
   departageFeminin: boolean
-}
-
-/** Recrutement à prévoir (§2.6). */
-export interface ReglesRecrutement {
-  /** τ* : taux d'attrition annuel hors départs à la retraite, en %. */
-  tauxAttritionHorsRetraite: number
 }
 
 /**
@@ -191,7 +182,6 @@ export interface EngineSettings {
   seuilsSeverite: { faible: number; important: number }
   priorite: ReglesPriorite
   mobilite: ReglesMobilite
-  recrutement: ReglesRecrutement
   scoring: ScoringConfig
 }
 
@@ -232,6 +222,8 @@ export interface PoolTeacher {
   /** Protégé des transferts imposés (proximité de la retraite). */
   protege: boolean
   affecte: boolean
+  /** Non affecté parce qu'il ne reste de poste libre que hors de sa région : à examiner par la commission d'arbitrage. */
+  horsRegion?: boolean
 }
 
 /** Vivier de redéploiement : les maîtres au-delà de la dotation théorique (§2.4). */
@@ -264,8 +256,37 @@ export interface ScoreBreakdown {
   components: ScoreComponent[]
 }
 
+/** Taux d'encadrement et turnover d'un territoire, avant l'algorithme (fichier d'origine) et après. */
+export interface IndicateursEncadrement {
+  territoire: string
+  eleves: number
+  enseignantsAvant: number
+  enseignantsApres: number
+  /** Élèves par enseignant. */
+  remAvant: number
+  remApres: number
+  /** Enseignants du fichier. */
+  effectif: number
+  /** Enseignants dont l'ancienneté au poste est sous le seuil. */
+  recents: number
+  /** Enseignants déplacés par le scénario. */
+  deplaces: number
+  /** Parts de l'effectif, entre 0 et 1. */
+  turnoverAvant: number
+  turnoverApres: number
+}
+
+/** Comparaison avant / après de l'encadrement et du turnover pour un scénario. */
+export interface ComparaisonEncadrement {
+  scenarioId: string
+  seuilAncienneteAns: number
+  national: IndicateursEncadrement
+  parRegion: IndicateursEncadrement[]
+}
+
 /** Niveau de proximité effectivement franchi par un mouvement. */
-export type ProximityLevel = 'meme_commune' | 'meme_iaeb' | 'meme_departement' | 'meme_region' | 'hors_region'
+/** `meme_commune` couvre la même commune ou la même circonscription IAEB. */
+export type ProximityLevel = 'meme_commune' | 'meme_departement' | 'meme_region' | 'hors_region'
 
 /** Sort d'un vœu au moment de l'examen. */
 export type StatutVoeu =
@@ -278,12 +299,15 @@ export interface VoeuExamine {
   schoolId: string | null
   nomEtab: string
   statut: StatutVoeu
-  /** Bonification B_t,e accordée sur cette école. */
-  bonification: number
-  /** S_t,e = A + Z + B. */
-  score: number
-  /** Poids w + B, utilisé quand les vœux sont examinés par poids. */
-  poidsExamen: number
+  /**
+   * Score d'appariement de l'agent avec un poste de cette école (Z1 à Z4, calculé par le serveur) ;
+   * `null` quand l'école n'a aucun poste ouvert.
+   */
+  score: number | null
+  /** Part du score due aux ajustements contextuels (âge, structure, zone) ; `null` sans score. Le motif saisi n'y entre pas. */
+  ajustementsContextuels: number | null
+  /** Composantes du score : barème (Z1), poids du poste (Z2), proximité (Z3), ajustements (Z4) ; `null` sans score. */
+  composantes: { bareme: number; poidsPoste: number; proximite: number; ajustements: number } | null
   interregional: boolean
 }
 
@@ -305,7 +329,7 @@ export interface Candidature {
   /** Proche de la retraite : malus sur A et protection éventuelle. */
   procheRetraite: boolean
   protege: boolean
-  /** Rang dans le classement unique (score sans bonification, puis départage). */
+  /** Rang dans le classement unique (barème décroissant, puis départage). */
   rangClassement: number
   issue: IssueCandidature
   /** Explication en clair de l'issue. */
@@ -462,52 +486,11 @@ export interface SyntheseTerritoriale {
   couvrable: number
   restant: number
   recrutementAPrevoir: number
-  /** Degré d'aléa : (besoin + excédent) ÷ somme des cibles, `null` sans cible. */
+  /**
+   * Taux de déséquilibre des dotations : (besoin + excédent) ÷ somme des cibles, `null` sans cible.
+   * Le champ garde son nom d'origine ; ce n'est pas le degré d'aléa (1 − R²) du tableau de bord.
+   */
   degreAlea: number | null
-}
-
-/** Situation projetée d'une école pour une rentrée donnée. */
-export interface ProjectionAnnee {
-  annee: 'N+1' | 'N+2' | 'N+3'
-  /** Départs à la retraite pendant l'année qui précède cette rentrée (0 pour la rentrée du plan). */
-  departsRetraite: number
-  effectif: number
-  besoin: number
-  excedent: number
-}
-
-/** Projection pluriannuelle d'une école, de la rentrée du plan à N+3. */
-export interface ProjectionEcole {
-  schoolId: string
-  nomEtab: string
-  sousSysteme: SousSysteme | null
-  region: string
-  departement: string
-  commune: string
-  indicePriorite: number
-  bmax: number | null
-  dotation: number
-  cible: number
-  besoinAvantPlan: number
-  excedentAvantPlan: number
-  arrivants: string[]
-  sortants: string[]
-  sallesManquantes: number
-  annees: ProjectionAnnee[]
-}
-
-/** Totaux projetés par sous-système, avec l'attrition appliquée au niveau du territoire. */
-export interface ProjectionTerritoire {
-  annee: 'N+1' | 'N+2' | 'N+3'
-  sousSysteme: SousSysteme | 'non_renseigne'
-  effectif: number
-  departsRetraite: number
-  /** Départs imprévisibles attendus pendant l'année précédente : ⌈τ* × effectif ÷ 100⌉. */
-  attrition: number
-  besoin: number
-  excedent: number
-  /** max(0 ; B − X) + attrition cumulée depuis la rentrée du plan, sans recrutement intermédiaire. */
-  recrutementAPrevoir: number
 }
 
 /** Décision d'une commission sur une proposition ou une affectation (§3.10). */
@@ -609,8 +592,6 @@ export interface SimulationResult {
 
   syntheseAvant: SyntheseTerritoriale
   syntheseApres: SyntheseTerritoriale
-  /** Projection N+1 → N+3, école par école et par sous-système. */
-  projectionPluriannuelle: { ecoles: ProjectionEcole[]; territoire: ProjectionTerritoire[] }
   /** Postes en zone rouge restés sans maître : volontariat, primes ou recrutement. */
   postesZoneRougeNonPourvus: number
 

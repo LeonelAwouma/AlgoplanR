@@ -23,7 +23,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ApiError, lireJeton, messageErreur, surEvenementAcces } from '../../shared/api'
 import { viderCache } from '../../shared/api/backend'
 import { useSession } from '../../shared/session'
-import { ChargementEnCours } from '../../shared/ui/etats'
+import { EcranDemarrage } from '../../shared/ui/EcranDemarrage'
 import { Notice } from '../../shared/ui/commun'
 import {
   sessionDepuisCompte,
@@ -181,7 +181,7 @@ export function PorteAcces({ children }: { children: (session: SessionAcces, act
 
   switch (etat.ecran) {
     case 'chargement':
-      return <ChargementEnCours libelle="Ouverture d’AlgoPlanR…" />
+      return <EcranDemarrage />
     case 'injoignable':
       return (
         <main className="login-screen">

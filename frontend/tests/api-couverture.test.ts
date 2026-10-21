@@ -131,6 +131,14 @@ describe('invalidations après une écriture', () => {
     }
   })
 
+  it('rafraîchit les synthèses et les scénarios quand les hypothèses (donc l’attrition) changent', () => {
+    const familles = famillesInvalidees('hypotheses')
+    assert.ok(familles !== 'tout')
+    for (const f of ['hypotheses', 'planification', 'synthese', 'scenarios', 'comparaison', 'rapport'] as const) {
+      assert.ok(familles.includes(f), f)
+    }
+  })
+
   it('rafraîchit diagnostic, planification et vivier après une décision qui change les effectifs', () => {
     const familles = famillesInvalidees('effectifs')
     assert.ok(familles !== 'tout')

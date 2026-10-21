@@ -3,7 +3,8 @@
  *
  * Règle de référence, partagée par le générateur des données factices
  * (moteur-reference/scripts) et par les données factices elles-mêmes, que le
- * serveur Django devra appliquer à l'identique. Les projections (effectifs,
+ * serveur Django applique de même. Les données factices n'ont pas le détail de la
+ * projection (recrutements, effectif de fin, REM) que le serveur fournit en plus. Les projections (effectifs,
  * départs, besoins, vivier, quota calculé) viennent du calcul ; cette règle y
  * reporte les décisions enregistrées :
  *   - quota retenu : somme des quotas ajustés ou validés du périmètre, `null`

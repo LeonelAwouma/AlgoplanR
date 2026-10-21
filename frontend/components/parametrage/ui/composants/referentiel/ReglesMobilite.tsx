@@ -1,13 +1,14 @@
 'use client'
 
 /**
- * Règles de rotation et de redéploiement (§3.2 à §3.9) et taux d'attrition
- * du recrutement à prévoir (§2.6).
+ * Règles de rotation et de redéploiement (§3.2 à §3.9). Le taux d'attrition hors retraite ne se règle pas ici :
+ * il relève des hypothèses de planification (Planification → Hypothèses), source unique.
  */
 
 import type { EngineSettings, ReglesMobilite as Regles } from '@shared/api'
 import { Panel } from '@shared/ui/commun'
 
+import { estNonApplique } from '../../../domain/champsMoteur'
 import { nombreSaisi, type MajParametres } from '../../../domain/edition'
 import { Interrupteur, Regle } from '../ChampsRegles'
 
@@ -51,6 +52,12 @@ const INTERRUPTEURS: { cle: RegleBooleenne; titre: string; texte: string }[] = [
       'Aucun poste en zone rouge n’est proposé hors vœux ni imposé : il n’est pourvu que par des volontaires ou par le recrutement.',
   },
   {
+    cle: 'regionsEtanches',
+    titre: 'Affecter chaque enseignant dans sa région',
+    texte:
+      'Une affectation hors de la région de l’enseignant n’est pas retenue : l’enseignant reste dans le vivier et passe en commission d’arbitrage. Les décisions du prince et de la commission peuvent traverser les régions.',
+  },
+  {
     cle: 'projectionN2',
     titre: 'Projeter le vivier sur l’année N+2',
     texte:
@@ -69,7 +76,7 @@ export interface ProprietesReglesMobilite {
   maj: MajParametres
 }
 
-/** Panneaux « Rotation et redéploiement » et « Recrutement à prévoir ». */
+/** Panneaux de rotation, de redéploiement et de règles de mobilité. */
 export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
   const mobilite = <K extends keyof Regles>(cle: K, valeur: Regles[K]) =>
     maj(s => ({ ...s, mobilite: { ...s.mobilite, [cle]: valeur } }))
@@ -97,10 +104,15 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
             />
             <span className="regle-unite">ans au poste</span>
           </Regle>
-          <Regle enonce="Chaque enseignant peut formuler au plus" htmlFor="r-voeux">
+          <Regle
+            enonce="Chaque enseignant peut formuler au plus"
+            htmlFor="r-voeux"
+            nonApplique={estNonApplique('mobilite', 'nombreMaxVoeux')}
+          >
             <input
               id="r-voeux"
               type="number"
+              disabled
               min={1}
               max={3}
               value={m.nombreMaxVoeux}
@@ -112,9 +124,11 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
             enonce="Les vœux de chaque enseignant sont examinés"
             precision="Dans l’ordre de l’enseignant, ajouter une école à sa liste ne peut jamais lui nuire. Par poids, un enseignant a intérêt à retirer une école difficile de sa liste."
             htmlFor="r-ordre"
+            nonApplique={estNonApplique('mobilite', 'ordreExamen')}
           >
             <select
               id="r-ordre"
+              disabled
               value={m.ordreExamen}
               onChange={e => mobilite('ordreExamen', e.target.value as Regles['ordreExamen'])}
             >
@@ -123,23 +137,14 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
             </select>
           </Regle>
           <Regle
-            enonce="Un poste départage les candidats qui le demandent selon"
-            precision="La note retient le score d’appariement Score(e, p) = Z1 × barème + Z2 × poids du poste + Z3 × proximité + Z4 × ajustements : à poste égal, le poids de l’individu l’emporte. Le score de priorité S = A + Z + B de l’ancien référentiel reste disponible en variante ; dans les deux cas l’appariement est l’acceptation différée."
-            htmlFor="r-classement"
+            enonce="Un enseignant est considéré proche de la retraite à moins de"
+            htmlFor="r-proche"
+            nonApplique={estNonApplique('mobilite', 'anneesAvantRetraite')}
           >
-            <select
-              id="r-classement"
-              value={m.classementCandidats}
-              onChange={e => mobilite('classementCandidats', e.target.value as Regles['classementCandidats'])}
-            >
-              <option value="score_appariement">le score d’appariement Score(e, p) (note, par défaut)</option>
-              <option value="score_priorite">le score de priorité S = A + Z + B (variante)</option>
-            </select>
-          </Regle>
-          <Regle enonce="Un enseignant est considéré proche de la retraite à moins de" htmlFor="r-proche">
             <input
               id="r-proche"
               type="number"
+              disabled
               min={0}
               max={10}
               value={m.anneesAvantRetraite}
@@ -150,31 +155,15 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
         </div>
         <div className="switch-list">
           {INTERRUPTEURS.map(({ cle, titre, texte }) => (
-            <Interrupteur key={cle} titre={titre} texte={texte} coche={m[cle]} onChange={v => mobilite(cle, v)} />
-          ))}
-        </div>
-      </Panel>
-
-      <Panel kicker="Recrutement à prévoir (§2.6)" title="Départs imprévisibles à anticiper">
-        <div className="regles">
-          <Regle
-            enonce="Chaque année, hors retraites, quittent la profession"
-            precision="Taux d’attrition τ* (définition UNESCO, indicateur ODD 4.c.6). Recrutement à prévoir = besoin restant après redéploiement + ⌈τ* × effectif ÷ 100⌉, par sous-système. La planification sur 5 ans a ses propres hypothèses."
-            htmlFor="r-attrition"
-          >
-            <input
-              id="r-attrition"
-              type="number"
-              min={0}
-              max={20}
-              step={0.1}
-              value={parametres.recrutement.tauxAttritionHorsRetraite}
-              onChange={e =>
-                maj(s => ({ ...s, recrutement: { tauxAttritionHorsRetraite: nombreSaisi(e.target.value) } }))
-              }
+            <Interrupteur
+              key={cle}
+              titre={titre}
+              texte={texte}
+              coche={m[cle]}
+              onChange={v => mobilite(cle, v)}
+              nonApplique={estNonApplique('mobilite', cle)}
             />
-            <span className="regle-unite">% des enseignants</span>
-          </Regle>
+          ))}
         </div>
       </Panel>
     </>

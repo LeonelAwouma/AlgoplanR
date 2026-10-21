@@ -14,14 +14,16 @@ sans évaluer chaque poste pour chaque enseignant :
   décroissant : pour un enseignant donné, le score d'un bloc « ordinaire » de la
   classe ne dépend plus que de Up, et le parcours s'arrête dès que le score baisse.
   Les blocs qui échappent à cette règle (même commune ou même département que
-  l'enseignant, écoles bonifiées par son motif) sont évalués un à un.
+  l'enseignant, école bonifiée par son motif) sont évalués un à un.
 """
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from ..commun.texte import est_oui, est_vide, norm
+from ..acces.regions import cle_region
+from ..commun.texte import est_oui, norm
 from ..donnees.modeles import Enseignant, Poste
+from .bonification import ecole_bonifiee
 
 TOUS = "*"   # clé des listes sans filtre de sous-système (enseignant sans sous-système renseigné)
 
@@ -30,7 +32,7 @@ class Bloc:
     """Postes contigus d'une même école, identiques pour le score et les filtres."""
 
     __slots__ = ("rang", "postes", "_suivant", "id_etab", "commune", "departement", "iaeb", "sous_systeme",
-                 "acces_urbain", "multigrade", "type_etab", "up", "zone_rouge")
+                 "acces_urbain", "multigrade", "type_etab", "up", "zone_rouge", "region")
 
     def __init__(self, rang: int, p: Poste):
         self.rang = rang                      # rang du premier poste dans l'ordre de construction
@@ -40,6 +42,7 @@ class Bloc:
         self.commune = norm(p.commune)
         self.departement = norm(p.departement)
         self.iaeb = norm(p.iaeb)
+        self.region = cle_region(p.region)
         self.sous_systeme = norm(p.sous_systeme)
         z_to = norm(p.accessibilite)
         self.acces_urbain = "urbain" in z_to or "semi" in z_to
@@ -50,8 +53,8 @@ class Bloc:
 
     @staticmethod
     def signature(p: Poste) -> tuple:
-        return (p.id_etab, p.commune, p.departement, p.iaeb, p.sous_systeme, p.accessibilite, p.multigrade,
-                p.type_etab, p.Up, p.est_zone_rouge)
+        return (p.id_etab, p.commune, p.departement, p.iaeb, p.region, p.sous_systeme, p.accessibilite,
+                p.multigrade, p.type_etab, p.Up, p.est_zone_rouge)
 
     def premier_libre(self) -> Optional[Poste]:
         """Premier poste libre du bloc. Un poste pourvu ne se libère jamais : le curseur ne recule pas."""
@@ -67,7 +70,8 @@ class Bloc:
 class _Profil:
     """Grandeurs de l'enseignant utilisées par le score, normalisées une fois."""
 
-    __slots__ = ("z1", "commune", "departement", "iaeb", "sous_systeme", "age", "rural_ancien", "bonifiees")
+    __slots__ = ("z1", "commune", "departement", "iaeb", "region", "sous_systeme", "age", "rural_ancien",
+                 "bonifiee")
 
     def __init__(self, e: Enseignant, cfg: dict):
         w = cfg["poids_score_appariement"]
@@ -75,16 +79,12 @@ class _Profil:
         self.commune = norm(e.commune_attache)
         self.departement = norm(e.departement_attache)
         self.iaeb = norm(e.iaeb_attache)
+        self.region = cle_region(e.region_attache)
         self.sous_systeme = norm(e.sous_systeme)
         self.age = float(e.age or 35)
         self.rural_ancien = "rural" in norm(e.zone_attache) and float(e.anciennete_poste or 0) >= 5
-        # Écoles bonifiées par le motif (score.ajustements_contextuels).
-        self.bonifiees: frozenset = frozenset()
-        motif = (e.motif_bonification or "").strip()
-        if not est_vide(motif):
-            voeux = [v.strip() for v in e.voeux if v and not est_vide(v)]
-            cible = next((v for v in voeux if v and v.lower() in motif.lower()), None)
-            self.bonifiees = frozenset([cible]) if cible else frozenset(voeux)
+        # École bonifiée par le motif (bonification.ecole_bonifiee, comme score.ajustements_contextuels).
+        self.bonifiee: Optional[str] = ecole_bonifiee(e)
 
 
 def _score(pr: _Profil, b: Bloc, cfg: dict) -> float:
@@ -108,7 +108,7 @@ def _score(pr: _Profil, b: Bloc, cfg: dict) -> float:
         adj += ajust["allegement_senior_standard"]
     if pr.rural_ancien and b.acces_urbain:
         adj += ajust["transition_rural_urbain"]
-    if b.id_etab in pr.bonifiees:
+    if pr.bonifiee is not None and b.id_etab == pr.bonifiee:
         adj += ajust["bonification_ciblee"]
 
     w = cfg["poids_score_appariement"]
@@ -140,6 +140,8 @@ class IndexPostes:
         self.par_etab: Dict[str, List[Bloc]] = {}
         # Listes par sous-système (et pour tous) puis par classe d'ajustements, Up décroissant puis rang.
         self.par_classe: Dict[str, Dict[tuple, List[Bloc]]] = {TOUS: {}}
+        # Mêmes listes restreintes à une région (règle des régions étanches) : région -> sous-système -> classe.
+        self.par_region_classe: Dict[str, Dict[str, Dict[tuple, List[Bloc]]]] = {}
         for b in self.blocs:
             self.par_iaeb.setdefault(b.iaeb, []).append(b)
             self.par_departement.setdefault(b.departement, []).append(b)
@@ -147,19 +149,29 @@ class IndexPostes:
             self.par_etab.setdefault(b.id_etab, []).append(b)
             for cle in (TOUS, b.sous_systeme):
                 self.par_classe.setdefault(cle, {}).setdefault(b.classe(), []).append(b)
+                self.par_region_classe.setdefault(b.region, {}).setdefault(cle, {}).setdefault(
+                    b.classe(), []).append(b)
         for classes in self.par_classe.values():
             for liste in classes.values():
                 liste.sort(key=lambda b: (-b.up, b.rang))
+        for par_ss in self.par_region_classe.values():
+            for classes in par_ss.values():
+                for liste in classes.values():
+                    liste.sort(key=lambda b: (-b.up, b.rang))
 
     def meilleur(self, e: Enseignant, cfg: dict, *, contrainte_dept: bool = False,
-                 contrainte_iaeb: bool = False) -> Optional[Poste]:
+                 contrainte_iaeb: bool = False, meme_region: bool = False) -> Optional[Poste]:
         pr = _Profil(e, cfg)
+        if meme_region and not pr.region:
+            return None          # région d'attache inconnue : aucune région à respecter, donc aucun poste sûr
         ss = pr.sous_systeme
         meilleur: Tuple[float, int, Optional[Poste]] = (float("-inf"), -1, None)
 
         def evaluer(b: Bloc) -> None:
             nonlocal meilleur
             if ss and b.sous_systeme != ss:
+                return
+            if meme_region and b.region != pr.region:
                 return
             p = b.premier_libre()
             if p is None:
@@ -182,16 +194,15 @@ class IndexPostes:
             evaluer(b)
         for b in self.par_departement.get(pr.departement, []) if pr.departement else []:
             evaluer(b)
-        for etab in pr.bonifiees:
-            for b in self.par_etab.get(etab, []):
-                evaluer(b)
+        for b in self.par_etab.get(pr.bonifiee, []) if pr.bonifiee else []:
+            evaluer(b)
 
         # … puis, dans chaque classe, les blocs ordinaires par Up décroissant.
-        for liste in self.par_classe.get(ss or TOUS, {}).values():
+        classes = (self.par_region_classe.get(pr.region, {}) if meme_region else self.par_classe).get(ss or TOUS, {})
+        for liste in classes.values():
             tete: Optional[float] = None
             for b in liste:
-                if (pr.commune and b.commune == pr.commune) or (pr.departement and b.departement == pr.departement) \
-                        or b.id_etab in pr.bonifiees:
+                if (pr.commune and b.commune == pr.commune) or (pr.departement and b.departement == pr.departement)                         or (pr.bonifiee is not None and b.id_etab == pr.bonifiee):
                     continue
                 p = b.premier_libre()
                 if p is None:

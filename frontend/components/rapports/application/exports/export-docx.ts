@@ -16,10 +16,12 @@ import {
   HeadingLevel,
   ImageRun,
   PageNumber,
+  PageOrientation,
   Packer,
   Paragraph,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   WidthType,
@@ -75,6 +77,61 @@ function tableau(entetes: string[], lignes: (string | number)[][]): Table {
   })
 }
 
+/** Annexe des propositions d'affectation : toutes les lignes, jamais celles de la page consultée à l'écran. */
+export interface AnnexeAffectations {
+  entetes: readonly string[]
+  lignes: readonly (readonly string[])[]
+  /** Colonnes numériques (alignées à droite), par indice. */
+  colonnesNumeriques?: readonly number[]
+}
+
+/** Largeurs des colonnes de l'annexe (en vingtièmes de point) : 15 colonnes dans les 15 398 d'une page A4 paysage. */
+const LARGEURS_ANNEXE = [500, 1000, 1600, 900, 1600, 1100, 1600, 1100, 1000, 1000, 1000, 900, 800, 600, 600]
+
+/** Cellule d'annexe : police réduite, marges serrées. */
+function celluleAnnexe(texte: string, entete: boolean, droite: boolean, largeur: number): TableCell {
+  return new TableCell({
+    width: { size: largeur, type: WidthType.DXA },
+    shading: entete ? { fill: 'ECF5F5' } : undefined,
+    margins: { top: 30, bottom: 30, left: 60, right: 60 },
+    children: [
+      new Paragraph({
+        alignment: droite ? AlignmentType.RIGHT : AlignmentType.LEFT,
+        children: [new TextRun({ text: texte, bold: entete, size: 15, color: entete ? '1F2D3D' : GRIS })],
+      }),
+    ],
+  })
+}
+
+/**
+ * Tableau de l'annexe : en-tête répété sur chaque page, lignes jamais coupées entre deux pages, largeurs fixes pour
+ * tenir dans la page paysage.
+ */
+function tableauAnnexe(annexe: AnnexeAffectations): Table {
+  const n = annexe.entetes.length
+  const largeurs = LARGEURS_ANNEXE.length === n ? LARGEURS_ANNEXE : annexe.entetes.map(() => Math.floor(15300 / n))
+  const numeriques = new Set(annexe.colonnesNumeriques ?? [0, 13, 14])
+  return new Table({
+    width: { size: largeurs.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+    columnWidths: largeurs,
+    layout: TableLayoutType.FIXED,
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        cantSplit: true,
+        children: annexe.entetes.map((e, i) => celluleAnnexe(e, true, numeriques.has(i), largeurs[i])),
+      }),
+      ...annexe.lignes.map(
+        ligne =>
+          new TableRow({
+            cantSplit: true,
+            children: ligne.map((c, i) => celluleAnnexe(c, false, numeriques.has(i), largeurs[i])),
+          }),
+      ),
+    ],
+  })
+}
+
 function sectionEnParagraphes(section: DecisionReportSection): (Paragraph | Table)[] {
   const blocs: (Paragraph | Table)[] = [
     new Paragraph({
@@ -113,11 +170,29 @@ export interface DocxExportInput {
   scenarioNom: string
   /** Mention à porter en tête quand les données sont fictives. */
   donneesDemonstration: boolean
+  /**
+   * Propositions d'affectation, en annexe paysage. Elles figurent toutes dans le document, quelle que soit la page
+   * consultée à l'écran : l'export ne dépend jamais de l'état de la consultation.
+   */
+  annexeAffectations?: AnnexeAffectations
 }
 
 /** Construit le document Word et renvoie ses octets. */
 export async function construireRapportDocx(input: DocxExportInput): Promise<Blob> {
-  const { rapport, scenarioNom, donneesDemonstration } = input
+  const { rapport, scenarioNom, donneesDemonstration, annexeAffectations } = input
+  const pied = new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({ text: 'AlgoPlanR — document produit localement · page ', size: 16, color: GRIS }),
+          new TextRun({ children: [PageNumber.CURRENT], size: 16, color: GRIS }),
+          new TextRun({ text: ' / ', size: 16, color: GRIS }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: GRIS }),
+        ],
+      }),
+    ],
+  })
   const logo = await chargerLogo('/logo-full.png')
 
   const garde: (Paragraph | Table)[] = []
@@ -206,23 +281,40 @@ export async function construireRapportDocx(input: DocxExportInput): Promise<Blo
     sections: [
       {
         properties: { page: { margin: { top: 1000, bottom: 1000, left: 1000, right: 1000 } } },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({ text: 'AlgoPlanR — document produit localement · page ', size: 16, color: GRIS }),
-                  new TextRun({ children: [PageNumber.CURRENT], size: 16, color: GRIS }),
-                  new TextRun({ text: ' / ', size: 16, color: GRIS }),
-                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: GRIS }),
-                ],
-              }),
-            ],
-          }),
-        },
+        footers: { default: pied },
         children: [...garde, ...rapport.sections.flatMap(sectionEnParagraphes)],
       },
+      // Annexe en paysage : le corps du rapport reste en portrait.
+      ...(annexeAffectations && annexeAffectations.lignes.length > 0
+        ? [
+            {
+              properties: {
+                page: {
+                  size: { orientation: PageOrientation.LANDSCAPE },
+                  margin: { top: 720, bottom: 720, left: 720, right: 720 },
+                },
+              },
+              footers: { default: pied },
+              children: [
+                new Paragraph({
+                  text: 'Annexe A — Propositions d’affectation',
+                  heading: HeadingLevel.HEADING_1,
+                  spacing: { before: 0, after: 140 },
+                }),
+                new Paragraph({
+                  spacing: { after: 120 },
+                  children: [
+                    new TextRun({
+                      text: `${annexeAffectations.lignes.length.toLocaleString('fr-FR')} proposition(s) d’affectation, rangée(s) par région, département, commune et école de destination. ${MENTION_SIMULATION}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+                tableauAnnexe(annexeAffectations),
+              ],
+            },
+          ]
+        : []),
     ],
   })
 

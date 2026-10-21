@@ -4,10 +4,10 @@
  * Les valeurs sont calculées par le serveur.
  */
 
-import type { FiabiliteIndicateur, IndicateursAnnee } from '../../shared/api'
+import type { CleIndicateurPlan, FiabiliteIndicateur } from '../../shared/api'
 
-/** Indicateur numérique d'une année. */
-export type CleIndicateur = keyof Omit<IndicateursAnnee, 'annee'>
+/** Indicateur numérique d'une année du tableau (hors détail de la projection, qui a son propre onglet). */
+export type CleIndicateur = CleIndicateurPlan
 
 /** Une ligne du tableau : l'indicateur, son libellé et ce qu'il mesure. */
 export interface LigneIndicateur {

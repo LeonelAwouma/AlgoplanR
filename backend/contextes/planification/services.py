@@ -55,7 +55,10 @@ def hypotheses_courantes(jeu) -> Tuple[dict, dict]:
 
 def hypotheses_dict(jeu) -> dict:
     contenu, meta = hypotheses_courantes(jeu)
-    return {**contenu, **meta}
+    # `reference_attrition` est un référentiel en lecture seule (modèle M1 du rapport DRH) : jamais stocké dans
+    # `contenu`, jamais modifiable via PUT, toujours recalculé à la demande pour rester à jour indépendamment des
+    # versions d'hypothèses enregistrées.
+    return {**contenu, **meta, "reference_attrition": par.REFERENTIEL_ATTRITION_M1}
 
 
 def historique_hypotheses(jeu) -> List[dict]:
@@ -113,8 +116,8 @@ def documentation(jeu) -> dict:
             "l'école (règle du référentiel MINEDUB) est recalculée chaque année sur cet effectif.",
             f"Les prises de fonction de directeurs ({d['DIR_NOM_AN']} par an, dont {d['DIR_H_PRI_PCT']} % sans classe "
             "au primaire) libèrent des classes, rapportées à l'effectif du périmètre.",
-            f"REM de référence du rapport : {d['REM_REF_PRI']} élèves par enseignant au primaire ; le REM projeté "
-            "du périmètre est donné à titre indicatif."]},
+            f"Taux d'encadrement de référence du rapport : {d['REM_REF_PRI']} élèves par enseignant au primaire ; "
+            "le taux d'encadrement projeté du périmètre est donné à titre indicatif."]},
         {"titre": "Quotas de recrutement", "paragraphes": [
             h["quotas"]["justification"],
             f"Le déficit initial est rattrapé sur {d['ETAL_N']} an(s) (ETAL_N). {plafond}"]},
@@ -138,8 +141,12 @@ def estimer_attrition(jeu) -> dict:
     h, _ = hypotheses_courantes(jeu)
     legal = h["retraite"]["age_legal"]
     actualisations = list(jeu.actualisations.all())
-    m1 = (f"À défaut, le modèle M1 du rapport DRH retient {h['drh']['A_AUT_PRI_PCT']} % d'autres départs "
-          "par an au primaire.")
+    a = h["attrition"]
+    en_vigueur = {"taux_unique": f"un taux unique de {a['taux_unique']} % par an",
+                  "par_region": f"un taux par région (repli : {a['taux_unique']} % par an)",
+                  "par_sous_systeme": f"un taux par sous-système (repli : {a['taux_unique']} % par an)"}[a["methode"]]
+    m1 = (f"Les hypothèses en vigueur retiennent {en_vigueur} ; pour mémoire, le modèle M1 du rapport DRH retient "
+          f"{h['drh']['A_AUT_PRI_PCT']} % d'autres départs par an au primaire.")
     if not actualisations:
         return {"taux_propose": None, "methode": "Comparaison des effectifs entre deux actualisations successives",
                 "base": "Une seule photographie des effectifs est disponible pour ce jeu.",
@@ -203,7 +210,10 @@ def contexte(jeu, scenario_id: Optional[str] = None, *, avec_etat: bool = True) 
         _PROJECTIONS.move_to_end(cle)
         ecoles, departs = _PROJECTIONS[cle]
     else:
-        ecoles, departs = projeter_ecoles(prep.ecoles, prep.enseignants.values(), prep.cfg, hyp,
+        # Bases d'origine : les affectations du résultat contiennent déjà les mouvements du Prince, qui rejouent
+        # le départ et l'arrivée de chaque agent. Partir des bases après Prince les compterait deux fois.
+        avant = prep.avant()
+        ecoles, departs = projeter_ecoles(avant.ecoles, avant.enseignants.values(), prep.cfg, hyp,
                                           affectations=res["affectations"])
         _PROJECTIONS[cle] = (ecoles, departs)
         while len(_PROJECTIONS) > _MAX:
@@ -386,6 +396,19 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
     return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **out}
 
 
+def alea(ctx: Contexte, p: dict) -> dict:
+    """Degré d'aléa (1 − R² enseignants ~ élèves) du périmètre et de chacune de ses régions.
+
+    « Après » (au premier niveau de la réponse) : effectifs après les faits du Prince et les mouvements du scénario du
+    contexte, comme le rapport prévisionnel. « Avant » (clé `avant`) : effectifs déclarés des bases à l'import, avant
+    les faits du Prince et avant l'algorithme.
+    """
+    from contextes.diagnostic import services as diag
+    importees = [e for e in rap.ecoles_a_l_import(diag.preparer(ctx.jeu).avant().ecoles) if dans(e.lieu(), p)]
+    return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **rap.alea_par_region(ecoles_de(ctx, p)),
+            "avant": rap.alea_par_region(importees)}
+
+
 def listes_rapport(ctx: Contexte, p: dict, seuil_cohorte=5) -> dict:
     """Listes nominatives du volet redéploiement : écoles (C1, C3) et cohorte « au moins N ans au poste »."""
     ecoles = ecoles_de(ctx, p)
@@ -416,7 +439,11 @@ def evolution(ctx: Contexte, p: dict) -> dict:
             points.append({"version": v.version, "calcule_le": v.calcule_le, "indicateurs": valeurs})
     courant = indicateurs(ctx, p)["indicateurs"]
     if not points or points[-1]["indicateurs"] != courant:
-        points.append({"version": ctx.etat.version, "calcule_le": timezone.now(), "indicateurs": courant})
+        actuel = {"version": ctx.etat.version, "calcule_le": timezone.now(), "indicateurs": courant}
+        if points and points[-1]["version"] == actuel["version"]:
+            points[-1] = actuel  # une version n'apparaît qu'une fois : l'état courant remplace son instantané
+        else:
+            points.append(actuel)
     return {"points": points}
 
 
@@ -507,12 +534,14 @@ def ajuster_quota(jeu, annee: str, territoire: str, corps: dict, *, request, aut
     if q.statut == "valide":
         from contextes.nominations.services import Conflit
         raise Conflit("Ce quota est validé : il ne peut plus être ajusté.")
-    try:
-        retenu = int(corps.get("retenu"))
-    except (TypeError, ValueError):
+    valeur = corps.get("retenu")
+    if isinstance(valeur, float) and not valeur.is_integer():
         raise RefusMetier("Quota retenu invalide", ["Nombre entier attendu"])
-    if retenu < 0:
-        raise RefusMetier("Un quota ne peut pas être négatif.")
+    from contextes.commun.outils import entier_param
+    retenu = entier_param(None if valeur is None else int(valeur) if isinstance(valeur, float) else valeur,
+                          "retenu", minimum=0, maximum=10_000_000)
+    if retenu is None:
+        raise RefusMetier("Quota retenu invalide", ["Nombre entier attendu"])
     motif = str(corps.get("motif") or "").strip()
     if retenu != q.calcule and not motif:
         raise RefusMetier("Un ajustement doit être motivé.", code="motif_manquant")

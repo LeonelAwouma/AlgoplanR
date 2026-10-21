@@ -9,11 +9,14 @@ export function Regle({
   enonce,
   precision,
   htmlFor,
+  nonApplique = false,
   children,
 }: {
   enonce: string
   precision?: string
   htmlFor: string
+  /** Le serveur ne lit pas ce réglage : il est affiché tel qu'il est appliqué, sans pouvoir le modifier. */
+  nonApplique?: boolean
   children: ReactNode
 }) {
   return (
@@ -22,6 +25,7 @@ export function Regle({
         {enonce}
       </label>
       <div className="regle-valeur">{children}</div>
+      {nonApplique && <p className="regle-precision">Non appliqué : le calcul n’utilise pas ce réglage.</p>}
       {precision && <p className="regle-precision">{precision}</p>}
     </div>
   )
@@ -33,18 +37,21 @@ export function Interrupteur({
   texte,
   coche,
   onChange,
+  nonApplique = false,
 }: {
   titre: string
   texte: string
   coche: boolean
   onChange: (coche: boolean) => void
+  /** Le serveur ne lit pas ce réglage : l'interrupteur est affiché sans pouvoir le modifier. */
+  nonApplique?: boolean
 }) {
   return (
     <label className="switch-row">
-      <input type="checkbox" checked={coche} onChange={e => onChange(e.target.checked)} />
+      <input type="checkbox" checked={coche} disabled={nonApplique} onChange={e => onChange(e.target.checked)} />
       <span>
         <b>{titre}</b>
-        <span>{texte}</span>
+        <span>{nonApplique ? `Non appliqué : le calcul n’utilise pas ce réglage. ${texte}` : texte}</span>
       </span>
     </label>
   )
@@ -59,6 +66,7 @@ export function ChampNombre({
   min = 0,
   max,
   pas,
+  nonApplique = false,
 }: {
   id: string
   libelle: string
@@ -67,6 +75,8 @@ export function ChampNombre({
   min?: number
   max?: number
   pas?: number
+  /** Le serveur ne lit pas ce réglage : affiché sans pouvoir le modifier. */
+  nonApplique?: boolean
 }) {
   return (
     <div className="field">
@@ -78,8 +88,10 @@ export function ChampNombre({
         max={max}
         step={pas}
         value={valeur}
+        disabled={nonApplique}
         onChange={e => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
       />
+      {nonApplique && <span className="hint">Non appliqué : le calcul n’utilise pas ce réglage.</span>}
     </div>
   )
 }

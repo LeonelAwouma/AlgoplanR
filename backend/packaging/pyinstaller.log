@@ -1,10 +1,10 @@
-250 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.8
-251 INFO: Python: 3.14.1
-294 INFO: Platform: Windows-11-10.0.26200-SP0
-294 INFO: Python environment: C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\.venv
-296 INFO: wrote packaging\algoplanr-serveur.spec
-1204 WARNING: Failed to collect submodules for 'rest_framework.schemas' because importing 'rest_framework.schemas' raised: django.core.exceptions.ImproperlyConfigured: Requested setting REST_FRAMEWORK, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.
-39673 INFO: Module search paths (PYTHONPATH):
+968 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.8
+970 INFO: Python: 3.14.1
+1182 INFO: Platform: Windows-11-10.0.26200-SP0
+1182 INFO: Python environment: C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\.venv
+1204 INFO: Removing temporary files and cleaning cache in C:\Users\MARCOM\AppData\Local\pyinstaller
+1944 WARNING: Failed to collect submodules for 'rest_framework.schemas' because importing 'rest_framework.schemas' raised: django.core.exceptions.ImproperlyConfigured: Requested setting REST_FRAMEWORK, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.
+60335 INFO: Module search paths (PYTHONPATH):
 ['C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend',
  'C:\\Users\\MARCOM\\AppData\\Local\\Programs\\Python\\Python314\\python314.zip',
  'C:\\Users\\MARCOM\\AppData\\Local\\Programs\\Python\\Python314\\DLLs',
@@ -14,243 +14,242 @@
  'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages',
  'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\packaging',
  'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend']
-42307 INFO: Appending 'datas' from .spec
-44052 INFO: checking Analysis
-44052 INFO: Building Analysis because Analysis-00.toc is non existent
-44053 INFO: Looking for Python shared library...
-44053 INFO: Using Python shared library: C:\Users\MARCOM\AppData\Local\Programs\Python\Python314\python314.dll
-44053 INFO: Running Analysis Analysis-00.toc
-44053 INFO: Target bytecode optimization level: 0
-44054 INFO: Initializing module dependency graph...
-44140 INFO: Initializing module graph hook caches...
-44721 INFO: Analyzing modules for base_library.zip ...
-52795 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-55913 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-58605 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-59482 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-59577 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-82674 INFO: Caching module dependency graph...
-82790 INFO: Analyzing C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\lancer_serveur.py
-83045 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-83546 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-86829 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-86911 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-87145 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-89738 INFO: Processing standard module hook 'hook-django.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-135297 WARNING: No django root directory could be found!
-144489 INFO: Processing standard module hook 'hook-django.db.backends.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-146432 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-147123 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
-147765 INFO: Processing standard module hook 'hook-django.core.cache.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-150750 INFO: Processing standard module hook 'hook-django.core.management.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-157568 INFO: Processing standard module hook 'hook-django.core.mail.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-161129 INFO: Analyzing hidden import 'python_calamine'
-161155 INFO: Analyzing hidden import 'openpyxl'
-161159 INFO: Processing standard module hook 'hook-openpyxl.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
-161917 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-163759 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
-163762 INFO: SetuptoolsInfo: initializing cached setuptools info...
-168027 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-178774 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-181489 INFO: Analyzing hidden import 'algoplanr.settings'
-181497 INFO: Analyzing hidden import 'algoplanr.urls'
-184257 INFO: Processing standard module hook 'hook-pygments.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-198394 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-201603 INFO: Analyzing hidden import 'contextes'
-201604 INFO: Analyzing hidden import 'contextes.acces'
-201606 INFO: Analyzing hidden import 'contextes.acces.activation'
-201743 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
-209959 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
-211996 INFO: Analyzing hidden import 'contextes.acces.apps'
-212002 INFO: Analyzing hidden import 'contextes.acces.authentification'
-212132 INFO: Analyzing hidden import 'contextes.acces.codes_acces'
-212752 INFO: Analyzing hidden import 'contextes.acces.controle_import'
-212847 INFO: Analyzing hidden import 'contextes.acces.management'
-212850 INFO: Analyzing hidden import 'contextes.acces.management.commands'
-212854 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_appliquer_activation'
-212869 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_generer_cles'
-212894 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_mesurer_codes'
-212914 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_preparer_activation'
-212953 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_preparer_codes'
-213002 INFO: Analyzing hidden import 'contextes.acces.migrations'
-213006 INFO: Analyzing hidden import 'contextes.acces.migrations.0001_initial'
-213031 INFO: Analyzing hidden import 'contextes.acces.migrations.0002_postes_autonomes_codes'
-213061 INFO: Analyzing hidden import 'contextes.acces.permissions'
-213086 INFO: Analyzing hidden import 'contextes.acces.rattachement'
-213096 INFO: Analyzing hidden import 'contextes.acces.urls'
-213158 INFO: Analyzing hidden import 'contextes.arbitrage'
-213162 INFO: Analyzing hidden import 'contextes.arbitrage.apps'
-213166 INFO: Analyzing hidden import 'contextes.arbitrage.migrations'
-213168 INFO: Analyzing hidden import 'contextes.arbitrage.migrations.0001_initial'
-213179 INFO: Analyzing hidden import 'contextes.arbitrage.models'
-213186 INFO: Analyzing hidden import 'contextes.arbitrage.urls'
-215537 INFO: Analyzing hidden import 'contextes.audit.apps'
-215545 INFO: Analyzing hidden import 'contextes.audit.migrations'
-215551 INFO: Analyzing hidden import 'contextes.audit.migrations.0001_initial'
-215565 INFO: Analyzing hidden import 'contextes.audit.urls'
-215630 INFO: Analyzing hidden import 'contextes.commun.middleware'
-215641 INFO: Analyzing hidden import 'contextes.commun.serializers'
-215651 INFO: Analyzing hidden import 'contextes.diagnostic.apps'
-215656 INFO: Analyzing hidden import 'contextes.diagnostic.migrations'
-215661 INFO: Analyzing hidden import 'contextes.diagnostic.migrations.0001_initial'
-215674 INFO: Analyzing hidden import 'contextes.diagnostic.urls'
-215702 INFO: Analyzing hidden import 'contextes.donnees.apps'
-215708 INFO: Analyzing hidden import 'contextes.donnees.lecteur'
-215783 INFO: Processing standard module hook 'hook-pandas.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-230720 INFO: Processing standard module hook 'hook-pandas.io.formats.style.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-242914 INFO: Processing standard module hook 'hook-pandas.plotting.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-246240 INFO: Processing standard module hook 'hook-dateutil.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
-246738 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
-253906 INFO: Processing standard module hook 'hook-pandas.io.clipboard.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-255306 INFO: Analyzing hidden import 'contextes.donnees.migrations'
-255313 INFO: Analyzing hidden import 'contextes.donnees.migrations.0001_initial'
-255354 INFO: Analyzing hidden import 'contextes.donnees.migrations.0002_acces_portee_des_jeux'
-255387 INFO: Analyzing hidden import 'contextes.donnees.migrations.0003_validation_scenario_retenu_actualisation'
-255425 INFO: Analyzing hidden import 'contextes.donnees.migrations.0004_fichier_base_nationale'
-255453 INFO: Analyzing hidden import 'contextes.donnees.services'
-255865 INFO: Analyzing hidden import 'contextes.donnees.urls'
-256132 INFO: Analyzing hidden import 'contextes.ia'
-256137 INFO: Analyzing hidden import 'contextes.ia.apps'
-256144 INFO: Analyzing hidden import 'contextes.ia.migrations'
-256151 INFO: Analyzing hidden import 'contextes.ia.models'
-256154 INFO: Analyzing hidden import 'contextes.ia.services'
-256190 INFO: Analyzing hidden import 'contextes.ia.urls'
-256214 INFO: Analyzing hidden import 'contextes.nominations.apps'
-256219 INFO: Analyzing hidden import 'contextes.nominations.migrations'
-256223 INFO: Analyzing hidden import 'contextes.nominations.migrations.0001_initial'
-256245 INFO: Analyzing hidden import 'contextes.nominations.urls'
-256461 INFO: Analyzing hidden import 'contextes.parametrage.apps'
-256470 INFO: Analyzing hidden import 'contextes.parametrage.migrations'
-256474 INFO: Analyzing hidden import 'contextes.parametrage.migrations.0001_initial'
-256488 INFO: Analyzing hidden import 'contextes.parametrage.serializers'
-256498 INFO: Analyzing hidden import 'contextes.parametrage.urls'
-256538 INFO: Analyzing hidden import 'contextes.planification.apps'
-256545 INFO: Analyzing hidden import 'contextes.planification.migrations'
-256549 INFO: Analyzing hidden import 'contextes.planification.migrations.0001_initial'
-256573 INFO: Analyzing hidden import 'contextes.planification.urls'
-256629 INFO: Analyzing hidden import 'contextes.prince'
-256632 INFO: Analyzing hidden import 'contextes.prince.apps'
-256637 INFO: Analyzing hidden import 'contextes.prince.migrations'
-256639 INFO: Analyzing hidden import 'contextes.prince.migrations.0001_initial'
-256647 INFO: Analyzing hidden import 'contextes.prince.models'
-256653 INFO: Analyzing hidden import 'contextes.prince.services'
-256689 INFO: Analyzing hidden import 'contextes.prince.urls'
-256717 INFO: Analyzing hidden import 'contextes.rapports'
-256720 INFO: Analyzing hidden import 'contextes.rapports.apps'
-256724 INFO: Analyzing hidden import 'contextes.rapports.migrations'
-256727 INFO: Analyzing hidden import 'contextes.rapports.models'
-256730 INFO: Analyzing hidden import 'contextes.rapports.urls'
-256763 INFO: Analyzing hidden import 'contextes.recrutement'
-256765 INFO: Analyzing hidden import 'contextes.recrutement.apps'
-256770 INFO: Analyzing hidden import 'contextes.recrutement.migrations'
-256772 INFO: Analyzing hidden import 'contextes.recrutement.migrations.0001_initial'
-256781 INFO: Analyzing hidden import 'contextes.recrutement.models'
-256787 INFO: Analyzing hidden import 'contextes.recrutement.urls'
-256816 INFO: Analyzing hidden import 'contextes.simulation.apps'
-256821 INFO: Analyzing hidden import 'contextes.simulation.migrations'
-256824 INFO: Analyzing hidden import 'contextes.simulation.migrations.0001_initial'
-256839 INFO: Analyzing hidden import 'contextes.simulation.urls'
-256954 INFO: Analyzing hidden import 'rest_framework.apps'
-256965 INFO: Analyzing hidden import 'rest_framework.authtoken.admin'
-256980 INFO: Analyzing hidden import 'rest_framework.authtoken.apps'
-256984 INFO: Analyzing hidden import 'rest_framework.authtoken.management'
-256987 INFO: Analyzing hidden import 'rest_framework.authtoken.management.commands'
-256991 INFO: Analyzing hidden import 'rest_framework.authtoken.management.commands.drf_create_token'
-257001 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations'
-257004 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations.0001_initial'
-257013 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations.0002_auto_20160226_1747'
-257021 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations.0003_tokenproxy'
-257028 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations.0004_alter_tokenproxy_options'
-257032 INFO: Analyzing hidden import 'rest_framework.authtoken.serializers'
-257042 INFO: Analyzing hidden import 'rest_framework.authtoken.views'
-257061 INFO: Analyzing hidden import 'rest_framework.filters'
-257133 INFO: Analyzing hidden import 'rest_framework.management'
-257137 INFO: Analyzing hidden import 'rest_framework.management.commands'
-257141 INFO: Analyzing hidden import 'rest_framework.management.commands.generateschema'
-257164 INFO: Analyzing hidden import 'rest_framework.metadata'
-257209 INFO: Analyzing hidden import 'rest_framework.pagination'
-257364 INFO: Analyzing hidden import 'rest_framework.routers'
-257640 INFO: Analyzing hidden import 'rest_framework.throttling'
-257686 INFO: Analyzing hidden import 'rest_framework.urls'
-257694 INFO: Analyzing hidden import 'drf_spectacular.apps'
-257716 INFO: Analyzing hidden import 'drf_spectacular.contrib.django_allauth'
-257725 INFO: Analyzing hidden import 'drf_spectacular.contrib.django_filters'
-259391 INFO: Analyzing hidden import 'drf_spectacular.contrib.django_oauth_toolkit'
-259407 INFO: Analyzing hidden import 'drf_spectacular.contrib.djangorestframework_camel_case'
-259431 INFO: Analyzing hidden import 'drf_spectacular.contrib.knox_auth_token'
-259435 INFO: Analyzing hidden import 'drf_spectacular.contrib.pydantic'
-259448 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_auth'
-259510 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework'
-259519 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework_dataclasses'
-259532 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework_gis'
-259554 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework_jwt'
-259563 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework_recursive'
-259569 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_polymorphic'
-259581 INFO: Analyzing hidden import 'drf_spectacular.helpers'
-259591 INFO: Analyzing hidden import 'drf_spectacular.hooks'
-259629 INFO: Analyzing hidden import 'drf_spectacular.management'
-259631 INFO: Analyzing hidden import 'drf_spectacular.management.commands'
-259635 INFO: Analyzing hidden import 'drf_spectacular.management.commands.spectacular'
-259669 INFO: Processing standard module hook 'hook-jsonschema.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
-260422 INFO: Processing standard module hook 'hook-jsonschema_specifications.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
-260477 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
-260547 INFO: Analyzing hidden import 'corsheaders'
-260549 INFO: Analyzing hidden import 'corsheaders.apps'
-260569 INFO: Analyzing hidden import 'corsheaders.middleware'
-260583 INFO: Analyzing hidden import 'whitenoise'
-260632 INFO: Analyzing hidden import 'whitenoise.compress'
-260648 INFO: Analyzing hidden import 'whitenoise.middleware'
-260666 INFO: Analyzing hidden import 'whitenoise.runserver_nostatic'
-260668 INFO: Analyzing hidden import 'whitenoise.runserver_nostatic.management'
-260671 INFO: Analyzing hidden import 'whitenoise.runserver_nostatic.management.commands'
-260672 INFO: Analyzing hidden import 'whitenoise.runserver_nostatic.management.commands.runserver'
-260679 INFO: Analyzing hidden import 'whitenoise.storage'
-260700 INFO: Analyzing hidden import 'django.db.backends.sqlite3'
-260702 INFO: Analyzing hidden import 'django.db.backends.sqlite3._functions'
-260746 INFO: Analyzing hidden import 'django.db.backends.sqlite3.base'
-261755 INFO: Processing module hooks (post-graph stage)...
-264062 INFO: Processing standard module hook 'hook-django.db.backends.mysql.base.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-264333 INFO: Processing standard module hook 'hook-django.db.backends.oracle.base.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-264936 WARNING: Hidden import "django.db.backends.__pycache__.base" not found!
-266873 INFO: Processing standard module hook 'hook-django.contrib.sessions.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-270152 INFO: Processing standard module hook 'hook-django.template.loaders.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
-284190 INFO: Processing standard module hook 'hook-tzdata.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
-287289 WARNING: Hidden import "django.db.backends.oracle.compiler" not found!
-287415 INFO: Performing binary vs. data reclassification (4500 entries)
-295146 INFO: Looking for ctypes DLLs
-295682 INFO: Analyzing run-time hooks ...
-295708 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
-295718 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
-295729 INFO: Including run-time hook 'pyi_rth_django.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
-295735 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
-295741 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
-296155 INFO: Creating base_library.zip...
-296259 INFO: Looking for dynamic libraries
-310064 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\numpy.libs', 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\pandas.libs']
-310065 INFO: Extra DLL search directories (PATH): []
-322346 INFO: Warnings written to C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\warn-algoplanr-serveur.txt
-322849 INFO: Graph cross-reference written to C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\xref-algoplanr-serveur.html
-323945 INFO: checking PYZ
-323946 INFO: Building PYZ because PYZ-00.toc is non existent
-323946 INFO: Building PYZ (ZlibArchive) C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\PYZ-00.pyz
-328591 INFO: Building PYZ (ZlibArchive) C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\PYZ-00.pyz completed successfully.
-328922 INFO: checking PKG
-328922 INFO: Building PKG because PKG-00.toc is non existent
-328922 INFO: Building PKG (CArchive) algoplanr-serveur.pkg
-329042 INFO: Building PKG (CArchive) algoplanr-serveur.pkg completed successfully.
-329045 INFO: Bootloader C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\.venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
-329046 INFO: checking EXE
-329046 INFO: Building EXE because EXE-00.toc is non existent
-329046 INFO: Building EXE from EXE-00.toc
-329047 INFO: Copying bootloader EXE to C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\algoplanr-serveur.exe
-332146 INFO: Copying icon to EXE
-333210 INFO: Copying 0 resources to EXE
-333210 INFO: Embedding manifest in EXE
-334288 INFO: Appending PKG archive to EXE
-335024 INFO: Fixing EXE headers
-336546 INFO: Building EXE from EXE-00.toc completed successfully.
-336618 INFO: checking COLLECT
-336619 INFO: Building COLLECT because COLLECT-00.toc is non existent
-336620 INFO: Building COLLECT COLLECT-00.toc
-401230 INFO: Building COLLECT COLLECT-00.toc completed successfully.
-402031 INFO: Build complete! The results are available in: C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\sortie
+62727 INFO: Appending 'datas' from .spec
+64492 INFO: checking Analysis
+64493 INFO: Building Analysis because Analysis-00.toc is non existent
+64493 INFO: Looking for Python shared library...
+64493 INFO: Using Python shared library: C:\Users\MARCOM\AppData\Local\Programs\Python\Python314\python314.dll
+64494 INFO: Running Analysis Analysis-00.toc
+64494 INFO: Target bytecode optimization level: 0
+64494 INFO: Initializing module dependency graph...
+64503 INFO: Initializing module graph hook caches...
+64864 INFO: Analyzing modules for base_library.zip ...
+72797 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+73827 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+74181 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+75267 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+75370 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+91725 INFO: Caching module dependency graph...
+91827 INFO: Analyzing C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\lancer_serveur.py
+91981 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+92444 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+93400 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+93413 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+93469 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+94048 INFO: Processing standard module hook 'hook-django.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+128666 WARNING: No django root directory could be found!
+134371 INFO: Processing standard module hook 'hook-django.db.backends.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+135015 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+135596 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+136301 INFO: Processing standard module hook 'hook-django.core.cache.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+138656 INFO: Processing standard module hook 'hook-django.core.management.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+144871 INFO: Processing standard module hook 'hook-django.core.mail.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+148150 INFO: Analyzing hidden import 'python_calamine'
+148185 INFO: Analyzing hidden import 'openpyxl'
+148192 INFO: Processing standard module hook 'hook-openpyxl.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+149220 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+150322 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+150325 INFO: SetuptoolsInfo: initializing cached setuptools info...
+154114 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+164965 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+169011 INFO: Analyzing hidden import 'algoplanr.settings'
+169022 INFO: Analyzing hidden import 'algoplanr.urls'
+169932 INFO: Processing standard module hook 'hook-pygments.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+180031 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+184569 INFO: Analyzing hidden import 'contextes'
+184572 INFO: Analyzing hidden import 'contextes.acces'
+184575 INFO: Analyzing hidden import 'contextes.acces.activation'
+184994 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+191015 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+192124 INFO: Analyzing hidden import 'contextes.acces.apps'
+192129 INFO: Analyzing hidden import 'contextes.acces.authentification'
+192167 INFO: Analyzing hidden import 'contextes.acces.codes_acces'
+192274 INFO: Analyzing hidden import 'contextes.acces.controle_import'
+192324 INFO: Analyzing hidden import 'contextes.acces.management'
+192326 INFO: Analyzing hidden import 'contextes.acces.management.commands'
+192329 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_appliquer_activation'
+192336 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_generer_cles'
+192348 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_mesurer_codes'
+192358 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_preparer_activation'
+192387 INFO: Analyzing hidden import 'contextes.acces.management.commands.acces_preparer_codes'
+192407 INFO: Analyzing hidden import 'contextes.acces.migrations'
+192410 INFO: Analyzing hidden import 'contextes.acces.migrations.0001_initial'
+192421 INFO: Analyzing hidden import 'contextes.acces.migrations.0002_postes_autonomes_codes'
+192429 INFO: Analyzing hidden import 'contextes.acces.migrations.0003_carnet_embarque'
+192433 INFO: Analyzing hidden import 'contextes.acces.permissions'
+192440 INFO: Analyzing hidden import 'contextes.acces.rattachement'
+192445 INFO: Analyzing hidden import 'contextes.acces.urls'
+192469 INFO: Analyzing hidden import 'contextes.arbitrage'
+192471 INFO: Analyzing hidden import 'contextes.arbitrage.apps'
+192474 INFO: Analyzing hidden import 'contextes.arbitrage.migrations'
+192475 INFO: Analyzing hidden import 'contextes.arbitrage.migrations.0001_initial'
+192479 INFO: Analyzing hidden import 'contextes.arbitrage.models'
+192482 INFO: Analyzing hidden import 'contextes.arbitrage.urls'
+194161 INFO: Analyzing hidden import 'contextes.audit.apps'
+194166 INFO: Analyzing hidden import 'contextes.audit.migrations'
+194169 INFO: Analyzing hidden import 'contextes.audit.migrations.0001_initial'
+194180 INFO: Analyzing hidden import 'contextes.audit.urls'
+194256 INFO: Analyzing hidden import 'contextes.commun.middleware'
+194266 INFO: Analyzing hidden import 'contextes.commun.serializers'
+194279 INFO: Analyzing hidden import 'contextes.diagnostic.apps'
+194283 INFO: Analyzing hidden import 'contextes.diagnostic.migrations'
+194286 INFO: Analyzing hidden import 'contextes.diagnostic.migrations.0001_initial'
+194295 INFO: Analyzing hidden import 'contextes.diagnostic.urls'
+194323 INFO: Analyzing hidden import 'contextes.donnees.apps'
+194328 INFO: Analyzing hidden import 'contextes.donnees.lecteur'
+194396 INFO: Processing standard module hook 'hook-pandas.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+210918 INFO: Processing standard module hook 'hook-pandas.io.formats.style.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+224474 INFO: Processing standard module hook 'hook-pandas.plotting.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+227759 INFO: Processing standard module hook 'hook-dateutil.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+228742 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+233600 INFO: Processing standard module hook 'hook-pandas.io.clipboard.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+235319 INFO: Analyzing hidden import 'contextes.donnees.migrations'
+235321 INFO: Analyzing hidden import 'contextes.donnees.migrations.0001_initial'
+235332 INFO: Analyzing hidden import 'contextes.donnees.migrations.0002_acces_portee_des_jeux'
+235336 INFO: Analyzing hidden import 'contextes.donnees.migrations.0003_validation_scenario_retenu_actualisation'
+235341 INFO: Analyzing hidden import 'contextes.donnees.migrations.0004_fichier_base_nationale'
+235344 INFO: Analyzing hidden import 'contextes.donnees.services'
+235440 INFO: Analyzing hidden import 'contextes.donnees.urls'
+235501 INFO: Analyzing hidden import 'contextes.ia'
+235502 INFO: Analyzing hidden import 'contextes.ia.apps'
+235504 INFO: Analyzing hidden import 'contextes.ia.migrations'
+235506 INFO: Analyzing hidden import 'contextes.ia.models'
+235507 INFO: Analyzing hidden import 'contextes.ia.services'
+235516 INFO: Analyzing hidden import 'contextes.ia.urls'
+235523 INFO: Analyzing hidden import 'contextes.nominations.apps'
+235526 INFO: Analyzing hidden import 'contextes.nominations.migrations'
+235528 INFO: Analyzing hidden import 'contextes.nominations.migrations.0001_initial'
+235536 INFO: Analyzing hidden import 'contextes.nominations.urls'
+235589 INFO: Analyzing hidden import 'contextes.parametrage.apps'
+235591 INFO: Analyzing hidden import 'contextes.parametrage.migrations'
+235592 INFO: Analyzing hidden import 'contextes.parametrage.migrations.0001_initial'
+235595 INFO: Analyzing hidden import 'contextes.parametrage.serializers'
+235596 INFO: Analyzing hidden import 'contextes.parametrage.urls'
+235607 INFO: Analyzing hidden import 'contextes.planification.apps'
+235610 INFO: Analyzing hidden import 'contextes.planification.migrations'
+235611 INFO: Analyzing hidden import 'contextes.planification.migrations.0001_initial'
+235620 INFO: Analyzing hidden import 'contextes.planification.urls'
+235643 INFO: Analyzing hidden import 'contextes.prince.apps'
+235645 INFO: Analyzing hidden import 'contextes.prince.migrations'
+235646 INFO: Analyzing hidden import 'contextes.prince.migrations.0001_initial'
+235649 INFO: Analyzing hidden import 'contextes.prince.urls'
+235661 INFO: Analyzing hidden import 'contextes.rapports'
+235662 INFO: Analyzing hidden import 'contextes.rapports.apps'
+235663 INFO: Analyzing hidden import 'contextes.rapports.migrations'
+235665 INFO: Analyzing hidden import 'contextes.rapports.models'
+235666 INFO: Analyzing hidden import 'contextes.rapports.urls'
+235679 INFO: Analyzing hidden import 'contextes.recrutement'
+235680 INFO: Analyzing hidden import 'contextes.recrutement.apps'
+235682 INFO: Analyzing hidden import 'contextes.recrutement.migrations'
+235683 INFO: Analyzing hidden import 'contextes.recrutement.migrations.0001_initial'
+235686 INFO: Analyzing hidden import 'contextes.recrutement.models'
+235689 INFO: Analyzing hidden import 'contextes.recrutement.urls'
+235697 INFO: Analyzing hidden import 'contextes.simulation.apps'
+235699 INFO: Analyzing hidden import 'contextes.simulation.migrations'
+235700 INFO: Analyzing hidden import 'contextes.simulation.migrations.0001_initial'
+235706 INFO: Analyzing hidden import 'contextes.simulation.urls'
+235741 INFO: Analyzing hidden import 'rest_framework.apps'
+235746 INFO: Analyzing hidden import 'rest_framework.authtoken.admin'
+235752 INFO: Analyzing hidden import 'rest_framework.authtoken.apps'
+235754 INFO: Analyzing hidden import 'rest_framework.authtoken.management'
+235755 INFO: Analyzing hidden import 'rest_framework.authtoken.management.commands'
+235756 INFO: Analyzing hidden import 'rest_framework.authtoken.management.commands.drf_create_token'
+235761 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations'
+235765 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations.0001_initial'
+235770 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations.0002_auto_20160226_1747'
+235773 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations.0003_tokenproxy'
+235775 INFO: Analyzing hidden import 'rest_framework.authtoken.migrations.0004_alter_tokenproxy_options'
+235776 INFO: Analyzing hidden import 'rest_framework.authtoken.serializers'
+235780 INFO: Analyzing hidden import 'rest_framework.authtoken.views'
+235784 INFO: Analyzing hidden import 'rest_framework.filters'
+235802 INFO: Analyzing hidden import 'rest_framework.management'
+235804 INFO: Analyzing hidden import 'rest_framework.management.commands'
+235805 INFO: Analyzing hidden import 'rest_framework.management.commands.generateschema'
+235811 INFO: Analyzing hidden import 'rest_framework.metadata'
+235820 INFO: Analyzing hidden import 'rest_framework.pagination'
+235861 INFO: Analyzing hidden import 'rest_framework.routers'
+235890 INFO: Analyzing hidden import 'rest_framework.throttling'
+235902 INFO: Analyzing hidden import 'rest_framework.urls'
+235904 INFO: Analyzing hidden import 'drf_spectacular.apps'
+235910 INFO: Analyzing hidden import 'drf_spectacular.contrib.django_allauth'
+235912 INFO: Analyzing hidden import 'drf_spectacular.contrib.django_filters'
+236760 INFO: Analyzing hidden import 'drf_spectacular.contrib.django_oauth_toolkit'
+236771 INFO: Analyzing hidden import 'drf_spectacular.contrib.djangorestframework_camel_case'
+236789 INFO: Analyzing hidden import 'drf_spectacular.contrib.knox_auth_token'
+236794 INFO: Analyzing hidden import 'drf_spectacular.contrib.pydantic'
+236802 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_auth'
+236854 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework'
+236860 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework_dataclasses'
+236871 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework_gis'
+236895 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework_jwt'
+236902 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_framework_recursive'
+236908 INFO: Analyzing hidden import 'drf_spectacular.contrib.rest_polymorphic'
+236921 INFO: Analyzing hidden import 'drf_spectacular.helpers'
+236931 INFO: Analyzing hidden import 'drf_spectacular.hooks'
+236964 INFO: Analyzing hidden import 'drf_spectacular.management'
+236966 INFO: Analyzing hidden import 'drf_spectacular.management.commands'
+236969 INFO: Analyzing hidden import 'drf_spectacular.management.commands.spectacular'
+237005 INFO: Processing standard module hook 'hook-jsonschema.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+239354 INFO: Processing standard module hook 'hook-jsonschema_specifications.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+239538 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+239755 INFO: Analyzing hidden import 'corsheaders'
+239760 INFO: Analyzing hidden import 'corsheaders.apps'
+239819 INFO: Analyzing hidden import 'corsheaders.middleware'
+239855 INFO: Analyzing hidden import 'whitenoise'
+239972 INFO: Analyzing hidden import 'whitenoise.compress'
+240001 INFO: Analyzing hidden import 'whitenoise.middleware'
+240025 INFO: Analyzing hidden import 'whitenoise.runserver_nostatic'
+240028 INFO: Analyzing hidden import 'whitenoise.runserver_nostatic.management'
+240031 INFO: Analyzing hidden import 'whitenoise.runserver_nostatic.management.commands'
+240033 INFO: Analyzing hidden import 'whitenoise.runserver_nostatic.management.commands.runserver'
+240042 INFO: Analyzing hidden import 'whitenoise.storage'
+240072 INFO: Analyzing hidden import 'django.db.backends.sqlite3'
+240074 INFO: Analyzing hidden import 'django.db.backends.sqlite3._functions'
+240182 INFO: Analyzing hidden import 'django.db.backends.sqlite3.base'
+241964 INFO: Processing module hooks (post-graph stage)...
+242883 INFO: Processing standard module hook 'hook-django.db.backends.mysql.base.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+242998 INFO: Processing standard module hook 'hook-django.db.backends.oracle.base.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+243264 WARNING: Hidden import "django.db.backends.__pycache__.base" not found!
+246638 INFO: Processing standard module hook 'hook-django.contrib.sessions.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+249477 INFO: Processing standard module hook 'hook-django.template.loaders.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+261982 INFO: Processing standard module hook 'hook-tzdata.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+263964 WARNING: Hidden import "django.db.backends.oracle.compiler" not found!
+264303 INFO: Performing binary vs. data reclassification (4501 entries)
+269949 INFO: Looking for ctypes DLLs
+270621 INFO: Analyzing run-time hooks ...
+270655 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+270670 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+270685 INFO: Including run-time hook 'pyi_rth_django.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+270694 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+270704 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+271360 INFO: Creating base_library.zip...
+271489 INFO: Looking for dynamic libraries
+281966 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\numpy.libs', 'C:\\Users\\MARCOM\\Downloads\\Compressed\\AlgoplanR-main\\AlgoplanR-main\\backend\\.venv\\Lib\\site-packages\\pandas.libs']
+281966 INFO: Extra DLL search directories (PATH): []
+286564 INFO: Warnings written to C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\warn-algoplanr-serveur.txt
+287297 INFO: Graph cross-reference written to C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\xref-algoplanr-serveur.html
+288063 INFO: checking PYZ
+288063 INFO: Building PYZ because PYZ-00.toc is non existent
+288063 INFO: Building PYZ (ZlibArchive) C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\PYZ-00.pyz
+290990 INFO: Building PYZ (ZlibArchive) C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\PYZ-00.pyz completed successfully.
+291202 INFO: checking PKG
+291203 INFO: Building PKG because PKG-00.toc is non existent
+291203 INFO: Building PKG (CArchive) algoplanr-serveur.pkg
+291280 INFO: Building PKG (CArchive) algoplanr-serveur.pkg completed successfully.
+291288 INFO: Bootloader C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\.venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+291289 INFO: checking EXE
+291289 INFO: Building EXE because EXE-00.toc is non existent
+291289 INFO: Building EXE from EXE-00.toc
+291290 INFO: Copying bootloader EXE to C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\travail\algoplanr-serveur\algoplanr-serveur.exe
+294476 INFO: Copying icon to EXE
+295395 INFO: Copying 0 resources to EXE
+295396 INFO: Embedding manifest in EXE
+296410 INFO: Appending PKG archive to EXE
+297353 INFO: Fixing EXE headers
+299294 INFO: Building EXE from EXE-00.toc completed successfully.
+299494 INFO: checking COLLECT
+299494 INFO: Building COLLECT because COLLECT-00.toc is non existent
+299495 INFO: Removing dir C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\sortie\algoplanr-serveur
+320469 INFO: Building COLLECT COLLECT-00.toc
+369463 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+369820 INFO: Build complete! The results are available in: C:\Users\MARCOM\Downloads\Compressed\AlgoplanR-main\AlgoplanR-main\backend\packaging\sortie

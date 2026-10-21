@@ -11,11 +11,24 @@ from domaine.planification.suivi import appliquer_suivi
 
 def test_normaliser_drh_comme_codesource():
     p = par.normaliser_drh()
-    assert p["A_AUT_PRI_PCT"] == pytest.approx(2.25) and p["A_AUT_MAT_PCT"] == 1.70
+    assert p["A_AUT_PRI_PCT"] == pytest.approx(2.25)
+    assert "A_AUT_MAT_PCT" not in p and "REM_REF_MAT" not in p and "G_MAT_PCT" not in p  # E8 : primaire seulement
     p = par.normaliser_drh({"A_TOT_PRI_PCT": 150, "AGE_RETRAITE": 80, "ETAL_N": 0, "REM_REF_PRI": 1, "PLAF_PRI": -3})
     assert (p["A_TOT_PRI_PCT"], p["AGE_RETRAITE"], p["ETAL_N"], p["REM_REF_PRI"], p["PLAF_PRI"]) == (100, 75, 1, 5, 0)
-    assert p["A_AUT_MAT_PCT"] == pytest.approx(min(100.0, round(1.70 * 100 / 3.33, 2)))
     assert par.normaliser_drh({"A_AUT_PRI_PCT_EXPLICIT": 1.5})["A_AUT_PRI_PCT"] == 1.5
+    # Lecture tolérante : une ancienne config ou un ancien jeu portant encore les clés de maternelle ne doit pas
+    # faire échouer la normalisation, qui les ignore simplement (E8, sans migration).
+    p = par.normaliser_drh({"A_AUT_MAT_PCT": 1.70, "REM_REF_MAT": 25.0, "PLAF_MAT": 10})
+    assert "A_AUT_MAT_PCT" not in p and "REM_REF_MAT" not in p and "PLAF_MAT" not in p
+
+
+def test_reference_attrition_m1_en_lecture_seule():
+    ref = par.REFERENTIEL_ATTRITION_M1
+    assert ref["attrition_totale_pct"] == pytest.approx(3.33)
+    assert ref["intervalle_confiance_points"] == pytest.approx(0.41)
+    assert ref["retraites_pct"] == pytest.approx(1.08) and ref["autres_departs_pct"] == pytest.approx(2.25)
+    assert ref["nombre_regions"] == 10 and ref["nombre_transitions_annuelles"] == 6
+    assert ref["fenetre_donnees"] == "SIGE 2018-2019 à 2024-2025"
 
 
 def test_hypotheses_par_defaut_et_validation():
@@ -167,9 +180,137 @@ def test_rapport_scenarios_et_tableaux():
     assert any("CORR_60" in x for x in r["limites"]) is False   # aucun agent signalé à la construction
 
 
+def test_rem_base_population_commune_effectif_connu():
+    """Décision « Encadrement » (lot 4) : une école à l'effectif d'élèves inconnu ne contribue ni à ses élèves ni
+    à ses enseignants. Vérifié à la main : A (200 él., 4 ens.), B (100 él., 2 ens.), connus ; C (élèves inconnus,
+    3 ens.). Avant la correction, C aurait dilué le dénominateur (300 ÷ 9 = 33,3) sans contribuer au numérateur ;
+    après, C est hors de l'agrégat des deux côtés (300 ÷ 6 = 50,0)."""
+    from domaine.planification import rapport as rap
+    a = Ecole(id="A", region="Centre", effectif_eleves=200, enseignants_actuels=4, effectif_connu=True)
+    b = Ecole(id="B", region="Centre", effectif_eleves=100, enseignants_actuels=2, effectif_connu=True)
+    c = Ecole(id="C", region="Centre", effectif_eleves=0, enseignants_actuels=3, effectif_connu=False)
+    proj = rap.ecoles_a_l_import([a, b, c])
+    assert [e.eleves_connus for e in proj] == [True, True, False]
+    assert rap.rem_base(proj) == pytest.approx(50.0)          # et non 33.3 (300 ÷ 9) avant correction
+
+
+def test_rem_base_somme_sur_somme_pas_moyenne_des_ratios():
+    """L'encadrement d'un territoire est Σ élèves ÷ Σ enseignants, jamais la moyenne des REM de ses écoles."""
+    from domaine.planification import rapport as rap
+    x = Ecole(id="X", region="Centre", effectif_eleves=100, enseignants_actuels=1, effectif_connu=True)
+    y = Ecole(id="Y", region="Centre", effectif_eleves=100, enseignants_actuels=9, effectif_connu=True)
+    proj = rap.ecoles_a_l_import([x, y])
+    moyenne_des_rem = (100 / 1 + 100 / 9) / 2
+    assert rap.rem_base(proj) == pytest.approx(20.0)           # (100+100) / (1+9)
+    assert rap.rem_base(proj) != pytest.approx(moyenne_des_rem, rel=0.01)
+
+
+def test_tableau_national_sans_libelle_rem_avec_cle_decimal_stable():
+    """Lot 4 : le sigle « REM » ne doit plus apparaître dans les libellés produits pour l'interface ; la mise en
+    forme décimale des lignes de taux d'encadrement repose sur une clé stable (`decimal`), pas sur un filtrage du
+    texte du libellé (fragile, et dépendant d'une graphie qui change)."""
+    from domaine.planification import rapport as rap
+    ecoles, ens = _jeu_regions()
+    h = _hyp(DIR_NOM_AN=856)
+    h["attrition"]["taux_unique"] = 2.25
+    proj, _ = projeter_ecoles(ecoles, ens, defaut(), h)
+    r = rap.construire(proj, ens, h, 3)
+    assert not any("REM" in l["libelle"] for l in r["national"]["lignes"])
+    decimales = {l["libelle"] for l in r["national"]["lignes"] if l["decimal"]}
+    assert decimales == {f"Taux d'encadrement obtenu – {rap.LIBELLES_SCENARIOS[s]}"
+                         for s in ("besoin", "min", "maintien", "plafond")}
+    assert not any(l["decimal"] for l in r["national"]["lignes"] if l["libelle"] == "Élèves projetés")
+
+
 def test_classement_des_regions():
     from domaine.planification.rapport import classer
     assert classer(127.5, 4.7, 74.4, 7)[0] == 1
     assert classer(76.0, 13.9, 74.4, 7)[1].startswith("Encadrement proche de la norme")
     assert classer(48.1, 10.0, 74.4, 7)[:2] == (2, "Encadrement au-dessus de la norme ; vague de retraites")
     assert classer(48.1, 5.0, 74.4, 7)[0] == 3
+
+
+def _annees_chainees():
+    ecoles, ens = _jeu()
+    p, _ = projeter_ecoles(ecoles, ens, defaut(), _hyp())
+    return p, calculer_annees(p, _hyp())
+
+
+def test_suivi_effectif_fin_chaine_les_annees_avec_et_sans_quota_retenu():
+    p, a = _annees_chainees()
+    quotas = [{"annee": "N+1", "territoire": "Centre", "sous_systeme": "francophone", "retenu": 1, "statut": "ajuste"}]
+    for retenus in ([], quotas):                      # quota retenu inférieur au quota calculé (3), puis aucun
+        s = appliquer_suivi(a, {}, quotas=retenus, nominations=[], mouvements=[], recrutements_supposes=True)
+        for x, y in zip(s, s[1:]):
+            assert y["effectif_debut"] == x["effectif_fin"]
+    assert s[0]["recrutement"] == 1 and s[0]["quota_calcule"] == 3
+
+
+def test_suivi_sans_recrutements_supposes_le_quota_retenu_ne_modifie_pas_les_effectifs():
+    p, a = _annees_chainees()
+    quotas = [{"annee": "N+1", "territoire": "Centre", "sous_systeme": "francophone", "retenu": 9, "statut": "ajuste"}]
+    s = appliquer_suivi(a, {}, quotas=quotas, nominations=[], mouvements=[], recrutements_supposes=False)
+    assert [x["effectif_debut"] for x in s] == [x["effectif_debut"] for x in a]
+    assert s[0]["quota_retenu"] == 9 and s[0]["recrutement"] == a[0]["recrutement"]
+
+
+def test_suivi_un_perimetre_d_ecole_n_a_pas_de_quota_retenu():
+    p, a = _annees_chainees()
+    quotas = [{"annee": "N+1", "territoire": "Centre", "sous_systeme": "francophone", "retenu": 9, "statut": "ajuste"}]
+    s = appliquer_suivi(a, {"ecole": "E1"}, quotas=quotas, nominations=[], mouvements=[], recrutements_supposes=True)
+    assert s[0]["quota_retenu"] is None and s[0]["recrutement"] == a[0]["recrutement"]
+
+
+def test_taux_par_region_tolere_accents_casse_et_tirets():
+    """E2 : « extreme nord » (sans accent, espace au lieu d'un tiret) doit retrouver le taux d'Extrême-Nord."""
+    from domaine.planification.projection import taux_attrition
+    ecole = Ecole(id="X1", region="Extrême-Nord", departement="D", commune="C", effectif_eleves=10,
+                 enseignants_actuels=5, salles_simple_flux=6)
+    proj, _ = projeter_ecoles([ecole], [], defaut(), _hyp())
+    h = _hyp()
+    h["attrition"] = {**h["attrition"], "methode": "par_region", "taux_unique": 0,
+                      "par_region": {"extreme nord": 7.5}}
+    assert taux_attrition(proj, h) == pytest.approx(7.5)     # et non 0 (repli sur le taux unique)
+
+
+def test_origine_taux_marque_chaque_ligne_selon_la_methode():
+    ecoles, ens = _jeu()
+    proj, _ = projeter_ecoles(ecoles, ens, defaut(), _hyp())
+    h_unique = _hyp()
+    assert all(x["origine_taux"] == "hypothese_nationale" for x in calculer_annees(proj, h_unique))
+    h_region = _hyp()
+    h_region["attrition"] = {**h_region["attrition"], "methode": "par_region", "par_region": {"Centre": 3.0}}
+    assert all(x["origine_taux"] == "hypothese_regionale" for x in calculer_annees(proj, h_region))
+
+
+def test_attrition_recalculee_sur_effectif_ajuste_e3():
+    """Un quota retenu différent du quota calculé modifie l'effectif de début de l'année suivante ; le modèle M1
+    impose alors de recalculer l'attrition (et le besoin qui en dépend) sur cet effectif réellement ajusté, pas
+    sur la trajectoire théorique d'origine. Vérifié à la main sur le jeu `_jeu()` avec un taux non nul."""
+    ecoles, ens = _jeu()
+    h = _hyp(); h["attrition"]["taux_unique"] = 25.0
+    p, _ = projeter_ecoles(ecoles, ens, defaut(), h)
+    a = calculer_annees(p, h)
+    # Trajectoire théorique (non ajustée) : N+1 effectif_debut=4, attrition=1 ; N+2 effectif_debut=6, attrition=2.
+    assert (a[0]["effectif_debut"], a[0]["departs_attrition"]) == (4, 1)
+    assert (a[1]["effectif_debut"], a[1]["departs_attrition"], a[1]["besoin"]) == (6, 2, 3)
+
+    quotas = [{"annee": "N+1", "territoire": "Centre", "sous_systeme": "francophone", "retenu": 2, "statut": "ajuste"}]
+    s = appliquer_suivi(a, {}, quotas=quotas, nominations=[], mouvements=[], recrutements_supposes=True)
+    assert s[0]["departs_attrition"] == 1 and s[0]["effectif_fin"] == 4          # N+1 : pas encore d'écart à ce stade
+    assert s[1]["effectif_debut"] == s[0]["effectif_fin"] == 4                   # chaînage, effectif réellement ajusté
+    assert s[1]["departs_attrition"] == 1                                       # recalculé : 25 % × 4, et non × 6
+    assert s[1]["besoin"] == 2                                                  # 3 − (2 − 1) : la baisse d'attrition réduit le besoin
+    assert s[1]["effectif_fin"] == 5
+    for x, y in zip(s, s[1:]):                                                  # chaînage sur tout l'horizon
+        assert y["effectif_debut"] == x["effectif_fin"]
+
+
+def test_rattrapage_arrondi_demi_vers_le_haut_comme_le_rapport():
+    """Déficit initial de 5 étalé sur 2 ans : 2,5 → 3 la première année (le round() de Python donnerait 2)."""
+    ecole = Ecole(id="E1", region="Centre", departement="Mfoundi", commune="Yaounde", effectif_eleves=100,
+                  enseignants_actuels=1, salles_simple_flux=6)
+    p, _ = projeter_ecoles([ecole], [], defaut(), _hyp(ETAL_N=2))
+    assert p[0].deficit_initial == 5
+    a = calculer_annees(p, _hyp(ETAL_N=2))
+    assert [x["rattrapage"] for x in a][:2] == [3, 2]

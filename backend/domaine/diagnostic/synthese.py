@@ -7,15 +7,18 @@ from ..donnees import colonnes as C
 from .territoires import Perimetre, filtrer_lignes
 
 
-def totaux_diagnostic(ecoles: List[dict], besoin_prince_par_ecole: Optional[Dict[str, int]] = None) -> dict:
-    """Totaux du diagnostic. `besoin_prince_par_ecole` : postes déjà consommés par des faits de Prince."""
-    pr = besoin_prince_par_ecole or {}
+def totaux_diagnostic(ecoles: List[dict]) -> dict:
+    """Totaux du diagnostic des lignes données (bases après, ou avant, les faits du Prince selon l'appelant).
+
+    `besoin_postes_avant_prince` : besoin des mêmes écoles avant les faits du Prince, quand les lignes le portent.
+    """
     besoin = sum(int(e.get("nb_postes_ouverts", 0) or 0) for e in ecoles)
-    besoin_net = sum(max(0, int(e.get("nb_postes_ouverts", 0) or 0) - pr.get(e[C.COL_ETAB_ID], 0)) for e in ecoles)
+    avant = sum(int(e.get("Besoin_Avant_Prince", e.get("nb_postes_ouverts", 0)) or 0) for e in ecoles)
     return {
         "nb_ecoles": len(ecoles),
         "besoin_postes": besoin,
-        "besoin_postes_apres_prince": besoin_net,
+        "besoin_postes_avant_prince": avant,
+        "besoin_postes_apres_prince": besoin,
         "excedent_enseignants": int(sum(float(e.get("xe", 0) or 0) for e in ecoles)),
         "nb_ecoles_necessiteuses": sum(1 for e in ecoles if e.get("est_necessiteuse")),
         "nb_ecoles_excedentaires": sum(1 for e in ecoles if e.get("est_excedentaire")),
@@ -68,12 +71,37 @@ def raisons_priorite(e: dict) -> List[str]:
     return r
 
 
-def trier_par_priorite(ecoles: List[dict]) -> List[dict]:
-    """Priorité d'affectation : poids du poste Up, puis nombre de postes ouverts, puis zone rouge."""
+STRUCTURES = ("IAEB", "DREB", "DELEGATION")
+
+
+def _rem(e: dict) -> float:
+    """Élèves par enseignant ; une école sans maître mais avec des élèves passe en premier."""
+    ee, ne = float(e.get(C.COL_ETAB_EE, 0) or 0), float(e.get(C.COL_ETAB_NE, 0) or 0)
+    return ne / ee if ee > 0 else (float("inf") if ne > 0 else 0.0)
+
+
+def ordre_priorite(ecoles: List[dict]) -> List[dict]:
+    """Écoles à besoin, dans l'ordre de priorité d'accueil (méthodologie §3.3.4) : poids du poste Up décroissant ;
+    à poids égal les écoles avant les structures (IAEB, DREB…), puis le REM le plus élevé ; enfin, pour un ordre total,
+    le nombre de postes ouverts, la zone rouge puis l'identifiant. C'est l'ordre unique : l'interface l'affiche tel quel."""
     necessiteuses = [e for e in ecoles if e.get("est_necessiteuse")]
-    necessiteuses.sort(key=lambda e: (-float(e.get("Up", 0) or 0), -int(e.get("nb_postes_ouverts", 0) or 0),
+    necessiteuses.sort(key=lambda e: (-float(e.get("Up", 0) or 0), str(e.get("type_etab") or "").upper() in STRUCTURES,
+                                      -_rem(e), -int(e.get("nb_postes_ouverts", 0) or 0),
                                       not e.get("est_zone_rouge"), str(e.get(C.COL_ETAB_ID))))
-    return [{**e, "rang": i + 1, "raisons": raisons_priorite(e)} for i, e in enumerate(necessiteuses)]
+    return necessiteuses
+
+
+def attribuer_rangs(ecoles: List[dict]) -> List[dict]:
+    """Ajoute `rang_priorite` (1 = premier ; `None` pour une école sans besoin) à chaque ligne, en place."""
+    rangs = {e[C.COL_ETAB_ID]: i for i, e in enumerate(ordre_priorite(ecoles), 1)}
+    for e in ecoles:
+        e["rang_priorite"] = rangs.get(e[C.COL_ETAB_ID])
+    return ecoles
+
+
+def trier_par_priorite(ecoles: List[dict]) -> List[dict]:
+    """Priorité d'affectation (voir `ordre_priorite`), avec rang et raisons."""
+    return [{**e, "rang": i + 1, "raisons": raisons_priorite(e)} for i, e in enumerate(ordre_priorite(ecoles))]
 
 
 def points_attention(synthese: dict, ecoles: List[dict]) -> List[dict]:
@@ -99,7 +127,7 @@ def points_attention(synthese: dict, ecoles: List[dict]) -> List[dict]:
                     "message": f"{manquantes} salle(s) de classe manquante(s) limitent la dotation effective."})
     if synthese.get("effet_de_prince", 0) > 0:
         pts.append({"code": "PRINCE", "gravite": "info",
-                    "message": f"{synthese['effet_de_prince']} affectation(s) dérogatoire(s) (effet de prince)."})
+                    "message": f"{synthese['effet_de_prince']} mouvement(s) du Prince appliqués aux bases avant l'algorithme."})
     return pts
 
 
@@ -107,6 +135,6 @@ def texte_narratif(synthese: dict, perimetre_titre: str) -> str:
     b, a = synthese.get("besoin_total", 0), synthese.get("affectes", 0)
     couv = f"{a / b:.0%}" if b else "n/a"
     return (f"Périmètre {perimetre_titre} : {b} poste(s) à pourvoir pour {synthese.get('disponibles', 0)} "
-            f"enseignant(s) mobilisable(s). {a} affectation(s) réalisée(s) (couverture {couv}), dont "
-            f"{synthese.get('effet_de_prince', 0)} par effet de prince. {synthese.get('postes_non_pourvus', 0)} "
-            f"poste(s) restent à pourvoir par recrutement.")
+            f"enseignant(s) mobilisable(s), après les {synthese.get('effet_de_prince', 0)} mouvement(s) du Prince "
+            f"appliqués aux bases. {a} affectation(s) réalisée(s) (couverture {couv}). "
+            f"{synthese.get('postes_non_pourvus', 0)} poste(s) restent à pourvoir par recrutement.")

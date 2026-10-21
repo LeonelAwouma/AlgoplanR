@@ -26,8 +26,8 @@ def test_sauvegarde_avant_migration_et_aucune_perte(tmp_path):
     _manage(env, "migrate", "acces", "0001", "--noinput")           # poste d'avant les postes autonomes
     base = sqlite3.connect(tmp_path / "poste.sqlite3")
     base.execute("INSERT INTO donnees_jeudedonnees (id, nom, source, cree_le, portee, region, consolide_depuis, statut,"
-                 " valide_le, valide_par) VALUES ('0123456789abcdef0123456789abcdef', 'Jeu conservé', 'import',"
-                 " '2026-10-01 08:00:00', 'regional', 'Centre', '[]', 'brouillon', NULL, '')")
+                 " valide_le, valide_par, annee_scolaire) VALUES ('0123456789abcdef0123456789abcdef', 'Jeu conservé',"
+                 " 'import', '2026-10-01 08:00:00', 'regional', 'Centre', '[]', 'brouillon', NULL, '', '2026-2027')")
     base.commit()
     base.close()
 

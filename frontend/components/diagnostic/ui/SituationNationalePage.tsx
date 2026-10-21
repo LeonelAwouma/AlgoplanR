@@ -38,7 +38,7 @@ export function SituationNationalePage() {
 
   const diagnostic = useDiagnostic(jeu, filtres)
   const synthese = useSynthese(jeu, filtres, scenario)
-  const vue = useVueTerritoriale(jeu, filtres, null)
+  const vue = useVueTerritoriale(jeu, filtres, scenario)
   const parametres = useParametres(jeu)
 
   /**
@@ -78,7 +78,7 @@ export function SituationNationalePage() {
             </div>
             <div>
               <dt>Classes</dt>
-              <dd>{fmt(totals.classes)}</dd>
+              <dd>{renseigne(totals.classes)}</dd>
             </div>
             <div>
               <dt>Enseignants payés par l’État</dt>
@@ -167,11 +167,11 @@ export function SituationNationalePage() {
 
       <Panel
         kicker="Encadrement"
-        title="Comment se répartit le rapport élèves / maître (REM)"
-        hint="Nombre d’établissements par tranche de REM actuel. Les établissements situés à droite du repère dépassent la norme de la note de cadrage : un REM supérieur signale une pression d’encadrement, un REM inférieur ne suffit pas à conclure à un excédent."
+        title="Comment se répartit le taux d’encadrement (élèves par enseignant)"
+        hint="Nombre d’établissements par tranche de taux d’encadrement actuel. Les établissements situés à droite du repère dépassent la norme de la note de cadrage : un taux d’encadrement supérieur signale une pression d’encadrement, un taux inférieur ne suffit pas à conclure à un excédent."
       >
         <Histogramme
-          titre="Répartition des établissements par REM actuel"
+          titre="Répartition des établissements par taux d’encadrement actuel"
           classes={distribution}
           repere={parametres.data ? { valeur: parametres.data.besoin.elevesParMaitre, label: 'Norme' } : undefined}
           vide="Aucun établissement exploitable pour construire cette distribution."

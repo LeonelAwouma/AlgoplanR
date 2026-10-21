@@ -13,6 +13,7 @@ COL_ETAB_SDF = "Salles_Double_Flux"
 COL_ETAB_ALPHA = "Accessibilite_Zone"
 COL_ETAB_SIGMA = "Securite_Zone"
 COL_ETAB_MULTIGRADE = "Classes_Multigrades"
+COL_ETAB_CLASSES_OUVERTES = "Classes_Ouvertes"      # optionnelle : nombre de classes réellement ouvertes
 
 COL_ENS_ID = "Matricule_Enseignant"
 COL_ENS_SS = "Sous_Systeme_Formation"
@@ -46,9 +47,15 @@ COLONNES_ATTENDUES_ENS = [
 ]
 
 # Colonnes optionnelles reconnues (le moteur d'origine les lit si présentes).
-COLONNES_OPTIONNELLES_ETAB = ["nom_etab", "type_etab", "latitude", "longitude"]
+COLONNES_OPTIONNELLES_ETAB = ["nom_etab", "type_etab", "latitude", "longitude", COL_ETAB_CLASSES_OUVERTES]
 COLONNES_OPTIONNELLES_ENS = ["nom", "prenom"]
+
+# Fichier des faits du Prince : décisions d'affectation prioritaires sur l'algorithme.
+COL_PRINCE_MOTIF = "Motif"
+COLONNES_ATTENDUES_PRINCE = ["Matricule_Enseignant", "Identifiant_Ecole", COL_PRINCE_MOTIF]
+COLONNES_OPTIONNELLES_PRINCE = [COL_PRINCE_MOTIF]
 
 # Colonnes sans lesquelles le moteur d'origine lève une erreur.
 COLONNES_BLOQUANTES_ETAB = [COL_ETAB_ID]
 COLONNES_BLOQUANTES_ENS = [COL_ENS_ID]
+COLONNES_BLOQUANTES_PRINCE = [COL_ENS_ID, COL_ETAB_ID]

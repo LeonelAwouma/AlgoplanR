@@ -87,7 +87,8 @@ export function DataQualityPanel({ rapport, compact = false }: { rapport: DataQu
           <li className="check-alert" key={e.code}>
             <CircleAlert size={15} aria-hidden="true" />
             <span>
-              <strong>{fmt(e.count)}</strong> {e.label} — {e.consequence}
+              <strong>{fmt(e.count)}</strong> {e.label}
+              {e.consequence ? ` — ${e.consequence}` : ''}
               {e.exemples.length > 0 && <span className="hint"> Exemples : {e.exemples.join(', ')}</span>}
             </span>
           </li>
@@ -96,7 +97,8 @@ export function DataQualityPanel({ rapport, compact = false }: { rapport: DataQu
           <li className="check-warn" key={w.code}>
             <AlertTriangle size={15} aria-hidden="true" />
             <span>
-              <strong>{fmt(w.count)}</strong> {w.label} — {w.consequence}
+              <strong>{fmt(w.count)}</strong> {w.label}
+              {w.consequence ? ` — ${w.consequence}` : ''}
               {w.exemples.length > 0 && <span className="hint"> Exemples : {w.exemples.join(', ')}</span>}
             </span>
           </li>
@@ -125,6 +127,45 @@ export function DataQualityPanel({ rapport, compact = false }: { rapport: DataQu
                     </li>
                   ))}
               </ul>
+            </details>
+          )}
+
+          {rapport.reconciliationEffectifs && rapport.reconciliationEffectifs.ecolesEnEcart > 0 && (
+            <details className="advanced">
+              <summary>
+                Écarts d’effectif ({fmt(rapport.reconciliationEffectifs.ecolesEnEcart)} école(s) sur{' '}
+                {fmt(rapport.reconciliationEffectifs.ecolesComparees)})
+              </summary>
+              <p className="hint">{rapport.reconciliationEffectifs.regle}</p>
+              <table className="compare-table" style={{ marginTop: 8 }}>
+                <thead>
+                  <tr>
+                    <th>École</th>
+                    <th className="num">Déclarés</th>
+                    <th className="num">Matricules rattachés</th>
+                    <th className="num">Écart</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rapport.reconciliationEffectifs.ecoles.slice(0, 50).map(e => (
+                    <tr key={e.ecole}>
+                      <th scope="row" style={{ fontWeight: 500 }}>
+                        {e.nomEcole} <span className="mono hint">{e.ecole}</span>
+                      </th>
+                      <td className="num">{fmt(e.enseignantsDeclares)}</td>
+                      <td className="num">{fmt(e.matriculesRattaches)}</td>
+                      <td className="num">{e.ecart > 0 ? `+${fmt(e.ecart)}` : fmt(e.ecart)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="hint">
+                {rapport.reconciliationEffectifs.ecoles.length > 50 || rapport.reconciliationEffectifs.listeTronquee
+                  ? 'Les 50 plus grands écarts sont affichés. '
+                  : ''}
+                Sur l’ensemble : écart net {fmt(rapport.reconciliationEffectifs.ecartTotal)}, écart absolu{' '}
+                {fmt(rapport.reconciliationEffectifs.ecartAbsoluTotal)}.
+              </p>
             </details>
           )}
 

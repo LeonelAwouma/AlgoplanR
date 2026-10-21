@@ -89,8 +89,12 @@ export function FicheEcole({ ecole, onRetour }: ProprietesFicheEcole) {
             <dd>{renseigne(school.nbSallesClasse)}</dd>
           </div>
           <div>
-            <dt>Groupes pédagogiques</dt>
-            <dd>{fmt(d.nbClasses)}</dd>
+            <dt>Classes ouvertes</dt>
+            <dd>{renseigne(school.nombreClassesOuvertes)}</dd>
+          </div>
+          <div>
+            <dt>Capacité en maîtres (salles)</dt>
+            <dd>{school.sallesRenseignees ? fmt(school.capaciteMaitres) : 'Capacité inconnue'}</dd>
           </div>
           <div>
             <dt>Élèves</dt>

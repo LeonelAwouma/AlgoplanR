@@ -16,6 +16,7 @@ urlpatterns = [
     path(P + "ecoles/", v.ecoles),
     path(P + "departs/", v.departs),
     path(P + "fiabilite/", v.fiabilite),
+    path(P + "alea/", v.alea),
     path(P + "rapport/", v.rapport),
     path(P + "rapport/listes/", v.rapport_listes),
     path(P + "etat/", v.etat),
