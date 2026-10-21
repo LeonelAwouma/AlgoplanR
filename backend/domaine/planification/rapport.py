@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional
 
-from ..commun.encadrement import encadrement_population, taux_encadrement
+from ..commun.encadrement import CHIFFRES_ENCADREMENT, encadrement_population, taux_encadrement
 from ..commun.texte import cle_tri_fr
 from ..donnees.modeles import Ecole, Enseignant
 from .parametres import ANNEES_PLAN
@@ -34,7 +34,8 @@ def _pct(n: float, total: float) -> float:
 
 
 def _rem(eleves: float, effectif: float) -> Optional[float]:
-    return taux_encadrement(eleves, effectif, 1)
+    """Taux d'encadrement arrondi (restitution). Les calculs qui s'enchaînent utilisent `ratio_encadrement`."""
+    return taux_encadrement(eleves, effectif)
 
 
 def _fr(x: float, decimales: int = 1) -> str:
@@ -54,7 +55,16 @@ def rem_base(ecoles: List[ProjectionEcole]) -> Optional[float]:
     (`eleves_connus`, lui-même basé sur `Ecole.effectif_connu` — voir `projeter_ecoles` et `ecoles_a_l_import`).
     Même population aux deux termes du ratio (décision « Encadrement », lot 4) : une école à l'effectif d'élèves
     inconnu ne contribue ni à ses élèves ni à ses enseignants, plutôt que de diluer le ratio."""
-    return encadrement_population((e.eleves_connus, e.eleves_initial, e.effectif_initial) for e in ecoles).taux
+    return _arrondi_rem(rem_base_brut(ecoles))
+
+
+def rem_base_brut(ecoles: List[ProjectionEcole]) -> Optional[float]:
+    """`rem_base` non arrondi : la valeur des classements et des seuils (l'arrondi n'intervient qu'à la restitution)."""
+    return encadrement_population((e.eleves_connus, e.eleves_initial, e.effectif_initial) for e in ecoles).brut
+
+
+def _arrondi_rem(brut: Optional[float]) -> Optional[float]:
+    return None if brut is None else round(brut, CHIFFRES_ENCADREMENT)
 
 
 def regions(ecoles: List[ProjectionEcole]) -> Dict[str, List[ProjectionEcole]]:
@@ -75,7 +85,7 @@ def trajectoires(ecoles: List[ProjectionEcole], hyp: dict, horizon: int, ressour
 def _sommer(par_region: List[Dict[str, List[dict]]], horizon: int) -> Dict[str, List[dict]]:
     """Additionne les trajectoires régionales, année par année et scénario par scénario."""
     cles = ("effectif_debut", "departs_retraite", "departs_attrition", "directeurs_decharges", "recrutement",
-            "eleves", "besoin", "quota_calcule")
+            "eleves", "eleves_brut", "besoin", "quota_calcule")
     out: Dict[str, List[dict]] = {}
     for s in SCENARIOS:
         lignes = []
@@ -84,7 +94,8 @@ def _sommer(par_region: List[Dict[str, List[dict]]], horizon: int) -> Dict[str, 
             for t in par_region:
                 for c in cles:
                     ligne[c] += t[s][k].get(c) or 0
-            ligne["eleves"] = round(ligne["eleves"], 1)
+            ligne["eleves"] = round(ligne["eleves"], 1)       # restitution ; `eleves_brut` garde la précision
+            ligne["population_complete"] = all(t[s][k].get("population_complete", True) for t in par_region)
             lignes.append(ligne)
         out[s] = lignes
     return out
@@ -98,8 +109,18 @@ def stock_fin(d: dict) -> int:
 
 
 def rems(lignes: List[dict]) -> List[Optional[float]]:
-    """Taux d'encadrement obtenu chaque année : élèves de l'année ÷ stock après départs et recrutements."""
-    return [_rem(d["eleves"], stock_fin(d)) for d in lignes]
+    """Taux d'encadrement obtenu chaque année : élèves de l'année ÷ stock après départs et recrutements.
+
+    Population commune : le stock après départs et recrutements est celui du périmètre entier, il n'est attribuable
+    aux seules écoles à effectif d'élèves connu que si toutes le sont (`population_complete`) ; sinon `None`
+    (« non disponible »), sans répartir les recrutements entre écoles."""
+    return [_rem(d.get("eleves_brut", d["eleves"]), stock_fin(d)) if d.get("population_complete", True) else None
+            for d in lignes]
+
+
+def raison_rems(lignes: List[dict]) -> Optional[str]:
+    """Raison pour laquelle `rems` n'est pas disponible sur ces lignes (None s'il l'est)."""
+    return next((d["rem_raison"] for d in lignes if d.get("rem_raison")), None)
 
 
 def _rem_final(lignes: List[dict]) -> Optional[float]:
@@ -110,7 +131,7 @@ def tableau_national(ecoles: List[ProjectionEcole], traj: Dict[str, List[dict]],
     """§3 : lignes du tableau national, base puis chaque année de l'horizon (trajectoire « sous plafond »)."""
     ref = float(hyp["drh"]["REM_REF_PRI"])
     base_eleves = eleves_base(ecoles)
-    base_effectif = sum(e.effectif_initial for e in ecoles)
+    base_effectif = sum(e.effectif_initial for e in ecoles)         # stock total, affiché tel quel
     plafond = traj["plafond"]
     annees = ["Base"] + [l["annee"] for l in plafond]
 
@@ -132,10 +153,11 @@ def tableau_national(ecoles: List[ProjectionEcole], traj: Dict[str, List[dict]],
     for s in SCENARIOS:
         lignes.append(ligne(f"Recrutement {LIBELLES_SCENARIOS[s]}", None, [l["recrutement"] for l in traj[s]]))
     for s in ("besoin", "min", "maintien", "plafond"):
-        lignes.append(ligne(f"Taux d'encadrement obtenu – {LIBELLES_SCENARIOS[s]}", _rem(base_eleves, base_effectif),
+        lignes.append(ligne(f"Taux d'encadrement obtenu – {LIBELLES_SCENARIOS[s]}", rem_base(ecoles),
                             rems(traj[s]), decimal=True))
     finals = {s: _rem_final(traj[s]) for s in SCENARIOS}
-    return {"annees": annees, "lignes": lignes, "rem_reference": ref, "rem_final": finals}
+    return {"annees": annees, "lignes": lignes, "rem_reference": ref, "rem_final": finals,
+            "rem_indisponible": next((d["rem_raison"] for d in plafond if d.get("rem_raison")), None)}
 
 
 # --- Redéploiement -------------------------------------------------------------------------------------------
@@ -283,10 +305,11 @@ def fiche_region(nom: str, ecoles: List[ProjectionEcole], traj: Dict[str, List[d
     r_pct = float(hyp["drh"]["R_PRI_PCT"])
     seuil = SEUIL_RETRAITES_3ANS * horizon / 3.0
     stock = sum(e.effectif_initial for e in ecoles)
-    rem = rem_base(ecoles)
+    rem_brut = rem_base_brut(ecoles)                 # classements et seuils sur la valeur non arrondie
+    rem = _arrondi_rem(rem_brut)                     # restitution
     retraites = [l["departs_retraite"] for l in traj["min"]]
     part_ret = _pct(sum(retraites), stock)
-    priorite, situation, orientation = classer(rem, part_ret, ref, seuil)
+    priorite, situation, orientation = classer(rem_brut, part_ret, ref, seuil)
     total = {s: sum(l["recrutement"] for l in traj[s]) for s in SCENARIOS}
     rem_txt = _fr(rem) if rem is not None else "non calculable"
     derniere = traj["min"][-1]["annee"] if traj["min"] else ""
@@ -300,7 +323,7 @@ def fiche_region(nom: str, ecoles: List[ProjectionEcole], traj: Dict[str, List[d
                           f"{_entier(total['plafond'])} sous plafond ; à défaut, le taux d'encadrement serait de "
                           f"{_fr(final) if final is not None else '–'} en {derniere} avec les seules retraites "
                           "remplacées."))
-    elif rem is not None and abs(rem - ref) <= ECART_REM:
+    elif rem_brut is not None and abs(rem_brut - ref) <= ECART_REM:
         problemes.append(("Encadrement proche de la norme",
                           f"Taux d'encadrement du primaire de {rem_txt} ; tout départ non remplacé le dégrade."))
     else:
@@ -334,7 +357,7 @@ def fiche_region(nom: str, ecoles: List[ProjectionEcole], traj: Dict[str, List[d
                           "suit mal le nombre d'élèves."))
 
     drh = region_drh(nom)
-    return {"region": nom, "priorite": priorite, "rem_base": rem, "part_retraites": part_ret,
+    return {"region": nom, "priorite": priorite, "rem_base": rem, "rem_base_brut": rem_brut, "part_retraites": part_ret,
             "situation": situation, "orientation": orientation,
             "recrutements": total, "retraites": retraites,
             "problemes": [{"titre": t, "detail": d} for t, d in problemes],
@@ -368,6 +391,12 @@ def limites(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], hyp: d
         f"Directeurs : {drh['DIR_NOM_AN']} prises de fonction par an, dont {drh['DIR_H_PRI_PCT']} % sans classe "
         "(paramètres nationaux rapportés au périmètre) ; le jeu ne renseigne ni la fonction ni la date de prise de "
         "fonction.",
+        "Degré d'aléa (1 − R²) calculé sur tous les enseignants déclarés (Enseignants_Actuels) : le jeu ne distingue "
+        "pas les enseignants payés par l'État, contrairement au rapport de référence — valeurs non directement "
+        "comparables aux valeurs historiques de ce rapport.",
+        "Taux d'encadrement projeté : calculé sur les seules écoles à effectif d'élèves connu (population commune) ; "
+        "s'il existe des écoles à effectif inconnu, il n'est disponible que pour N+1 — les départs et recrutements "
+        "ne sont pas répartis entre écoles, et les années suivantes sont « non disponibles ».",
         "Besoin des écoles calculé par la règle du référentiel MINEDUB ; la ligne « enseignants nécessaires » "
         f"utilise le taux d'encadrement de référence ({drh['REM_REF_PRI']}).",
         "La maternelle n'est pas distinguée dans le jeu, et les chargés de classe du SIGE (colonne C2) comme les "
@@ -404,7 +433,7 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], hyp
                 "rem_final": {s: _rem_final(traj_nat[s]) for s in ("min", "besoin", "plafond")}}
 
     fiches = [fiche_region(r, liste, traj_reg[r], hyp, horizon, nationaux) for r, liste in par_region.items()]
-    fiches.sort(key=lambda f: (f["priorite"], -(f["rem_base"] or 0)))
+    fiches.sort(key=lambda f: (f["priorite"], -(f["rem_base_brut"] or 0)))
     redeploiement = [ligne_redeploiement(r, liste, enseignants, seuil_cohorte, horizon)
                      for r, liste in par_region.items()]
     total_red = ligne_redeploiement("National", ecoles, enseignants, seuil_cohorte, horizon)

@@ -54,7 +54,8 @@ function filtresDe(selection: TerritorySelection, scenario: string | null): Filt
 /** Taux d'encadrement : des élèves par enseignant, jamais un pourcentage. */
 function celluleEncadrement(v: ValeurIndicateur | undefined): string {
   if (!v) return '—'
-  if (v.statut === 'sansObjet') return 'Sans objet'
+  if (v.statut === 'sans_objet') return 'Sans objet'
+  if (v.statut === 'non_disponible') return 'Non disponible'
   return v.taux === null ? '—' : fmtDec(v.taux, 1)
 }
 
@@ -63,7 +64,8 @@ const UNITE_ENCADREMENT = 'élèves par enseignant'
 /** Taux d'un indicateur de couverture/encadrement, « — » ou « Sans objet » quand il n'est pas calculable. */
 function celluleTaux(v: ValeurIndicateur | undefined, decimales = 1): string {
   if (!v) return '—'
-  if (v.statut === 'sansObjet') return 'Sans objet'
+  if (v.statut === 'sans_objet') return 'Sans objet'
+  if (v.statut === 'non_disponible') return 'Non disponible'
   return v.taux === null ? '—' : `${fmtDec(v.taux, decimales)} %`
 }
 

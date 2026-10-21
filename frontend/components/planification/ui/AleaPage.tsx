@@ -99,6 +99,12 @@ export function AleaPage() {
         Le degré d’aléa est calculé sur les effectifs d’enseignants après les mouvements du scénario{' '}
         <strong>{detail?.scenario.nom ?? 'retenu'}</strong>, et sur les effectifs d’élèves déclarés.
       </Notice>
+      <Notice tone="warn" title="Limite : valeurs non directement comparables à celles du rapport de référence.">
+        Le rapport « Diagnostic de la politique enseignante » calcule l’aléa (1 − R²) sur les seuls enseignants payés
+        par l’État. Les données importées n’ont qu’une colonne d’enseignants (<code>Enseignants_Actuels</code>) et ne
+        distinguent pas ce statut : l’aléa affiché ici ne doit pas être comparé aux valeurs historiques du rapport (0,87
+        au national en 2024-2025, par exemple).
+      </Notice>
 
       <div className="kpi-row">
         <KpiCard

@@ -162,6 +162,11 @@ function ScenariosRegions({ rapport }: { rapport: RapportPrevisionnel }) {
           </tbody>
         </table>
       </div>
+      {rapport.national.remIndisponible && (
+        <Notice tone="warn" title="Taux d’encadrement obtenu : non disponible (« — »).">
+          {rapport.national.remIndisponible}
+        </Notice>
+      )}
       <Notice tone="info" title="Point à arbitrer : le plancher « retraites » sous plafond.">
         {p.plancherRetraites
           ? `Le plancher est actif (PLANCHER_RET) : chaque région reçoit au moins ses retraites, y compris celles au-dessus de la norme. Le désactiver réserve le plafond (${fmt(p.plafond)} par an au national) aux régions en déficit.`

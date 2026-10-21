@@ -22,6 +22,12 @@ CHIFFRES_ENCADREMENT = 1
 UNITE_ENCADREMENT = "élèves par enseignant"
 
 
+def ratio_encadrement(eleves: float, enseignants: float, defaut: Optional[float] = None) -> Optional[float]:
+    """Élèves par enseignant SANS arrondi : la valeur des calculs intermédiaires (classements, écarts, seuils). Seule
+    la restitution arrondit (`taux_encadrement`) : on n'enchaîne jamais un calcul sur une valeur déjà arrondie."""
+    return eleves / enseignants if enseignants > 0 else defaut
+
+
 def taux_encadrement(eleves: float, enseignants: float, chiffres: int = CHIFFRES_ENCADREMENT,
                      defaut: Optional[float] = None) -> Optional[float]:
     """Élèves par enseignant, arrondi à `chiffres` décimales (`CHIFFRES_ENCADREMENT` par défaut) ; `defaut` si aucun
@@ -32,10 +38,12 @@ def taux_encadrement(eleves: float, enseignants: float, chiffres: int = CHIFFRES
 
 
 class Encadrement(NamedTuple):
-    """Σ élèves, Σ enseignants et taux d'une population d'écoles à effectif d'élèves connu."""
+    """Σ élèves, Σ enseignants et taux d'une population d'écoles à effectif d'élèves connu (`taux` arrondi pour la
+    restitution, `brut` non arrondi pour la suite des calculs)."""
     eleves: float
     enseignants: float
     taux: Optional[float]
+    brut: Optional[float] = None
 
 
 def encadrement_population(ecoles: Iterable[Tuple[bool, float, float]], defaut: Optional[float] = None) -> Encadrement:
@@ -48,4 +56,5 @@ def encadrement_population(ecoles: Iterable[Tuple[bool, float, float]], defaut: 
         if connu:
             eleves += float(e or 0)
             enseignants += float(n or 0)
-    return Encadrement(eleves, enseignants, taux_encadrement(eleves, enseignants, defaut=defaut))
+    return Encadrement(eleves, enseignants, taux_encadrement(eleves, enseignants, defaut=defaut),
+                       ratio_encadrement(eleves, enseignants, defaut=defaut))

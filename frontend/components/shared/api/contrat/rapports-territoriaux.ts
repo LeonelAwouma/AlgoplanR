@@ -3,7 +3,7 @@
  * indicateurs distincts), couverture des écoles de plus de 100 élèves, attrition (modèle M1) et degré d'aléa,
  * calculés exclusivement par le serveur — le frontend ne fait que consulter, filtrer et déclencher les exports.
  *
- * Une valeur non calculable n'est jamais inventée : `statut` dit pourquoi (`sansObjet`, `nonCalculable`,
+ * Une valeur non calculable n'est jamais inventée : `statut` dit pourquoi (`sans_objet`, `non_disponible`, `non_calculable`,
  * `indicatif`) et `raison` l'explique en clair.
  */
 
@@ -13,13 +13,14 @@ export interface ValeurIndicateur {
   numerateur: number
   denominateur: number
   taux: number | null
-  statut: 'normal' | 'sansObjet'
+  /** Valeurs du serveur, telles quelles (seules les clés sont converties en camelCase). */
+  statut: 'normal' | 'sans_objet' | 'non_disponible'
   raison: string | null
 }
 
 export interface ValeurAlea {
   valeur: number | null
-  statut: 'nonCalculable' | 'indicatif' | 'normal'
+  statut: 'non_calculable' | 'indicatif' | 'normal'
   raison: string | null
 }
 

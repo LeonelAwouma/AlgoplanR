@@ -25,6 +25,7 @@ from domaine.rapport.territorial import (
     LigneEcoleCouverture,
     LigneEcoleParec,
     REGISTRE_INDICATEURS,
+    NON_DISPONIBLE,
     SANS_OBJET,
     SEUIL_ELEVES_PAREC,
     SEUIL_ENSEIGNANTS_PAREC,
@@ -52,16 +53,30 @@ def _valeur(numerateur: Optional[float], denominateur: Optional[float]) -> dict:
     if denominateur is None or denominateur <= 0:
         return {"numerateur": 0, "denominateur": 0, "taux": None, "statut": SANS_OBJET,
                 "raison": "Aucun enseignant sur ce périmètre"}
-    taux = taux_encadrement(numerateur or 0, denominateur, 1)
+    taux = taux_encadrement(numerateur or 0, denominateur)
     return {"numerateur": round(numerateur or 0, 2), "denominateur": round(denominateur, 2), "taux": taux,
             "statut": "normal" if taux is not None else SANS_OBJET, "raison": None}
 
 
-def _ecart(situations: Dict[str, dict], depart: str = "import", arrivee: str = "n5") -> Optional[float]:
-    a, b = situations.get(depart), situations.get(arrivee)
-    if not a or not b or a.get("taux") is None or b.get("taux") is None:
+def _non_disponible(raison: str) -> dict:
+    """Valeur qui ne peut pas être calculée de façon fiable (population commune impossible) : jamais inventée."""
+    return {"numerateur": 0, "denominateur": 0, "taux": None, "statut": NON_DISPONIBLE,
+            "raison": raison}
+
+
+def _non_arrondi(v: Optional[dict], facteur: float) -> Optional[float]:
+    """Valeur d'une situation sans l'arrondi de restitution : numérateur ÷ dénominateur (× `facteur`)."""
+    if not v or v.get("taux") is None or not v.get("denominateur"):
         return None
-    return round(b["taux"] - a["taux"], 1)
+    return v["numerateur"] / v["denominateur"] * facteur
+
+
+def _ecart(situations: Dict[str, dict], depart: str = "import", arrivee: str = "n5", facteur: float = 1.0
+           ) -> Optional[float]:
+    """Écart arrivée − départ, calculé sur les valeurs non arrondies : l'arrondi n'intervient qu'ici, à la
+    restitution (`facteur` = 100 pour un pourcentage, 1 pour un taux d'encadrement)."""
+    va, vb = _non_arrondi(situations.get(depart), facteur), _non_arrondi(situations.get(arrivee), facteur)
+    return None if va is None or vb is None else round(vb - va, 1)
 
 
 class _Donnees:
@@ -128,7 +143,7 @@ def _indicateur_couverture_globale(d: _Donnees, p: dict, lignes_sim: List[LigneE
     }
     for k in range(5):
         out[f"n{k + 1}"] = couverture_globale(_lignes_couverture_a_l_annee(lignes_sim, sim, k))
-    out["ecart_n5_import"] = _ecart(out)
+    out["ecart_n5_import"] = _ecart(out, facteur=100.0)
     return out
 
 
@@ -150,7 +165,7 @@ def _indicateur_parec(d: _Donnees, p: dict, sim: List[ProjectionEcole]) -> Dict[
     }
     for k in range(5):
         out[f"n{k + 1}"] = couverture_parec(_lignes_parec(sim, depuis_projection=True, annee=k))
-    out["ecart_n5_import"] = _ecart(out)
+    out["ecart_n5_import"] = _ecart(out, facteur=100.0)
     return out
 
 
@@ -163,11 +178,15 @@ def _indicateur_encadrement(d: _Donnees, p: dict, sim: List[ProjectionEcole], an
 
     out = {"import": situation(imp_proj), "apres_prince": situation(prince_proj), "apres_simulation": situation(sim)}
     for k, ligne in enumerate(annees[:5]):
-        eff = ligne.get("effectif_debut") or 0
-        eleves = ligne.get("eleves")
-        out[f"n{k + 1}"] = (_valeur(eleves, eff) if eleves is not None
-                            else {"numerateur": 0, "denominateur": 0, "taux": None, "statut": SANS_OBJET,
-                                  "raison": "Élèves non projetés pour cette année"})
+        eleves = ligne.get("eleves_brut", ligne.get("eleves"))
+        if ligne.get("rem_raison"):
+            out[f"n{k + 1}"] = _non_disponible(ligne["rem_raison"])
+        elif eleves is None:
+            out[f"n{k + 1}"] = {"numerateur": 0, "denominateur": 0, "taux": None, "statut": SANS_OBJET,
+                                "raison": "Élèves non projetés pour cette année"}
+        else:
+            # Dénominateur de la population commune (début d'année ; année 1 restreinte aux écoles à effectif connu).
+            out[f"n{k + 1}"] = _valeur(eleves, ligne.get("rem_denominateur", ligne.get("effectif_debut") or 0))
     out["ecart_n5_import"] = _ecart(out)
     return out
 
@@ -246,6 +265,8 @@ def _cellule(v: dict) -> Any:
     ou un texte explicite (« Non calculable », « Sans objet ») quand il n'est pas calculable — jamais inventé."""
     if v.get("statut") == "sans_objet":
         return "Sans objet"
+    if v.get("statut") == NON_DISPONIBLE:
+        return "Non disponible"
     if v.get("taux") is None:
         return "—"
     return v["taux"]

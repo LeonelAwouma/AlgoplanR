@@ -13,6 +13,7 @@ from typing import Iterable, List, Optional
 
 SANS_OBJET = "sans_objet"
 NON_CALCULABLE = "non_calculable"
+NON_DISPONIBLE = "non_disponible"   # calcul fiable impossible (population commune) : jamais une valeur inventée
 INDICATIF = "indicatif"
 NORMAL = "normal"
 
@@ -126,7 +127,8 @@ def couverture_parec(lignes: Iterable[LigneEcoleParec]) -> dict:
         return {"numerateur": 0, "denominateur": 0, "taux": None, "statut": SANS_OBJET,
                 "raison": "Aucune école de plus de 100 élèves sur ce périmètre"}
     num = sum(1 for l in grandes if l.enseignants >= SEUIL_ENSEIGNANTS_PAREC)
-    return {"numerateur": num, "denominateur": den, "taux": round(num / den * 100, 1), "statut": NORMAL,
+    return {"numerateur": num, "denominateur": den, "taux": round(num / den * 100, 1),
+            "statut": NORMAL,
             "raison": None}
 
 
