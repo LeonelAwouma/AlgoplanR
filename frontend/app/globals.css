@@ -660,8 +660,25 @@ a {
   transform: translateX(2px) scale(1.06);
 }
 .sidebar nav > .nav-list {
-  gap: 6px;
+  /* L'espace entre les menus suit la hauteur de l'écran : une barre haute ne laisse plus un grand vide en bas. */
+  gap: clamp(6px, 1.6vh, 18px);
   padding-top: 12px;
+}
+/* Les menus du parcours se répartissent sur la hauteur disponible (plafonnée : sur un très grand écran, le surplus
+   reste entre eux et « Paramètres avancés » plutôt que de disperser les entrées). */
+.sidebar nav > .nav-list:not(.nav-list-avancee) {
+  flex: 1 1 auto;
+  max-height: 600px;
+  justify-content: space-evenly;
+  gap: 0;
+}
+/* Structure verticale : menus du parcours en haut ; « Paramètres avancés » et la note « Traitement local » ancrés en
+   bas de la barre (et non collés aux menus, avec du vide dessous). */
+.sidebar nav {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .nav-item-texte {
   display: flex;
@@ -682,7 +699,8 @@ a {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  margin: 28px 0 0;
+  flex: none;
+  margin: 16px 0 0;
   border-top: 1px solid var(--line);
   padding: 12px 8px 0;
   font-size: 12px;
@@ -890,7 +908,7 @@ a {
 }
 /* « Paramètres avancés » : séparé des cinq menus du parcours. */
 .nav-list-avancee {
-  margin-top: 16px;
+  margin-top: auto;
   padding-top: 14px;
   border-top: 1px solid var(--line);
 }
