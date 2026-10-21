@@ -201,29 +201,36 @@ def origine_taux(hyp: dict) -> str:
         hyp["attrition"].get("methode", "taux_unique"), ORIGINE_TAUX_NATIONALE)
 
 
-def taux_attrition(ecoles: List[ProjectionEcole], hyp: dict) -> float:
-    """Taux annuel d'autres départs du périmètre, pondéré par l'effectif initial selon la méthode retenue.
+def taux_attrition_pondere(poids: List[Tuple[str, str, float]], hyp: dict) -> float:
+    """Taux annuel d'autres départs, pondéré par l'effectif selon la méthode retenue — seule formule de
+    pondération, pour un périmètre de planification (`taux_attrition`) comme pour tout autre regroupement
+    (synthèse territoriale par sous-système).
 
-    Pour la méthode « par région », la correspondance tolère la casse, les accents et les tirets (comme le
-    référentiel DRH, `referentiel_drh.region_drh`) : une région absente du périmètre à l'identique (espace au lieu
-    d'un tiret, accent manquant) est quand même reconnue, et seules les régions réellement absentes du barème
-    retombent sur le taux unique.
+    `poids` : un triplet (région, sous-système, effectif) par école. Pour la méthode « par région », la
+    correspondance tolère la casse, les accents et les tirets (comme le référentiel DRH, `referentiel_drh.
+    region_drh`) : une région absente du périmètre à l'identique (espace au lieu d'un tiret, accent manquant)
+    est quand même reconnue, et seules les régions réellement absentes du barème retombent sur le taux unique.
     """
     a = hyp["attrition"]
     unique = float(a.get("taux_unique", 0))
     methode = a.get("methode", "taux_unique")
-    if methode == "taux_unique":
+    if methode == "taux_unique" or not poids:
         return unique
     if methode == "par_region":
         par = {cle_region(k): float(v) for k, v in (a.get("par_region") or {}).items()}
-        cle = lambda e: cle_region(e.region)  # noqa: E731
+        cle = lambda p: cle_region(p[0])  # noqa: E731
     else:
         par = {k: float(v) for k, v in (a.get("par_sous_systeme") or {}).items()}
-        cle = lambda e: e.sous_systeme  # noqa: E731
-    total = sum(e.effectif_initial for e in ecoles)
+        cle = lambda p: p[1]  # noqa: E731
+    total = sum(effectif for _, _, effectif in poids)
     if total == 0:
         return unique
-    return sum(e.effectif_initial * par.get(cle(e), unique) for e in ecoles) / total
+    return sum(p[2] * par.get(cle(p), unique) for p in poids) / total
+
+
+def taux_attrition(ecoles: List[ProjectionEcole], hyp: dict) -> float:
+    """Taux annuel d'autres départs du périmètre, pondéré par l'effectif initial selon la méthode retenue."""
+    return taux_attrition_pondere([(e.region, e.sous_systeme, e.effectif_initial) for e in ecoles], hyp)
 
 
 #: Scénarios de recrutement du rapport DRH : la règle fixe les recrues qui s'ajoutent au stock de l'année suivante.

@@ -1,19 +1,11 @@
 /**
- * Diagnostic d'une école : sévérité, raisons de priorisation, totaux d'un
- * territoire et ordre de priorité. Repris du moteur de référence
+ * Diagnostic d'une école : sévérité, raisons de priorisation et ordre de priorité. Repris du moteur de référence
  * (moteur-reference/lib/analytics/diagnostic.ts) : les grandeurs de base
  * (dotation, besoin, excédent…) viennent du backend, seules ces lectures sont
  * refaites côté interface.
  */
 
-import type {
-  DiagnosticReason,
-  EngineSettings,
-  SchoolDiagnostic,
-  SchoolSeverity,
-  TerritorialTotals,
-} from '../../contrat'
-import { ratio, round2 } from './nombres'
+import type { DiagnosticReason, EngineSettings, SchoolDiagnostic, SchoolSeverity } from '../../contrat'
 
 /** Classe la gravité d'un besoin selon les seuils configurés (besoin rapporté à la cible). */
 export function severite(
@@ -107,78 +99,6 @@ export function raisonsPriorite(d: SchoolDiagnostic): DiagnosticReason[] {
   }
 
   return raisons
-}
-
-/** Additionne les diagnostics d'un ensemble d'écoles en totaux territoriaux (écrêtage avant addition). */
-export function agregerTotaux(diagnostics: SchoolDiagnostic[]): TerritorialTotals {
-  let classes: number | null = null
-  let enseignantsEtat = 0
-  let autresEnseignants: number | null = null
-  let postesNecessaires = 0
-  let postesDeclares: number | null = null
-  let excedentMobilisable = 0
-  let sallesManquantes = 0
-  let surnombre = 0
-  let effectifTotalEleves: number | null = null
-  // Enseignants et classes des seules écoles dont l'effectif d'élèves est connu : ils forment le dénominateur
-  // des rapports, pour que le numérateur et le dénominateur portent sur les mêmes écoles.
-  let enseignantsAvecEleves = 0
-  let classesAvecEleves = 0
-  let elevesAvecClasses = 0
-  let classesMultigrades = 0
-  let ecolesEnDeficit = 0
-  let ecolesAvecExcedent = 0
-  let ecolesSatisfaisantes = 0
-  let ecolesAExaminer = 0
-
-  for (const d of diagnostics) {
-    if (d.school.nombreClassesOuvertes != null) classes = (classes ?? 0) + d.school.nombreClassesOuvertes
-    enseignantsEtat += d.enseignantsEtat
-    if (d.school.nbAutresEnseignants != null)
-      autresEnseignants = (autresEnseignants ?? 0) + d.school.nbAutresEnseignants
-    postesNecessaires += d.besoinTheorique
-    if (d.postesDeclares != null) postesDeclares = (postesDeclares ?? 0) + d.postesDeclares
-    excedentMobilisable += d.enseignantsMobilisables ?? d.excedentTheorique
-    sallesManquantes += d.calcul.sallesManquantes
-    surnombre += d.calcul.surnombre
-    if (d.school.effectifTotalEleves != null) {
-      effectifTotalEleves = (effectifTotalEleves ?? 0) + d.school.effectifTotalEleves
-      if (d.school.nombreClassesOuvertes != null) {
-        elevesAvecClasses += d.school.effectifTotalEleves
-        classesAvecEleves += d.school.nombreClassesOuvertes
-      }
-      enseignantsAvecEleves += d.enseignantsEtat
-    }
-    classesMultigrades += d.school.classesMultigrades
-    if (d.besoinTheorique > 0) ecolesEnDeficit++
-    if (d.excedentTheorique > 0) ecolesAvecExcedent++
-    if (d.besoinTheorique === 0) ecolesSatisfaisantes++
-    if (d.classement === 'a_examiner') ecolesAExaminer++
-  }
-
-  // REM d'un territoire : somme des élèves ÷ somme des enseignants, jamais la moyenne des REM des écoles.
-  const elevesParEnseignantEtat = ratio(effectifTotalEleves, enseignantsAvecEleves > 0 ? enseignantsAvecEleves : null)
-  const elevesParClasse = ratio(elevesAvecClasses, classesAvecEleves > 0 ? classesAvecEleves : null)
-
-  return {
-    ecolesAnalysees: diagnostics.length,
-    ecolesEnDeficit,
-    ecolesAvecExcedent,
-    ecolesSatisfaisantes,
-    classes,
-    enseignantsEtat,
-    autresEnseignants,
-    postesNecessaires,
-    postesDeclares,
-    excedentMobilisable,
-    sallesManquantes,
-    surnombre,
-    ecolesAExaminer,
-    effectifTotalEleves,
-    elevesParEnseignantEtat: elevesParEnseignantEtat == null ? null : round2(elevesParEnseignantEtat),
-    elevesParClasse: elevesParClasse == null ? null : round2(elevesParClasse),
-    classesMultigrades,
-  }
 }
 
 /**

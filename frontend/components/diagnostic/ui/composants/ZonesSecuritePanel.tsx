@@ -9,20 +9,18 @@
 
 import { ArrowRight } from 'lucide-react'
 
-import type { EngineSettings, RepartitionZoneSecurite, ZoneSecurite } from '@shared/api'
+import type { RepartitionZoneSecurite, ZoneSecurite } from '@shared/api'
 import { LIBELLE_ZONE_SECURITE } from '@shared/kernel'
 import { Panel, ZoneSecuritePill, fmt } from '@shared/ui/commun'
 
 export interface ProprietesZonesSecuritePanel {
   zones: RepartitionZoneSecurite[]
-  /** Règles en vigueur : points de sécurité et règle de la zone rouge. */
-  parametres: EngineSettings | null
   /** Ouvre la liste des écoles filtrée sur une zone. */
   onVoirEcoles: (zone: ZoneSecurite) => void
 }
 
 /** Panneau « Écoles par zone de sécurité ». */
-export function ZonesSecuritePanel({ zones, parametres, onVoirEcoles }: ProprietesZonesSecuritePanel) {
+export function ZonesSecuritePanel({ zones, onVoirEcoles }: ProprietesZonesSecuritePanel) {
   if (zones.every(z => z.ecoles === 0)) return null
 
   return (
@@ -55,18 +53,10 @@ export function ZonesSecuritePanel({ zones, parametres, onVoirEcoles }: Propriet
                   <dd>{fmt(z.restantsApresScenario)}</dd>
                 </>
               )}
-              {parametres && (
-                <>
-                  <dt>Points de sécurité (w)</dt>
-                  <dd>+{fmt(parametres.priorite.pointsSecurite[z.zone])}</dd>
-                </>
-              )}
             </dl>
-            {z.zone === 'rouge' && parametres && (
+            {z.zone === 'rouge' && (
               <p className="zone-securite-regle">
-                {parametres.mobilite.regleZoneRouge
-                  ? 'Aucun poste imposé ni proposé hors vœux : volontaires, primes ou recrutement uniquement.'
-                  : 'Règle de la zone rouge désactivée dans le référentiel.'}
+                Aucun poste imposé ni proposé hors vœux : volontaires, primes ou recrutement uniquement.
               </p>
             )}
             {z.ecoles > 0 && (

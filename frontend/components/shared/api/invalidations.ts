@@ -44,6 +44,7 @@ const DIAGNOSTIC: FamilleDonnees[] = [
   'synthese',
   'etablissements',
   'enseignants',
+  'rapport-territorial',
 ]
 
 /** Familles liées à la planification sur cinq ans. */
@@ -57,7 +58,16 @@ const FAMILLES_INVALIDEES: Record<NatureEcriture, readonly FamilleDonnees[] | 't
   donnees: 'tout',
   parametres: ['meta', 'parametres', ...DIAGNOSTIC, 'scenarios', 'comparaison', 'rapport', ...PLANIFICATION],
   // L'attrition des hypothèses entre dans le recrutement à prévoir des synthèses territoriales.
-  hypotheses: ['hypotheses', ...PLANIFICATION, 'vivier', 'rapport', 'synthese', 'scenarios', 'comparaison'],
+  hypotheses: [
+    'hypotheses',
+    ...PLANIFICATION,
+    'vivier',
+    'rapport',
+    'synthese',
+    'rapport-territorial',
+    'scenarios',
+    'comparaison',
+  ],
   effectifs: [
     'meta',
     'faits-prince',
@@ -70,8 +80,8 @@ const FAMILLES_INVALIDEES: Record<NatureEcriture, readonly FamilleDonnees[] | 't
     ...PLANIFICATION,
     ...NOMINATIONS,
   ],
-  scenarios: ['scenarios', 'comparaison', 'rapport'],
-  'scenario-retenu': ['meta', ...PLANIFICATION, ...NOMINATIONS, 'rapport'],
+  scenarios: ['scenarios', 'comparaison', 'rapport', 'rapport-territorial'],
+  'scenario-retenu': ['meta', ...PLANIFICATION, ...NOMINATIONS, 'rapport', 'rapport-territorial'],
   quotas: PLANIFICATION,
   nominations: ['vivier', 'postes-ouverts', 'nominations', 'indicateurs'],
   recalcul: [...PLANIFICATION],

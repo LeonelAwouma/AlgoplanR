@@ -113,8 +113,15 @@ export async function exporterClasseurRapportPrevisionnel(
 
   ajouter(
     'PRIORITES',
-    ['Région', 'Priorité', 'Taux d’encadrement primaire base', 'Retraites / stock (%)', 'Situation', 'Orientation',
-     'Problèmes'],
+    [
+      'Région',
+      'Priorité',
+      'Taux d’encadrement primaire base',
+      'Retraites / stock (%)',
+      'Situation',
+      'Orientation',
+      'Problèmes',
+    ],
     rapport.priorites.map(f => [
       f.region,
       f.priorite,

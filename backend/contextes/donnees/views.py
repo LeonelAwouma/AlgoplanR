@@ -5,7 +5,7 @@ from rest_framework.response import Response
 
 from contextes.acces.perimetre import jeu_autorise, jeux_visibles
 from contextes.commun.erreurs import RefusMetier
-from contextes.commun.outils import perimetre_depuis, reponse_paginee
+from contextes.commun.outils import entier_param, perimetre_depuis, reponse_paginee
 from domaine.commun.texte import norm
 from domaine.diagnostic.territoires import filtrer_lignes
 from domaine.donnees import colonnes as C
@@ -107,8 +107,11 @@ def jeux(request):
 @api_view(["POST"])
 def jeu_demonstration(request):
     d = request.data if isinstance(request.data, dict) else {}
-    jeu = services.creer_demonstration(d.get("nom", ""), int(d.get("graine", 2026)), int(d.get("nb_ecoles", 60)),
-                                       int(d.get("nb_enseignants", 420)), compte=request.user,
+    jeu = services.creer_demonstration(d.get("nom", ""), entier_param(d.get("graine"), "graine", defaut=2026),
+                                       entier_param(d.get("nb_ecoles"), "nb_ecoles", defaut=60, minimum=1,
+                                                    maximum=30000),
+                                       entier_param(d.get("nb_enseignants"), "nb_enseignants", defaut=420, minimum=1,
+                                                    maximum=100000), compte=request.user,
                                        annee_scolaire=d.get("annee_scolaire"))
     from contextes.simulation.services import creer_scenarios_base
     creer_scenarios_base(jeu)
@@ -223,7 +226,7 @@ def _recherche(request, jeu, cible):
     from contextes.diagnostic import services as diag
     j = jeu_autorise(request, jeu)
     q = request.query_params.get("q", "")
-    lim = int(request.query_params.get("limite", 10))
+    lim = entier_param(request.query_params.get("limite"), "limite", defaut=10, minimum=1, maximum=200)
     items, cles = diag.index_recherche(diag.preparer(j), cible)
     return Response({"q": q, "resultats": rapprocher(q, items, cles=cles, limite=lim)})
 

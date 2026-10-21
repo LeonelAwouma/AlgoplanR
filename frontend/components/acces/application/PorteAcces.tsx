@@ -168,7 +168,15 @@ export function PorteAcces({ children }: { children: (session: SessionAcces, act
   const inactivite = useInactivite(connecte, derniere, expirer)
 
   function ouvrir(reponse: ReponseSession, compteAvant?: CompteServeur, code?: string) {
-    if (compteAvant && compteAvant.identifiant !== reponse.compte.identifiant) oublierDonnees()
+    // Identifiant, rôle OU région : un compte dont le périmètre change en cours de session ne doit jamais
+    // continuer à lire le cache (arbre territorial, listes d'écoles…) calculé pour l'ancien périmètre.
+    if (
+      compteAvant &&
+      (compteAvant.identifiant !== reponse.compte.identifiant ||
+        compteAvant.role !== reponse.compte.role ||
+        compteAvant.region !== reponse.compte.region)
+    )
+      oublierDonnees()
     setDerniere(reponse)
     setEtat(etatDepuis(reponse, code))
   }

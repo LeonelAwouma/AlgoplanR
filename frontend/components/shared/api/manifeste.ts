@@ -130,7 +130,10 @@ export const MANIFESTE_ROUTES = {
     ['POST', 'jeux/{jeu}/recrues/import/'],
   ],
 
-  rapports: [['GET', 'jeux/{jeu}/rapport/']],
+  rapports: [
+    ['GET', 'jeux/{jeu}/rapport/'],
+    ['GET', 'jeux/{jeu}/rapports/territorial/'],
+  ],
 
   planification: [
     ['GET', 'hypotheses/defaut/'],

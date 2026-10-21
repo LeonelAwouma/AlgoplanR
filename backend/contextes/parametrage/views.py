@@ -42,6 +42,8 @@ def parametres_jeu(request, jeu):
     if not isinstance(corps, dict):
         raise RefusMetier("Le corps doit être un objet JSON")
     corps = corps.get("parametres", corps) if "parametres" in corps and len(corps) == 1 else dict(corps)
+    if not isinstance(corps, dict):
+        raise RefusMetier("Le corps doit être un objet JSON", ["« parametres » doit être un objet"])
     avant = services.config_jeu(j)
     res = services.remplacer(j, corps) if request.method == "PUT" else services.fusionner_avec_existant(j, corps)
     decision(j, "parametres", "remplacement" if request.method == "PUT" else "modification",

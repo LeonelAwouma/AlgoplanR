@@ -92,36 +92,16 @@ export interface ReglesBesoin {
   minimumSelonMultigrades: boolean
   /** Le double flux est-il autorisé ? Sinon, une salle en double flux compte pour un maître. */
   doubleFluxAutorise: boolean
-  /** Déduire de E les départs connus (retraites) avant de calculer le besoin. */
-  deduireDepartsConnus: boolean
   /** Âge légal de départ à la retraite, pour repérer les départs connus et prévisibles. */
   ageRetraite: number
-  /**
-   * Repli quand une école n'a pas d'effectif d'élèves : maîtres nécessaires par
-   * classe. Le référentiel exige N ; le repli est signalé partout où il s'applique.
-   */
-  enseignantsParClasseRepli: number
 }
 
 /** Poids de vulnérabilité et indice de priorité des postes (§3.1). */
 export interface ReglesPriorite {
-  pointsAccessibilite: { urbain: number; semi_urbain: number; rural: number; rural_enclave: number }
-  pointsSecurite: { verte: number; jaune: number; rouge: number }
   /** Coefficients t1 (accessibilité) et t2 (sécurité) du poids wp = t1·α + t2·σ, avec t1 + t2 = 1 (0,4 et 0,6). */
   coefAccessibilite: number
   coefSecurite: number
-  /** Poids à partir duquel une école est de niveau de difficulté 1. */
-  seuilNiveau1: number
-  /** Poids à partir duquel une école est de niveau de difficulté 2. */
-  seuilNiveau2: number
-  /** Points de besoin β selon le REM actuel : jusqu'à chaque plafond, les points indiqués. */
-  tranchesBesoin: { remMax: number; points: number }[]
-  /** β au-delà de la dernière tranche, et pour une école sans maître. */
-  pointsBesoinAuDela: number
 }
-
-/** Ordre dans lequel les vœux d'un enseignant sont examinés (§3.4). */
-export type OrdreExamenVoeux = 'voeux' | 'poids'
 
 /** Rotation, redéploiement et score de priorité (§3.2 à §3.9). */
 export interface ReglesMobilite {
@@ -137,36 +117,20 @@ export interface ReglesMobilite {
   pointsParAnSupplementaire: number
   /** Plafond de C2 ; 0 = sans plafond (la note n'en prévoit pas). */
   plafondAnciennete: number
-  /** Proximité de la retraite (en années) qui retire des points et protège des propositions hors vœux. */
+  /** Proximité de la retraite (en années) : un enseignant à moins de cette durée de la retraite est « proche de la retraite ». */
   anneesAvantRetraite: number
   malusRetraite: number
   pointsAnneeNiveau1: number
   pointsAnneeNiveau2: number
   /** Plancher du multiplicateur de zone : Z = max(plancher ; 2·n1 + n2), 10 par défaut. */
   plancherZoneDifficile: number
-  nombreMaxVoeux: number
-  ordreExamen: OrdreExamenVoeux
   /** Traiter les vœux des enseignants (phase 1). */
   phaseVoeux: boolean
-  /** Exiger aussi la stabilité minimale au poste pour le redéploiement obligatoire. */
-  stabilitePourObligatoire: boolean
-  /** Protéger des propositions hors vœux et des transferts imposés les enseignants proches de la retraite. */
-  protegerProchesRetraite: boolean
-  /** Rechercher une solution proche pour les demandes non satisfaites (§3.5). */
-  solutionProche: boolean
-  /** Simuler le redéploiement obligatoire pour les écoles restées non couvertes (§3.7). */
-  redeploiementObligatoire: boolean
-  /** Règle de la zone rouge : aucun poste en zone rouge hors vœux ni par transfert imposé. */
-  regleZoneRouge: boolean
   /**
    * Régions étanches : un enseignant n'est affecté que dans sa région. Ceux pour qui il ne reste de poste
    * qu'ailleurs restent dans le vivier et vont à la commission d'arbitrage (le prince et la commission décident).
    */
   regionsEtanches: boolean
-  /** Projeter le vivier sur l'année N+2 (§3.9). */
-  projectionN2: boolean
-  /** Nouveaux recrutés : à note égale, priorité à la candidate (règle à vérifier, désactivée par défaut). */
-  departageFeminin: boolean
 }
 
 /**
@@ -176,8 +140,6 @@ export interface ReglesMobilite {
 export interface EngineSettings {
   anneeScolaire: string
   besoin: ReglesBesoin
-  /** D'où viennent les postes à couvrir : besoin calculé, postes déclarés, ou le maximum des deux. */
-  sourceDesPostes: 'besoinCalcule' | 'postesDeclares' | 'maximum'
   /** Seuils de déficit relatif (besoin ÷ cible) séparant les sévérités. */
   seuilsSeverite: { faible: number; important: number }
   priorite: ReglesPriorite
@@ -486,11 +448,16 @@ export interface SyntheseTerritoriale {
   couvrable: number
   restant: number
   recrutementAPrevoir: number
+  /** Taux de déséquilibre des dotations : (besoin + excédent) ÷ somme des cibles, `null` sans cible. */
+  tauxDesequilibre: number | null
   /**
-   * Taux de déséquilibre des dotations : (besoin + excédent) ÷ somme des cibles, `null` sans cible.
-   * Le champ garde son nom d'origine ; ce n'est pas le degré d'aléa (1 − R²) du tableau de bord.
+   * Degré d'aléa statistique : 1 − R² de la régression, école par école, des enseignants sur les élèves
+   * (distinct du taux de déséquilibre). `null` quand il n'est pas calculable (voir `degreAleaRaison`).
    */
   degreAlea: number | null
+  /** Fiabilité (E5) : « non_calculable » sous 3 écoles renseignées, « indicatif » de 3 à 9, « normal » ensuite. */
+  degreAleaStatut: 'non_calculable' | 'indicatif' | 'normal'
+  degreAleaRaison: string | null
 }
 
 /** Décision d'une commission sur une proposition ou une affectation (§3.10). */

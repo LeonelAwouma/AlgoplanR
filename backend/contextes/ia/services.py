@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Optional
 
 from contextes.commun.erreurs import RefusMetier
 from domaine.donnees import colonnes as C

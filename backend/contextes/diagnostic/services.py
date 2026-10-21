@@ -9,10 +9,12 @@ from typing import Dict, List, Optional, Tuple
 
 from contextes.donnees import depots
 from contextes.parametrage.services import config_jeu
+from contextes.planification import services as pl
 from contextes.simulation import services as sim
 from domaine.diagnostic import synthese as syn
 from domaine.diagnostic import territoires as terr
 from domaine.diagnostic.indicateurs import enrichir_ecoles
+from domaine.commun.encadrement import taux_encadrement
 from domaine.commun.texte import cle_recherche
 from domaine.donnees import colonnes as C
 from domaine.donnees.modeles import Ecole, Enseignant
@@ -69,14 +71,19 @@ def empreinte_jeu(jeu) -> str:
 
 
 def _rem(e: Ecole) -> Optional[float]:
-    return round(e.effectif_eleves / e.enseignants_actuels, 2) if e.enseignants_actuels else None
+    return taux_encadrement(e.effectif_eleves, e.enseignants_actuels or 0)
 
 
 def _ligne_ecole(e: Ecole, mobilisables: int, avant: Optional[Ecole] = None, touchee: bool = False) -> dict:
     """École à plat avec ses indicateurs, et ses valeurs d'avant les faits du Prince (celles de l'école si aucune)."""
     o = avant or e
-    return {**e.vers_dict(), "mobilisables": mobilisables, "Enseignants_Avant_Prince": o.enseignants_actuels,
-            "Besoin_Avant_Prince": int(o.ind.be), "REM_Avant_Prince": _rem(o), "touche_par_prince": touchee}
+    # Taux d'encadrement et élèves par classe de l'école : calculés ici, par la fonction commune, pour que l'interface
+    # n'ait aucun ratio à refaire (None si l'effectif d'élèves, ou les classes ouvertes, ne sont pas connus).
+    rem = taux_encadrement(e.effectif_eleves, e.enseignants_actuels) if e.effectif_connu else None
+    par_classe = (taux_encadrement(e.effectif_eleves, e.classes_ouvertes)
+                  if e.effectif_connu and e.classes_ouvertes else None)
+    return {**e.vers_dict(), "mobilisables": mobilisables, "rem": rem, "eleves_par_classe": par_classe,
+            "Enseignants_Avant_Prince": o.enseignants_actuels, "Besoin_Avant_Prince": int(o.ind.be), "REM_Avant_Prince": _rem(o), "touche_par_prince": touchee}
 
 
 def _situation(cfg: dict, ecoles: List[Ecole], tous: List[Enseignant], ecartes=()) -> Preparation:
@@ -218,8 +225,29 @@ def diagnostic(jeu, perimetre, *, zone="", securite="", sous_systeme="", type_et
     return {"perimetre": perimetre.vers_dict(), "sans_prince": sans_prince, "totaux": totaux, "ecoles": ecoles}
 
 
+def totaux_ecoles(jeu, perimetre, identifiants) -> dict:
+    """Totaux (`totaux_diagnostic`) des seules écoles demandées, prises dans le périmètre autorisé : une école hors
+    périmètre (région d'un autre délégué) est ignorée, jamais comptée. Sert les filtres que le serveur ne sait pas
+    exprimer (sévérité, multigrade…) : l'interface choisit les écoles, le serveur en calcule les totaux — la seule
+    formule de ces totaux reste celle du serveur."""
+    voulues = set(identifiants)
+    ecoles = terr.filtrer_lignes(ecoles_enrichies(jeu), perimetre, C.COL_ETAB_REGION, C.COL_ETAB_DEPT,
+                                 C.COL_ETAB_COMMUNE)
+    return syn.totaux_diagnostic([e for e in ecoles if e[C.COL_ETAB_ID] in voulues])
+
+
 def territoires(jeu, perimetre) -> dict:
     return terr.noeud_territorial(ecoles_enrichies(jeu), perimetre)
+
+
+def arbre(jeu, perimetre) -> dict:
+    """Arbre territorial complet à partir du périmètre demandé (la région imposée d'un délégué, le national pour
+    le DRH) : les écoles hors périmètre sont retirées avant de construire l'arbre, jamais après — un délégué ne
+    reçoit donc jamais la moindre trace d'une autre région, même dans un total agrégé."""
+    ecoles = terr.filtrer_lignes(ecoles_enrichies(jeu), perimetre, C.COL_ETAB_REGION, C.COL_ETAB_DEPT,
+                                 C.COL_ETAB_COMMUNE)
+    return terr.arbre_territorial(ecoles, niveau=perimetre.niveau, region=perimetre.region,
+                                  departement=perimetre.departement, commune=perimetre.commune)
 
 
 def options(jeu, perimetre) -> dict:
@@ -252,4 +280,5 @@ def synthese(jeu, perimetre, scenario=None) -> dict:
                             "par_enfant_territorial": noeud["enfants"]},
         "points_attention": syn.points_attention(s, ecoles),
         "narratif": syn.texte_narratif(s, perimetre.titre),
+        "synthese_territoriale": syn.synthese_par_sous_systeme(ecoles, pl.hypotheses_dict(jeu)),
     }

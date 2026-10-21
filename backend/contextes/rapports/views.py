@@ -56,12 +56,17 @@ def rapport_territorial(request, jeu):
 FORMATS_EXPORT = ("xlsx", "docx")
 TYPES_EXPORT = ("perimetre", "national_complet")
 CODES_INDICATEURS = {d["code"] for d in REGISTRE_INDICATEURS}
+NIVEAUX_ENFANTS = ("region", "departement", "commune", "ecole", "iaeb")
+ANNEES_EXPORT = tuple(f"n{k}" for k in range(1, 6))
 
 
 @extend_schema(parameters=[OpenApiParameter("format", str), OpenApiParameter("type", str),
                            OpenApiParameter("indicateur", str), OpenApiParameter("scenario", int),
                            OpenApiParameter("region", str), OpenApiParameter("departement", str),
-                           OpenApiParameter("commune", str)],
+                           OpenApiParameter("commune", str),
+                           OpenApiParameter("niveau", str, description="Ventilation : region | departement | commune "
+                                            "(= arrondissement) | ecole | iaeb ; par défaut le niveau inférieur"),
+                           OpenApiParameter("annee", str, description="n1 à n5 : une seule année de projection")],
                responses={(200, "application/octet-stream"): OpenApiTypes.BINARY},
                summary="Export Excel ou Word de la synthèse territoriale (respecte le périmètre demandé ; "
                        "type=national_complet, réservé au DRH, est exhaustif : national, régions, tous les "
@@ -84,6 +89,14 @@ def rapport_territorial_export(request, jeu):
         raise RefusMetier("Indicateur inconnu", [f"« indicateur » doit valoir l'un de {sorted(CODES_INDICATEURS)}"],
                           code="parametre_invalide")
     scenario_id = q.get("scenario") or None
+    niveau = (q.get("niveau") or "").strip().lower()
+    if niveau and niveau not in NIVEAUX_ENFANTS:
+        raise RefusMetier("Niveau invalide", [f"« niveau » doit valoir l'un de {list(NIVEAUX_ENFANTS)}"],
+                          code="parametre_invalide")
+    annee = (q.get("annee") or "").strip().lower() or None
+    if annee and annee not in ANNEES_EXPORT:
+        raise RefusMetier("Année invalide", [f"« annee » doit valoir l'un de {list(ANNEES_EXPORT)}"],
+                          code="parametre_invalide")
 
     if type_ == "national_complet":
         if not request.user.est_drh:
@@ -97,8 +110,8 @@ def rapport_territorial_export(request, jeu):
         return reponse_docx(octets, nom)
 
     p = perimetre_planification(request)
-    rapport = rt.construire(j, p, scenario_id=scenario_id)
-    tableaux = rt.tableaux_pour_export(rapport, indicateur=indicateur)
+    rapport = rt.construire(j, p, scenario_id=scenario_id, niveau_demande=niveau)
+    tableaux = rt.tableaux_pour_export(rapport, indicateur=indicateur, annee=annee)
     slug = rapport["titre"].lower().replace(" ", "-").replace(">", "-").strip("-") or "cameroun"
     nom = f"rapport-territorial-{slug}.{format_}"
     if format_ == "xlsx":

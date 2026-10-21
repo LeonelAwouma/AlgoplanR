@@ -91,14 +91,15 @@ describe(
         identifiant: 'drh',
       }
       // Aucune actualisation dans le jeu de démonstration : ses écarts n'existent pas. L'encadrement, le
-      // turnover après l'algorithme et le degré d'aléa demandent le moteur : les données factices le disent au
-      // lieu de l'inventer.
+      // turnover après l'algorithme, le degré d'aléa et la synthèse territoriale (lot 4) demandent le moteur :
+      // les données factices le disent au lieu de l'inventer.
       const sansDonnees = new Set([
         'jeux/{jeu}/planification/alea/',
         'jeux/{jeu}/faits-prince/application/',
         'jeux/{jeu}/faits-prince/bases/{base}/',
         'jeux/{jeu}/actualisations/{actualisation}/ecarts/',
         'jeux/{jeu}/scenarios/{scenario}/encadrement/',
+        'jeux/{jeu}/rapports/territorial/',
       ])
       const manquantes: string[] = []
       for (const route of routesDuManifeste()) {

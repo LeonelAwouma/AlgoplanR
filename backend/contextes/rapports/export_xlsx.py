@@ -81,7 +81,8 @@ def feuille_methodologie(wb: Workbook, registre: List[dict], deja: set) -> None:
 
 def _feuilles_rapport(wb: Workbook, nom_prefixe: str, tableaux: List[dict], deja: set) -> None:
     for t in tableaux:
-        entetes = ["Territoire", *t["colonnes"]]
+        unite = f" ({t['unite']})" if t.get("unite") else ""
+        entetes = ["Territoire", *[f"{c}{unite}" for c in t["colonnes"]]]
         lignes = [[l["territoire"], *l["valeurs"]] for l in t["lignes"]]
         ecrire_feuille(wb, f"{nom_prefixe}{t['intitule']}"[:LONGUEUR_MAX_NOM_FEUILLE], entetes, lignes, deja)
 
@@ -98,13 +99,13 @@ def classeur_perimetre(rapport: dict, tableaux: List[dict]) -> bytes:
     return buf.getvalue()
 
 
-COLONNES_RESUME = ["Nb écoles", "Taux d'encadrement", "Couverture globale (%)", "Couverture opérationnelle (%)",
+COLONNES_RESUME = ["Nb écoles", "Taux d'encadrement (élèves par enseignant)", "Couverture globale (%)", "Couverture opérationnelle (%)",
                    "Couverture PAREC (%)", "Degré d'aléa", "Attrition N+1"]
 CLES_RESUME = ["nb_ecoles", "encadrement", "couverture_globale", "couverture_operationnelle", "couverture_parec",
               "alea", "attrition_n1"]
 COLONNES_ETABLISSEMENTS = ["Identifiant", "Nom", "Région", "Département", "Arrondissement", "Élèves",
                            "Effectif import", "Effectif après Prince", "Effectif après simulation",
-                           "Taux d'encadrement", "Besoin initial", "Couverture globale (%)", "Besoin après Prince",
+                           "Taux d'encadrement (élèves par enseignant)", "Besoin initial", "Couverture globale (%)", "Besoin après Prince",
                            "Couverture opérationnelle (%)", "PAREC éligible (> 100 élèves)", "PAREC couverte"]
 CLES_ETABLISSEMENTS = ["id", "nom", "region", "departement", "commune", "eleves", "effectif_import",
                        "effectif_apres_prince", "effectif_apres_simulation", "taux_encadrement", "besoin_initial",

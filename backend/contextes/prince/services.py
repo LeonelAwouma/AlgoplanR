@@ -23,7 +23,7 @@ from .models import FaitPrince
 
 
 def _candidat(id_ens: str, id_etab: str, motif: str = "") -> dict:
-    return {"id_ens": id_ens.strip(), "id_etab": id_etab.strip(), "motif": (motif or MOTIF_DEFAUT).strip()}
+    return {"id_ens": id_ens.strip(), "id_etab": id_etab.strip(), "motif": str(motif or MOTIF_DEFAUT).strip()}
 
 
 def _evaluer(jeu, id_ens: str, id_etab: str, motif: str = "", *, avec_base: bool = False, cfg: Optional[dict] = None):

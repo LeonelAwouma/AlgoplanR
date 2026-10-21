@@ -12,27 +12,7 @@ import {
   recrutementsNecessaires,
   type EntreeKpis,
 } from '../components/diagnostic/application/kpis'
-import type { SchoolDiagnostic, TerritorialTotals } from '../components/shared/api'
-import { agregerTotaux } from '../components/shared/api/backend/moteur/diagnostic'
-
-/** École minimale : seuls les champs lus par l'agrégation sont renseignés. */
-function ecole(enseignants: number, eleves: number | null, classes: number | null): SchoolDiagnostic {
-  return {
-    enseignantsEtat: enseignants,
-    besoinTheorique: 0,
-    excedentTheorique: 0,
-    postesDeclares: null,
-    enseignantsMobilisables: 0,
-    classement: 'normal',
-    calcul: { sallesManquantes: 0, surnombre: 0 },
-    school: {
-      nbAutresEnseignants: null,
-      effectifTotalEleves: eleves,
-      classesMultigrades: 0,
-      nombreClassesOuvertes: classes,
-    },
-  } as unknown as SchoolDiagnostic
-}
+import type { TerritorialTotals } from '../components/shared/api'
 
 const TOTAUX: TerritorialTotals = {
   ecolesAnalysees: 120,
@@ -60,27 +40,6 @@ function entree(patch: Partial<EntreeKpis> = {}): EntreeKpis {
 
 const cle = (kpis: ReturnType<typeof construireKpis>, c: string) =>
   [...kpis.principaux, ...kpis.secondaires].find(k => k.cle === c)!
-
-describe('REM national', () => {
-  it('somme des élèves ÷ somme des enseignants, non moyenne des REM des écoles', () => {
-    // REM des écoles : 100 et 10 (moyenne 55) ; REM national : 1 010 ÷ 11 = 91,8.
-    const t = agregerTotaux([ecole(10, 1000, 10), ecole(1, 10, 1)])
-    assert.equal(t.elevesParEnseignantEtat, 91.82)
-  })
-
-  it('ne compte pas les enseignants des écoles dont l’effectif d’élèves est inconnu', () => {
-    // Sans cette règle : 600 ÷ 40 = 15 ; les 30 enseignants de l’école sans effectif ne doivent pas diluer le REM.
-    const t = agregerTotaux([ecole(10, 600, 10), ecole(30, null, 30)])
-    assert.equal(t.elevesParEnseignantEtat, 60)
-    assert.equal(t.elevesParClasse, 60)
-    assert.equal(t.enseignantsEtat, 40, 'l’effectif total d’enseignants reste complet')
-  })
-
-  it('est indisponible quand aucune école n’a d’effectif d’élèves', () => {
-    const t = agregerTotaux([ecole(10, null, 10)])
-    assert.equal(t.elevesParEnseignantEtat, null)
-  })
-})
 
 describe('indicateurs du tableau de bord', () => {
   it('affiche « — » pour ce qui dépend d’un scénario tant qu’il n’y en a pas', () => {

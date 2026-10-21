@@ -8,7 +8,6 @@
 import type { EngineSettings, ReglesMobilite as Regles } from '@shared/api'
 import { Panel } from '@shared/ui/commun'
 
-import { estNonApplique } from '../../../domain/champsMoteur'
 import { nombreSaisi, type MajParametres } from '../../../domain/edition'
 import { Interrupteur, Regle } from '../ChampsRegles'
 
@@ -24,50 +23,10 @@ const INTERRUPTEURS: { cle: RegleBooleenne; titre: string; texte: string }[] = [
       'Phase 1 : satisfaction des vœux par acceptation différée. Désactivée, seuls les redéploiements hors vœux et obligatoires sont simulés.',
   },
   {
-    cle: 'stabilitePourObligatoire',
-    titre: 'Exiger la stabilité minimale pour un redéploiement obligatoire',
-    texte: 'Un maître n’est déplacé d’office qu’après la même durée au poste qu’une demande de mutation.',
-  },
-  {
-    cle: 'protegerProchesRetraite',
-    titre: 'Protéger les enseignants proches de la retraite',
-    texte: 'Ils ne reçoivent ni proposition hors vœux ni transfert imposé ; leurs vœux restent examinés.',
-  },
-  {
-    cle: 'solutionProche',
-    titre: 'Rechercher la solution la plus proche',
-    texte:
-      'Un candidat dont aucun vœu n’est satisfait reçoit le poste ouvert le plus proche de ses vœux, soumis à son accord.',
-  },
-  {
-    cle: 'redeploiementObligatoire',
-    titre: 'Simuler le redéploiement obligatoire',
-    texte:
-      'Les écoles restées non couvertes reçoivent un maître de l’école excédentaire la plus proche du même sous-système.',
-  },
-  {
-    cle: 'regleZoneRouge',
-    titre: 'Appliquer la règle de la zone rouge',
-    texte:
-      'Aucun poste en zone rouge n’est proposé hors vœux ni imposé : il n’est pourvu que par des volontaires ou par le recrutement.',
-  },
-  {
     cle: 'regionsEtanches',
     titre: 'Affecter chaque enseignant dans sa région',
     texte:
       'Une affectation hors de la région de l’enseignant n’est pas retenue : l’enseignant reste dans le vivier et passe en commission d’arbitrage. Les décisions du prince et de la commission peuvent traverser les régions.',
-  },
-  {
-    cle: 'projectionN2',
-    titre: 'Projeter le vivier sur l’année N+2',
-    texte:
-      'Les enseignants restés sans affectation sont rapprochés des postes qui doivent se libérer pendant l’année N+1.',
-  },
-  {
-    cle: 'departageFeminin',
-    titre: 'Nouveaux recrutés : à note égale, priorité à la candidate',
-    texte:
-      'Règle évoquée par le référentiel mais à vérifier au regard des dispositions applicables : désactivée par défaut.',
   },
 ]
 
@@ -104,65 +63,10 @@ export function ReglesMobilite({ parametres, maj }: ProprietesReglesMobilite) {
             />
             <span className="regle-unite">ans au poste</span>
           </Regle>
-          <Regle
-            enonce="Chaque enseignant peut formuler au plus"
-            htmlFor="r-voeux"
-            nonApplique={estNonApplique('mobilite', 'nombreMaxVoeux')}
-          >
-            <input
-              id="r-voeux"
-              type="number"
-              disabled
-              min={1}
-              max={3}
-              value={m.nombreMaxVoeux}
-              onChange={e => mobilite('nombreMaxVoeux', nombreSaisi(e.target.value))}
-            />
-            <span className="regle-unite">vœu(x)</span>
-          </Regle>
-          <Regle
-            enonce="Les vœux de chaque enseignant sont examinés"
-            precision="Dans l’ordre de l’enseignant, ajouter une école à sa liste ne peut jamais lui nuire. Par poids, un enseignant a intérêt à retirer une école difficile de sa liste."
-            htmlFor="r-ordre"
-            nonApplique={estNonApplique('mobilite', 'ordreExamen')}
-          >
-            <select
-              id="r-ordre"
-              disabled
-              value={m.ordreExamen}
-              onChange={e => mobilite('ordreExamen', e.target.value as Regles['ordreExamen'])}
-            >
-              <option value="voeux">dans l’ordre choisi par l’enseignant (par défaut)</option>
-              <option value="poids">de l’école la plus difficile à la plus facile (variante)</option>
-            </select>
-          </Regle>
-          <Regle
-            enonce="Un enseignant est considéré proche de la retraite à moins de"
-            htmlFor="r-proche"
-            nonApplique={estNonApplique('mobilite', 'anneesAvantRetraite')}
-          >
-            <input
-              id="r-proche"
-              type="number"
-              disabled
-              min={0}
-              max={10}
-              value={m.anneesAvantRetraite}
-              onChange={e => mobilite('anneesAvantRetraite', nombreSaisi(e.target.value))}
-            />
-            <span className="regle-unite">ans de la retraite</span>
-          </Regle>
         </div>
         <div className="switch-list">
           {INTERRUPTEURS.map(({ cle, titre, texte }) => (
-            <Interrupteur
-              key={cle}
-              titre={titre}
-              texte={texte}
-              coche={m[cle]}
-              onChange={v => mobilite(cle, v)}
-              nonApplique={estNonApplique('mobilite', cle)}
-            />
+            <Interrupteur key={cle} titre={titre} texte={texte} coche={m[cle]} onChange={v => mobilite(cle, v)} />
           ))}
         </div>
       </Panel>

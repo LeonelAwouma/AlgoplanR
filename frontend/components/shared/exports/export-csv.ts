@@ -22,9 +22,13 @@ export function telechargerFichier(contenu: BlobPart, nomFichier: string, typeMi
   URL.revokeObjectURL(url)
 }
 
+/** Un texte qui commence par = + - @ (ou une tabulation) serait exécuté comme une formule à l'ouverture dans Excel. */
+const DEBUT_DE_FORMULE = /^[=+\-@\t\r]/
+
 function echapper(v: CellValue): string {
   if (v == null) return ''
-  const s = typeof v === 'number' ? v.toString().replace('.', ',') : String(v)
+  let s = typeof v === 'number' ? v.toString().replace('.', ',') : String(v)
+  if (typeof v === 'string' && DEBUT_DE_FORMULE.test(s)) s = `'${s}`
   return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 

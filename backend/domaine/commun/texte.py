@@ -40,7 +40,7 @@ def nombre(x: Any, defaut: float = 0.0) -> float:
     if x is None or isinstance(x, bool):
         return defaut if x is None else float(x)
     if isinstance(x, (int, float)):
-        return defaut if est_nan(x) else float(x)
+        return float(x) if math.isfinite(x) else defaut
     s = str(x).strip().replace(",", ".")
     if not s:
         return defaut
@@ -48,7 +48,7 @@ def nombre(x: Any, defaut: float = 0.0) -> float:
         v = float(s)
     except ValueError:
         return defaut
-    return defaut if math.isnan(v) else v
+    return v if math.isfinite(v) else defaut      # « inf », « 1e999 » et NaN ne sont pas des quantités
 
 
 def nombre_ou_none(x: Any):
@@ -56,13 +56,13 @@ def nombre_ou_none(x: Any):
     if x is None or est_nan(x):
         return None
     if isinstance(x, (int, float)) and not isinstance(x, bool):
-        return float(x)
+        return float(x) if math.isfinite(x) else None
     s = str(x).strip().replace(",", ".")
     try:
         v = float(s)
     except ValueError:
         return None
-    return None if math.isnan(v) else v
+    return v if math.isfinite(v) else None
 
 
 def sans_accents(s: str) -> str:

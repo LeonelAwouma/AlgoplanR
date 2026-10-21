@@ -27,12 +27,12 @@ import type {
   SimulationResult,
   SimulationScenario,
   SituationSnapshot,
+  SousSysteme,
   StatutVoeu,
+  SyntheseTerritoriale,
   TeachingPost,
   VoeuExamine,
 } from '../../contrat'
-import type { HypotheseAttrition } from '../moteur/attrition'
-import { syntheseTerritoriale } from '../moteur/synthese'
 import { versTeacher, type EnseignantDjango } from './enseignants'
 import { versEngineSettings, type ConfigDjango } from './parametres'
 import { estOui, nombre, normaliser, sousSysteme, texte, zone, zoneSecurite } from './referentiel'
@@ -260,9 +260,9 @@ export function versScenarioCalcule(
 export interface DonneesResultat {
   scenario: ScenarioDjango
   settings: EngineSettings
-  /** Attrition hors retraite : hypothèses de planification du jeu. */
-  attrition: HypotheseAttrition
   synthese: SyntheseDjango
+  /** Synthèse par sous-système avant ce scénario (bases après le Prince) et après (ses affectations ordinaires). */
+  syntheseSousSysteme: SyntheseSousSystemeAvantApresDjango
   affectations: AffectationDjango[]
   /** Vivier complet, avec l'indicateur `affecte`. */
   vivier: EnseignantDjango[]
@@ -272,6 +272,67 @@ export interface DonneesResultat {
   journal: JournalDjango[]
   /** Diagnostics de toutes les écoles du jeu, par identifiant. */
   ecoles: Map<string, SchoolDiagnostic>
+}
+
+/** Agrégat d'un sous-système, tel que le sert `synthese_par_sous_systeme` (serveur). */
+export interface AgregatSousSystemeDjango {
+  sous_systeme: SousSysteme | 'non_renseigne'
+  besoin: number
+  excedent: number
+  salles_manquantes: number
+  effectif: number
+  couvrable: number
+  restant: number
+  somme_cibles: number
+  recrutement_a_prevoir: number
+}
+
+/** Synthèse territoriale par sous-système, telle que la sert `synthese_par_sous_systeme` (serveur). */
+export interface SyntheseSousSystemeDjango {
+  par_sous_systeme: AgregatSousSystemeDjango[]
+  besoin: number
+  excedent: number
+  salles_manquantes: number
+  couvrable: number
+  restant: number
+  recrutement_a_prevoir: number
+  degre_alea: number | null
+  degre_alea_statut: 'non_calculable' | 'indicatif' | 'normal'
+  degre_alea_raison: string | null
+  taux_desequilibre: number | null
+}
+
+/** Avant ce scénario (bases après le Prince) et après (ses affectations ordinaires appliquées). */
+export interface SyntheseSousSystemeAvantApresDjango {
+  avant: SyntheseSousSystemeDjango
+  apres: SyntheseSousSystemeDjango
+}
+
+/** `synthese_par_sous_systeme` (serveur) → `SyntheseTerritoriale` du contrat : aucun calcul, un renommage. */
+export function versSyntheseTerritoriale(s: SyntheseSousSystemeDjango): SyntheseTerritoriale {
+  return {
+    parSousSysteme: s.par_sous_systeme.map(g => ({
+      sousSysteme: g.sous_systeme,
+      besoin: g.besoin,
+      excedent: g.excedent,
+      sallesManquantes: g.salles_manquantes,
+      couvrable: g.couvrable,
+      restant: g.restant,
+      effectif: g.effectif,
+      sommeCibles: g.somme_cibles,
+      recrutementAPrevoir: g.recrutement_a_prevoir,
+    })),
+    besoin: s.besoin,
+    excedent: s.excedent,
+    sallesManquantes: s.salles_manquantes,
+    couvrable: s.couvrable,
+    restant: s.restant,
+    recrutementAPrevoir: s.recrutement_a_prevoir,
+    tauxDesequilibre: s.taux_desequilibre,
+    degreAlea: s.degre_alea,
+    degreAleaStatut: s.degre_alea_statut,
+    degreAleaRaison: s.degre_alea_raison,
+  }
 }
 
 const NIVEAUX: ProximityLevel[] = ['meme_commune', 'meme_departement', 'meme_region', 'hors_region']
@@ -678,13 +739,7 @@ export function versResultat(d: DonneesResultat): SimulationResult {
   for (const a of assignments) parNature.set(a.nature, (parNature.get(a.nature) ?? 0) + 1)
 
   const couverts = new Map<string, number>()
-  const effectifs = new Map<string, number>()
-  for (const diag of d.ecoles.values()) effectifs.set(diag.school.id, diag.calcul.enseignantsRetenus)
-  for (const a of assignments) {
-    couverts.set(a.schoolDestinationId, (couverts.get(a.schoolDestinationId) ?? 0) + 1)
-    effectifs.set(a.schoolDestinationId, (effectifs.get(a.schoolDestinationId) ?? 0) + 1)
-    if (a.schoolOrigineId) effectifs.set(a.schoolOrigineId, (effectifs.get(a.schoolOrigineId) ?? 0) - 1)
-  }
+  for (const a of assignments) couverts.set(a.schoolDestinationId, (couverts.get(a.schoolDestinationId) ?? 0) + 1)
 
   const besoinInitial = assignments.length + uncoveredPosts.length
   const diagnostics = [...d.ecoles.values()]
@@ -719,8 +774,8 @@ export function versResultat(d: DonneesResultat): SimulationResult {
     postesProjetesN2: 0,
     recrutes: null,
     arbitrages: [],
-    syntheseAvant: syntheseTerritoriale(diagnostics, d.attrition),
-    syntheseApres: syntheseTerritoriale(diagnostics, d.attrition, effectifs),
+    syntheseAvant: versSyntheseTerritoriale(d.syntheseSousSysteme.avant),
+    syntheseApres: versSyntheseTerritoriale(d.syntheseSousSysteme.apres),
     postesZoneRougeNonPourvus: uncoveredPosts.filter(p => p.priorite.zoneRouge).length,
     before: situation(diagnostics, new Map()),
     after: situation(diagnostics, couverts),

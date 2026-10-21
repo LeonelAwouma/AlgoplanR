@@ -2,14 +2,12 @@
 
 /**
  * Règles du besoin d'une école (§2.2 à §2.4) : norme d'encadrement, tolérance,
- * minimum pédagogique, retraite, repli sans effectif, source des postes, double
- * flux. Avec la période du plan, qui fixe la date des départs à la retraite.
+ * minimum pédagogique, retraite, double flux. Avec la période du plan, qui fixe la date des départs à la retraite.
  */
 
 import type { EngineSettings, ReglesBesoin as Regles } from '@shared/api'
 import { Panel } from '@shared/ui/commun'
 
-import { estNonApplique } from '../../../domain/champsMoteur'
 import { nombreSaisi, type MajParametres } from '../../../domain/edition'
 import { Interrupteur, Regle } from '../ChampsRegles'
 
@@ -104,41 +102,6 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
             />
             <span className="regle-unite">ans</span>
           </Regle>
-          <Regle
-            enonce="Sans effectif d’élèves, une classe nécessite"
-            precision="Le calcul compte alors 0 élève, donc un seul maître ; les écoles concernées sont listées dans la qualité des données."
-            htmlFor="r-repli"
-            nonApplique={estNonApplique('besoin', 'enseignantsParClasseRepli')}
-          >
-            <input
-              id="r-repli"
-              type="number"
-              min={0.5}
-              max={3}
-              step={0.1}
-              disabled
-              value={b.enseignantsParClasseRepli}
-              onChange={e => besoin('enseignantsParClasseRepli', nombreSaisi(e.target.value))}
-            />
-            <span className="regle-unite">maître(s)</span>
-          </Regle>
-          <Regle
-            enonce="Les postes à pourvoir sont établis à partir"
-            precision="Le serveur n’utilise que le besoin calculé par le référentiel."
-            htmlFor="r-source"
-            nonApplique={estNonApplique('sourceDesPostes')}
-          >
-            <select
-              id="r-source"
-              disabled
-              value={parametres.sourceDesPostes}
-              onChange={e => maj(s => ({ ...s, sourceDesPostes: e.target.value as EngineSettings['sourceDesPostes'] }))}
-            >
-              <option value="besoinCalcule">du besoin calculé (règle du référentiel)</option>
-              <option value="postesDeclares">des postes déclarés dans le fichier</option>
-              <option value="maximum">du plus élevé des deux</option>
-            </select>
-          </Regle>
         </div>
         <div className="switch-list">
           <Interrupteur
@@ -152,13 +115,6 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
             texte="Quand le fichier renseigne les classes multigrades : une école sans multigrade a un maître par niveau ouvert, chaque classe multigrade en économise un, sans descendre sous le regroupement ci-dessus. Désactivé, le regroupement s’applique à toutes les écoles."
             coche={b.minimumSelonMultigrades}
             onChange={v => besoin('minimumSelonMultigrades', v)}
-          />
-          <Interrupteur
-            titre="Déduire les départs connus"
-            texte="Les maîtres qui partent à la retraite à la rentrée ne sont pas comptés dans l’effectif E."
-            coche={b.deduireDepartsConnus}
-            onChange={v => besoin('deduireDepartsConnus', v)}
-            nonApplique={estNonApplique('besoin', 'deduireDepartsConnus')}
           />
         </div>
       </Panel>

@@ -62,6 +62,7 @@ export function HypothesesPage() {
       <HypothesesAttrition
         jeu={jeu}
         attrition={affiche.attrition}
+        reference={h.referenceAttrition}
         onChange={attrition => modifier({ ...affiche, attrition })}
       />
       <HypothesesHorizonVivier brouillon={affiche} onChange={modifier} />

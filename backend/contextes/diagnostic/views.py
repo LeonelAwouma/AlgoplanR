@@ -4,7 +4,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from contextes.acces.perimetre import jeu_autorise
-from contextes.commun.outils import bool_param, perimetre_depuis, reponse_paginee
+from contextes.commun.erreurs import RefusMetier
+from contextes.commun.outils import bool_param, entier_param, perimetre_depuis, reponse_paginee
 from contextes.simulation import services as sim
 
 from . import services
@@ -28,10 +29,29 @@ def diagnostic(request, jeu):
     return Response(d)
 
 
+@extend_schema(request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT,
+               summary="Totaux du diagnostic d'une liste d'écoles (lecture seule, restreinte au périmètre du compte)")
+@api_view(["POST"])
+def diagnostic_totaux(request, jeu):
+    j = jeu_autorise(request, jeu, ecriture=False)
+    ecoles = request.data.get("ecoles") if isinstance(request.data, dict) else None
+    if not isinstance(ecoles, list) or not all(isinstance(i, str) for i in ecoles):
+        raise RefusMetier("Liste d'écoles invalide", ["« ecoles » doit être une liste d'identifiants d'écoles"],
+                          code="parametre_invalide")
+    return Response(services.totaux_ecoles(j, perimetre_depuis(request), ecoles))
+
+
 @extend_schema(parameters=GEO, responses=OpenApiTypes.OBJECT, summary="Nœud territorial courant, enfants, fil d'Ariane")
 @api_view(["GET"])
 def territoires(request, jeu):
     return Response(services.territoires(jeu_autorise(request, jeu), perimetre_depuis(request)))
+
+
+@extend_schema(parameters=GEO, responses=OpenApiTypes.OBJECT,
+               summary="Arbre territorial complet (nation à arrondissement), totaux précalculés à chaque nœud")
+@api_view(["GET"])
+def territoires_arbre(request, jeu):
+    return Response(services.arbre(jeu_autorise(request, jeu), perimetre_depuis(request)))
 
 
 @extend_schema(parameters=GEO, responses=OpenApiTypes.OBJECT, summary="Options des menus de filtres (cascade)")
@@ -53,5 +73,5 @@ def priorites(request, jeu):
 def synthese(request, jeu):
     j = jeu_autorise(request, jeu)
     sid = request.query_params.get("scenario")
-    sc = sim.scenario_du_jeu(j, int(sid)) if sid else None
+    sc = sim.scenario_du_jeu(j, entier_param(sid, "scenario")) if sid else None
     return Response(services.synthese(j, perimetre_depuis(request), sc))

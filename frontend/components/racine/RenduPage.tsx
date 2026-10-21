@@ -23,7 +23,7 @@ import {
   RapportPrevisionnelPage,
 } from '@components/planification/pages'
 import { PrincePage } from '@components/prince/pages'
-import { RapportPage } from '@components/rapports/pages'
+import { RapportPage, SyntheseTerritorialePage } from '@components/rapports/pages'
 import { RecrutesPage } from '@components/recrutement/pages'
 import {
   AffectationsPage,
@@ -98,6 +98,8 @@ export function RenduPage({ page }: { page: PageKey }) {
       return <MouvementsPage />
     case 'indicateurs':
       return <IndicateursPage />
+    case 'synthese-territoriale':
+      return <SyntheseTerritorialePage />
 
     // Restituer
     case 'reports':

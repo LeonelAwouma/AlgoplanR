@@ -7,6 +7,7 @@ import io
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
 # Lecteur Excel : calamine (Rust) lit un classeur de 30 000 lignes environ huit fois plus vite qu'openpyxl,
 # pour les mêmes valeurs. openpyxl reste le lecteur de repli si python-calamine n'est pas installé.
@@ -71,9 +72,18 @@ def lire_classeur_numerote(contenu: bytes, nom: str, feuille: Optional[str] = No
     return feuilles, lue, entetes, lignes, numeros
 
 
+def _cellule_sure(v):
+    """Texte écrivable dans une feuille Excel : sans caractère de contrôle (openpyxl les refuse) et jamais pris pour
+    une formule (une valeur importée qui commence par « = » serait exécutée à l'ouverture du classeur)."""
+    if not isinstance(v, str):
+        return v
+    v = ILLEGAL_CHARACTERS_RE.sub("", v)
+    return "'" + v if v.startswith("=") else v
+
+
 def ecrire_excel(feuilles: Dict[str, List[dict]]) -> bytes:
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as w:
         for nom, lignes in feuilles.items():
-            pd.DataFrame(lignes).to_excel(w, sheet_name=nom[:31], index=False)
+            pd.DataFrame(lignes).map(_cellule_sure).to_excel(w, sheet_name=nom[:31], index=False)
     return buf.getvalue()

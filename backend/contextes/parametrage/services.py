@@ -4,7 +4,6 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Dict
 
-from domaine.donnees import colonnes as C
 from domaine.mobilite.bareme import categorie_situation, points_situation
 from domaine.parametrage import config as cfg_dom
 

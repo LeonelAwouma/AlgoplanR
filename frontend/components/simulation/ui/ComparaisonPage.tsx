@@ -10,10 +10,10 @@
 
 import { AlertTriangle, Check } from 'lucide-react'
 
-import type { SimulationResult } from '@shared/api'
+import type { SimulationResult, SyntheseTerritoriale } from '@shared/api'
 import { selectionLabel } from '@shared/kernel'
 import { useSession } from '@shared/session'
-import { Delta, EmptyState, Notice, Panel, Pill, fmt, fmtPct } from '@shared/ui/commun'
+import { Delta, EmptyState, Notice, Panel, Pill, fmt, fmtDec, fmtPct } from '@shared/ui/commun'
 import { EtatRequetes } from '@shared/ui/etats'
 import { AvantApres, CouvertureParScenario } from '@shared/ui/graphiques'
 import { useDiagnostic } from '@components/diagnostic'
@@ -27,6 +27,12 @@ interface LigneComparaison {
   label: string
   actuel: string
   valeur: (r: SimulationResult) => string
+}
+
+/** Degré d'aléa (1 − R²) à deux décimales, qualifié « indicatif » de 3 à 9 écoles, ou la raison s'il n'est pas calculable. */
+function celluleAlea(s: SyntheseTerritoriale): string {
+  if (s.degreAlea == null) return s.degreAleaRaison ?? 'Non calculable'
+  return s.degreAleaStatut === 'indicatif' ? `${fmtDec(s.degreAlea, 2)} (indicatif)` : fmtDec(s.degreAlea, 2)
 }
 
 /** Nombre de mouvements d'une nature dans un résultat. */
@@ -74,8 +80,13 @@ export function ComparaisonPage() {
     { label: 'Redéploiements obligatoires', actuel: '—', valeur: r => fmt(mouvements(r, 'obligatoire')) },
     {
       label: 'Taux de déséquilibre des dotations',
-      actuel: reference.syntheseAvant.degreAlea == null ? '—' : fmtPct(reference.syntheseAvant.degreAlea),
-      valeur: r => (r.syntheseApres.degreAlea == null ? '—' : fmtPct(r.syntheseApres.degreAlea)),
+      actuel: fmtPct(reference.syntheseAvant.tauxDesequilibre),
+      valeur: r => fmtPct(r.syntheseApres.tauxDesequilibre),
+    },
+    {
+      label: 'Degré d’aléa (1 − R²)',
+      actuel: celluleAlea(reference.syntheseAvant),
+      valeur: r => celluleAlea(r.syntheseApres),
     },
     {
       label: 'Recrutement à prévoir',

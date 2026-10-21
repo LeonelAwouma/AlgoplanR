@@ -4,11 +4,11 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.response import Response
 
 from contextes.acces.perimetre import jeu_autorise
-from contextes.arbitrage.models import DecisionArbitrage
 from contextes.commun.erreurs import RefusMetier
-from contextes.commun.outils import perimetre_depuis, reponse_paginee
+from contextes.commun.outils import entier_param, perimetre_depuis, reponse_paginee
 from contextes.donnees import depots
 from contextes.donnees.lecteur import ecrire_excel
+from contextes.planification import services as pl
 from domaine.donnees import colonnes as C
 from domaine.diagnostic.territoires import restreindre_resultat
 from domaine.mobilite import analyses as an
@@ -38,6 +38,8 @@ def scenarios(request, jeu):
     if request.method == "GET":
         return Response([sim.resume_scenario(s) for s in j.scenarios.all()])
     d = request.data
+    if not isinstance(d.get("parametres") or {}, dict):
+        raise RefusMetier("Paramètres invalides", ["« parametres » doit être un objet"])
     sc = sim.creer_scenario(j, code=d.get("code", ""), nom=d.get("nom", ""), description=d.get("description", ""),
                             parametres=d.get("parametres") or {})
     return Response(sim.resume_scenario(sc), status=201)
@@ -76,7 +78,8 @@ def resultat(request, jeu, sid):
     j, sc, r = _ctx(request, jeu, sid)
     return Response({"scenario": sim.resume_scenario(sc), "perimetre": r["perimetre"], "synthese": r["synthese"],
                      "nb": {k: len(r[k]) for k in ("affectations", "non_affectes", "postes_non_pourvus", "vivier",
-                                                  "ecoles_en_besoin", "projections_n3", "journal_audit")}})
+                                                  "ecoles_en_besoin", "projections_n3", "journal_audit")},
+                     "synthese_sous_systeme": an.synthese_sous_systeme_avant_apres(r, pl.hypotheses_dict(j))})
 
 
 def _liste(cle, titre, tri=None, filtre=None):
@@ -175,7 +178,7 @@ def combinaisons(request, jeu, sid):
     j = jeu_autorise(request, jeu)
     sc = sim.scenario_du_jeu(j, sid)
     r = restreindre_resultat(sim.charger_resultat(sc), perimetre_depuis(request))
-    lignes = an.combinaisons(r, sim.config_resultat(sc), int(request.query_params.get("options", 3)))
+    lignes = an.combinaisons(r, sim.config_resultat(sc), entier_param(request.query_params.get("options"), "options", defaut=3, minimum=1, maximum=10))
     return Response(reponse_paginee(request, lignes))
 
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, Iterable, List
+from typing import Iterable, List
 
 from ..commun.texte import est_oui, norm
 from ..donnees.modeles import Ecole, Indicateurs

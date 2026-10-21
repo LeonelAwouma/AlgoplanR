@@ -317,11 +317,7 @@ export function VueEnsemblePage() {
         <>
           <h2 className="titre-section">Détail technique (Vue analyste)</h2>
 
-          <ZonesSecuritePanel
-            zones={s.parZoneSecurite}
-            parametres={parametres.data ?? null}
-            onVoirEcoles={zone => voirEcoles({ zonesSecurite: [zone] })}
-          />
+          <ZonesSecuritePanel zones={s.parZoneSecurite} onVoirEcoles={zone => voirEcoles({ zonesSecurite: [zone] })} />
 
           <div className="grid-main">
             <Panel

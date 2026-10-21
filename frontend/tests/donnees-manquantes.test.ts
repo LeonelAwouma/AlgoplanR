@@ -9,7 +9,6 @@ import { versJeu } from '../components/shared/api/backend/conversions/donnees'
 import { versDiagnostic, type EcoleDjango } from '../components/shared/api/backend/conversions/ecoles'
 import { versTeacher, type EnseignantDjango } from '../components/shared/api/backend/conversions/enseignants'
 import { versEngineSettings } from '../components/shared/api/backend/conversions/parametres'
-import { agregerTotaux } from '../components/shared/api/backend/moteur/diagnostic'
 import { anneeScolaireCourante, anneeScolaireValide } from '../components/shared/kernel/annee'
 import { CONFIG } from './config-serveur'
 
@@ -64,21 +63,15 @@ describe('Capacité en maîtres et classes ouvertes', () => {
     assert.equal(d.elevesParClasse, null, 'sans classes ouvertes, le ratio n’est pas calculable')
   })
 
-  it('calcule les élèves par classe quand le fichier donne les classes ouvertes', () => {
-    const d = versDiagnostic(ecole({ Classes_Ouvertes: 5 }), 1, REGLES)
+  it('lit du serveur les élèves par classe et le taux d’encadrement, sans les recalculer', () => {
+    const d = versDiagnostic(ecole({ Classes_Ouvertes: 5, eleves_par_classe: 48, rem: 40 }), 1, REGLES)
     assert.equal(d.school.nombreClassesOuvertes, 5)
     assert.equal(d.elevesParClasse, 48)
-  })
-
-  it('agrège les élèves par classe sur les seules écoles qui donnent élèves et classes', () => {
-    const diagnostics = [
-      versDiagnostic(ecole({ Classes_Ouvertes: 5 }), 1, REGLES),
-      versDiagnostic(ecole({ Identifiant_Ecole: 'E2', Effectif_Eleves_Attendus: 1000 }), 2, REGLES),
-    ]
-    const t = agregerTotaux(diagnostics)
-    assert.equal(t.classes, 5)
-    assert.equal(t.elevesParClasse, 48, 'l’école sans classes ne dilue pas le ratio')
-    assert.equal(agregerTotaux([diagnostics[1]]).classes, null)
+    assert.equal(d.elevesParEnseignant, 40)
+    // Sans valeur du serveur, rien n'est inventé côté interface.
+    const sans = versDiagnostic(ecole({ Classes_Ouvertes: 5 }), 1, REGLES)
+    assert.equal(sans.elevesParClasse, null)
+    assert.equal(sans.elevesParEnseignant, null)
   })
 })
 

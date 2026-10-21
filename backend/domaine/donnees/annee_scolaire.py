@@ -17,7 +17,7 @@ def annee_scolaire_courante(aujourdhui: Optional[dt.date] = None) -> str:
 
 def normaliser_annee_scolaire(valeur: Optional[str]) -> str:
     """« 2026-2027 », « 2026/2027 » ou vide (année en cours). Lève ValueError si la forme est invalide."""
-    texte = (valeur or "").strip()
+    texte = str(valeur or "").strip()
     if not texte:
         return annee_scolaire_courante()
     m = _FORME.match(texte)

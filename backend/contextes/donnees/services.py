@@ -342,7 +342,7 @@ def valider(jeu: JeuDeDonnees, *, request, auteur: str, reserve: Optional[str] =
     bloquants = [c for c in v["controles"] if c["bloquant"] and not c["ok"]]
     structurels = [c for c in bloquants if not c["derogeable"]]
     derogeables = [c for c in bloquants if c["derogeable"]]
-    motif = (reserve or "").strip()
+    motif = str(reserve or "").strip()
     if structurels:
         raise RefusMetier(f"Validation impossible : {', '.join(c['libelle'] for c in structurels)}.",
                           [c["detail"] for c in structurels], code="validation_bloquee",
