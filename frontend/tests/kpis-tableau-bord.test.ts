@@ -109,6 +109,11 @@ describe('taux d’attrition', () => {
     assert.equal(a.methode, 'par région')
   })
 
+  it('affiche le taux M1 par défaut au centième : 2,25 % et non 2,3 %', () => {
+    const a = attritionAffichee({ attrition: { ...base, methode: 'taux_unique', tauxUnique: 2.25 } })
+    assert.equal(a.valeur, '2,25 %')
+  })
+
   it('est indisponible sans hypothèses', () => {
     assert.equal(attritionAffichee(null).valeur, '—')
   })

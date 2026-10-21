@@ -70,6 +70,11 @@ function decimal(v: number | null | undefined, decimales: number): string {
   return v.toLocaleString('fr-FR', { minimumFractionDigits: decimales, maximumFractionDigits: decimales })
 }
 
+/** Taux d'attrition en %, au centième près (2,25 % ne devient pas 2,3 %) mais sans zéro inutile (2,5 %). */
+function tauxAttrition(v: number): string {
+  return v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })
+}
+
 function pourcentage(taux: number | null | undefined): string {
   return taux == null || !Number.isFinite(taux) ? TIRET : `${NOMBRE.format(Math.round(taux * 100))} %`
 }
@@ -97,7 +102,7 @@ export function attritionAffichee(h: Pick<Hypotheses, 'attrition'> | null): { va
   const min = Math.min(...taux)
   const max = Math.max(...taux)
   return {
-    valeur: min === max ? `${decimal(min, 1)} %` : `${decimal(min, 1)} à ${decimal(max, 1)} %`,
+    valeur: min === max ? `${tauxAttrition(min)} %` : `${tauxAttrition(min)} à ${tauxAttrition(max)} %`,
     methode: LIBELLE_METHODE[a.methode],
   }
 }
