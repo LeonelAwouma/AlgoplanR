@@ -212,11 +212,11 @@ def flux(request, jeu, sid):
     return Response({"niveau": niveau, "flux": lignes})
 
 
-@extend_schema(request=None, responses=OBJ, summary="Calcule (ou recalcule) les 3 scénarios géographiques de base")
+@extend_schema(request=None, responses=OBJ, summary="Compare les scénarios géographiques existants (lecture seule, ne crée aucun scénario)")
 @api_view(["GET"])
 def comparaison(request, jeu):
     j = jeu_autorise(request, jeu)
-    scs = [s for s in j.scenarios.filter(geographique=True)] or sim.creer_scenarios_base(j)
+    scs = list(j.scenarios.filter(geographique=True))     # lecture seule : aucun scénario n'est créé ici
     return Response({"scenarios": comparer({s.code or str(s.pk): sim.charger_resultat(s) for s in scs}),
                      "obsoletes": [s.pk for s in scs if sim.est_obsolete(s)]})
 

@@ -167,9 +167,14 @@ def marquer_obsoletes(jeu) -> int:
 
 
 def scenario_par_defaut(jeu) -> Scenario:
+    """Scénario affiché par défaut : lecture seule. Une consultation (connexion, rafraîchissement, tableau de bord,
+    rapport) ne crée JAMAIS de scénario : les trois scénarios de base sont créés avec le jeu (import, démonstration)
+    ou à la demande explicite (`scenarios/base/`). Un jeu sans scénario (tous supprimés) est signalé, pas réparé."""
     sc = jeu.scenarios.filter(code="geo_region").first() or jeu.scenarios.first()
     if sc is None:
-        sc = creer_scenarios_base(jeu)[-1]
+        raise RefusMetier("Aucun scénario calculé", ["Ce jeu n'a aucun scénario : calculez les scénarios de base "
+                                                      "(« Calculer ») avant de consulter ce résultat."],
+                          code="aucun_scenario")
     return sc
 
 
