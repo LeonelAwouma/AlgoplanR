@@ -1,0 +1,1 @@
+Marqueur : python-docx lit ../templates depuis docx/parts ; ce dossier doit exister dans l'executable (voir algoplanr-serveur.spec).

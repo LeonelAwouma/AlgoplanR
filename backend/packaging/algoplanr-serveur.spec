@@ -1,10 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 # Répertoire backend/ (le fichier .spec se trouve dans backend/packaging/)
 RACINE_BACKEND = Path(SPECPATH).resolve().parent
+
+# `collect_submodules("algoplanr" | "contextes" | "domaine")` ci-dessous importe ces paquets pendant l'exécution du .spec,
+# AVANT que `Analysis(pathex=...)` ne soit pris en compte : sans cette ligne, un build lancé depuis un autre dossier
+# que backend/ (par ex. backend/packaging) collecte une liste vide et l'exécutable démarre sans algoplanr.settings
+# (« ModuleNotFoundError: No module named 'algoplanr.settings' »).
+sys.path.insert(0, str(RACINE_BACKEND))
 DOSSIER_ACCES = RACINE_BACKEND / "contextes" / "acces"
 
 # Ressources nécessaires à l'activation hors ligne d'AlgoPlanR
@@ -26,6 +33,11 @@ for nom_fichier in FICHIERS_ACCES:
 
     datas.append((str(chemin), "contextes/acces"))
 
+# python-docx lit ses gabarits par `docx/parts/../templates/*.xml` : le dossier `docx/parts` doit exister dans le
+# dossier de l'exécutable (sinon, hors Windows, l'export Word échoue en FileNotFoundError). Un marqueur le crée.
+datas.append((str(RACINE_BACKEND / "packaging" / "docx_parts_marqueur.txt"), "docx/parts"))
+datas += collect_data_files("docx")
+
 # Ressources des bibliothèques Django
 datas += collect_data_files("rest_framework")
 datas += collect_data_files("drf_spectacular")
@@ -39,6 +51,11 @@ hiddenimports = [
     "docx",          # exports Word (lot 4) ; gabarits XML collectés par le hook officiel hook-docx.py
     "lxml.etree",    # dépendance de python-docx ; hook officiel hook-lxml.py
 ]
+
+# Garde-fou : un paquet métier introuvable ferait un exécutable qui ne démarre pas ; on préfère échouer au build.
+for paquet in ("algoplanr", "contextes", "domaine"):
+    if not collect_submodules(paquet):
+        raise SystemExit(f"Build interrompu : aucun module collecté pour le paquet « {paquet} » (sys.path : {RACINE_BACKEND}).")
 
 hiddenimports += collect_submodules("algoplanr")
 hiddenimports += collect_submodules("contextes")
