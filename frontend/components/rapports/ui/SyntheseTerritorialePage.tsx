@@ -12,8 +12,8 @@
  * imposé côté client, l'écran l'annonce.
  */
 
-import { useState } from 'react'
-import { Download, RefreshCw } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Download, RefreshCw, X } from 'lucide-react'
 
 import { useUtilisateur } from '@components/acces'
 import { useScenarioAffiche } from '@components/simulation'
@@ -37,6 +37,7 @@ import { TerritoryBreadcrumb } from '@shared/ui/coquille'
 import { EtatRequetes } from '@shared/ui/etats'
 
 import { useExporterRapportTerritorial, useRapportTerritorial } from '../application/hooks'
+import { messageEchecExport, messageGeneration } from '../application/messagesExport'
 
 /**
  * Sélection territoriale des filtres globaux et scénario affiché → filtres de la synthèse (`null`/absent
@@ -184,22 +185,42 @@ function PanneauExport({
   const [indicateur, setIndicateur] = useState('')
   const [annee, setAnnee] = useState<AnneeExport | ''>('')
   const telechargement = useExporterRapportTerritorial(jeu)
+  const [national, setNational] = useState(false)
+  const [secondes, setSecondes] = useState(0)
+  const annulation = useRef<AbortController | null>(null)
+  const dernierEssai = useRef<(() => void) | null>(null)
   const ventilations = ventilationsPossibles(niveau)
+
+  // Compteur de la génération : l'utilisateur voit qu'elle avance (un export national dure environ une minute).
+  useEffect(() => {
+    if (!telechargement.isPending) return
+    const depart = Date.now()
+    const minuteur = window.setInterval(() => setSecondes((Date.now() - depart) / 1000), 1000)
+    return () => window.clearInterval(minuteur)
+  }, [telechargement.isPending])
   const ventilationEffective = ventilation !== 'auto' && ventilations.includes(ventilation) ? ventilation : 'auto'
 
-  function exporter(national: boolean) {
-    telechargement.mutate(
-      {
-        filtres: { ...filtres, niveau: ventilationEffective === 'auto' ? undefined : ventilationEffective },
-        options: {
-          format,
-          type: national ? 'nationalComplet' : 'perimetre',
-          indicateur: indicateur || undefined,
-          annee: annee || undefined,
+  function exporter(complet: boolean) {
+    const lancer = () => {
+      annulation.current = new AbortController()
+      setNational(complet)
+      setSecondes(0)
+      telechargement.mutate(
+        {
+          filtres: { ...filtres, niveau: ventilationEffective === 'auto' ? undefined : ventilationEffective },
+          options: {
+            format,
+            type: complet ? 'nationalComplet' : 'perimetre',
+            indicateur: indicateur || undefined,
+            annee: annee || undefined,
+            signal: annulation.current.signal,
+          },
         },
-      },
-      { onSuccess: f => telechargerFichier(f.contenu, f.nomFichier, f.contenu.type) },
-    )
+        { onSuccess: f => telechargerFichier(f.contenu, f.nomFichier, f.contenu.type) },
+      )
+    }
+    dernierEssai.current = lancer
+    lancer()
   }
 
   const icone = telechargement.isPending ? (
@@ -285,15 +306,19 @@ function PanneauExport({
         </div>
       </div>
       {telechargement.isPending && (
-        <p className="hint">
-          Génération en cours… Un export national complet (toutes les régions, tous les départements, tous les
-          arrondissements et toutes les écoles) peut prendre plusieurs minutes sur un jeu national : ne fermez pas cette
-          page.
+        <p className="hint" role="status" aria-live="polite">
+          <RefreshCw size={13} className="spin" aria-hidden="true" /> {messageGeneration(national, secondes)}{' '}
+          <button type="button" className="btn-link" onClick={() => annulation.current?.abort()}>
+            <X size={12} aria-hidden="true" /> Annuler
+          </button>
         </p>
       )}
       {telechargement.isError && (
-        <Notice tone="alert" title="L'export a échoué.">
-          {telechargement.error instanceof Error ? telechargement.error.message : 'Réessayez dans un instant.'}
+        <Notice tone="alert" title={messageEchecExport(telechargement.error).titre}>
+          {messageEchecExport(telechargement.error).detail}{' '}
+          <button type="button" className="btn-link" onClick={() => dernierEssai.current?.()}>
+            Réessayer
+          </button>
         </Notice>
       )}
     </Panel>

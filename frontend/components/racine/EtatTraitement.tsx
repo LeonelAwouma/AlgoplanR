@@ -16,6 +16,8 @@ export interface ProprietesEtatTraitement {
   donneesChargees: boolean
   /** Au moins un scénario du jeu a un résultat. */
   simulationPrete: boolean
+  /** La liste des scénarios du jeu est en cours de lecture. */
+  scenariosEnChargement?: boolean
   /** Erreur de lecture du jeu ouvert, s'il y en a une. */
   erreur: unknown
 }
@@ -25,7 +27,12 @@ export interface ProprietesEtatTraitement {
  * calculés »… Toute écriture en cours (import, calcul, décision) compte comme
  * un traitement : c'est le serveur qui calcule, l'interface ne fait qu'attendre.
  */
-export function EtatTraitement({ donneesChargees, simulationPrete, erreur }: ProprietesEtatTraitement) {
+export function EtatTraitement({
+  donneesChargees,
+  simulationPrete,
+  scenariosEnChargement = false,
+  erreur,
+}: ProprietesEtatTraitement) {
   const ecrituresEnCours = useIsMutating()
 
   if (ecrituresEnCours > 0) {
@@ -50,6 +57,13 @@ export function EtatTraitement({ donneesChargees, simulationPrete, erreur }: Pro
     return (
       <Pill tone="ok">
         <Check size={12} aria-hidden="true" /> Scénarios calculés
+      </Pill>
+    )
+  }
+  if (donneesChargees && scenariosEnChargement) {
+    return (
+      <Pill tone="info">
+        <RefreshCw size={12} className="spin" aria-hidden="true" /> Chargement des scénarios…
       </Pill>
     )
   }

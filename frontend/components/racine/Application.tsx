@@ -130,9 +130,12 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
   const jeuModifiable = !estDrh || meta.data?.portee === 'national'
 
   const scenario = affiche.detail?.scenario
+  // Tant que la liste des scénarios n'est pas lue, on n'affirme pas « Situation actuelle » : on dit qu'elle charge.
   const libelleScenario = scenario
     ? `${scenario.nom} (${LIBELLE_SCOPE[scenario.scope].toLowerCase()})`
-    : 'Situation actuelle'
+    : affiche.enChargement
+      ? 'Chargement des scénarios…'
+      : 'Situation actuelle'
 
   function supprimerJeuOuvert() {
     if (!jeu || !window.confirm(CONFIRMATION_SUPPRESSION)) return
@@ -162,6 +165,7 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
             <EtatTraitement
               donneesChargees={donneesChargees}
               simulationPrete={simulationPrete}
+              scenariosEnChargement={affiche.enChargement}
               erreur={jeuDisparu ? null : meta.error}
             />
           }
@@ -253,6 +257,7 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
                       onReset={() => setFiltres(FILTRES_VIDES)}
                       scenarioActif={affiche.scenario ?? SANS_SCENARIO}
                       scenarios={affiche.calcules.map(s => ({ id: s.scenario.id, nom: s.scenario.nom }))}
+                      scenariosEnChargement={affiche.enChargement}
                       onScenarioChange={setScenarioChoisi}
                     />
                   </>
