@@ -55,6 +55,29 @@ export interface EntreeKpis {
   alea: Pick<DegreAlea, 'national'> | null
   /** Première année de la planification (N+1), `null` si elle n'est pas disponible. */
   anneePlan: Pick<IndicateursAnnee, 'quotaCalcule' | 'quotaRetenu' | 'besoinRestant'> | null
+  /**
+   * Pourquoi `resultat` est vide, pour l'expliquer au lieu d'un simple « — » : scénario en cours de lecture
+   * (`chargement`), jeu sans scénario calculé (`aucun_scenario`), ou « situation actuelle » choisie
+   * (`situation_actuelle`). Absent quand le résultat est là.
+   */
+  raisonSansResultat?: 'chargement' | 'aucun_scenario' | 'situation_actuelle' | null
+}
+
+/** Texte de la carte « Affectations proposées » : d'où viennent les propositions, ou pourquoi il n'y en a pas encore. */
+export function indiceAffectations(e: Pick<EntreeKpis, 'resultat' | 'raisonSansResultat'>): string {
+  if (e.resultat) {
+    return `Scénario : ${e.resultat.scenarioNom}. Chaque proposition est classée par score d’appariement (barème, poids du poste, proximité, ajustements).`
+  }
+  switch (e.raisonSansResultat) {
+    case 'chargement':
+      return 'Lecture du scénario en cours : les propositions s’affichent dès qu’il est chargé.'
+    case 'aucun_scenario':
+      return 'Aucun scénario calculé : lancez « Calculer » pour obtenir des propositions classées par score d’appariement.'
+    case 'situation_actuelle':
+      return 'Situation actuelle sans simulation : choisissez un scénario pour voir les propositions, classées par score d’appariement.'
+    default:
+      return 'Aucun scénario n’est encore choisi.'
+  }
 }
 
 const TIRET = '—'
@@ -160,7 +183,7 @@ export function construireKpis(e: EntreeKpis): { principaux: Kpi[]; secondaires:
       cle: 'affectations',
       label: 'Affectations proposées',
       valeur: resultat ? entier(resultat.assignments.length) : TIRET,
-      hint: resultat ? `Scénario : ${resultat.scenarioNom}.` : 'Aucun scénario n’est encore choisi.',
+      hint: indiceAffectations(e),
       etape: 'simulation',
       disponible: resultat !== null,
       cible: 'simulations',

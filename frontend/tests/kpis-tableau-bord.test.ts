@@ -9,6 +9,7 @@ import { describe, it } from 'node:test'
 import {
   construireKpis,
   attritionAffichee,
+  indiceAffectations,
   recrutementsNecessaires,
   type EntreeKpis,
 } from '../components/diagnostic/application/kpis'
@@ -116,5 +117,26 @@ describe('taux d’attrition', () => {
 
   it('est indisponible sans hypothèses', () => {
     assert.equal(attritionAffichee(null).valeur, '—')
+  })
+})
+
+describe('Carte « Affectations proposées »', () => {
+  const resultat = {
+    scenarioNom: 'Mobilité régionale',
+    assignments: [],
+    postesCouverts: 0,
+    besoinResiduel: 0,
+    tauxCouverture: 0,
+  }
+  it('annonce que les propositions sont classées par score d’appariement', () => {
+    assert.match(indiceAffectations({ resultat, raisonSansResultat: null }), /score d’appariement/)
+  })
+  it('explique pourquoi elle est vide, au lieu d’un simple « — »', () => {
+    assert.match(indiceAffectations({ resultat: null, raisonSansResultat: 'chargement' }), /en cours/)
+    assert.match(indiceAffectations({ resultat: null, raisonSansResultat: 'aucun_scenario' }), /« Calculer »/)
+    assert.match(
+      indiceAffectations({ resultat: null, raisonSansResultat: 'situation_actuelle' }),
+      /choisissez un scénario/,
+    )
   })
 })

@@ -427,4 +427,5 @@ def construire_national_complet(jeu, *, scenario_id: Optional[str] = None,
             "etablissements": _lignes_etablissements(d, toutes),
         },
         "registre_indicateurs": REGISTRE_INDICATEURS,
+        "scenario_id": str(d.ctx.scenario.pk),          # scénario réellement utilisé (demandé ou par défaut)
     }
