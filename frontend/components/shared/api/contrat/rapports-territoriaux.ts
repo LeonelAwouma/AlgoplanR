@@ -109,6 +109,8 @@ export interface EnfantTerritoire extends IndicateursTerritoire {
 export interface DefinitionIndicateur {
   code: string
   intitule: string
+  /** Unité de l'indicateur : « élèves par enseignant » pour l'encadrement, « % » pour les couvertures. */
+  unite: string
   formule: string
   population: string
   source: string
@@ -143,9 +145,14 @@ export interface FiltresRapportTerritorial {
 export type FormatExport = 'xlsx' | 'docx'
 export type TypeExportTerritorial = 'perimetre' | 'nationalComplet'
 
+/** Année de projection d'un export : « n1 » (N+1) à « n5 » (N+5). */
+export type AnneeExport = 'n1' | 'n2' | 'n3' | 'n4' | 'n5'
+
 export interface OptionsExportTerritorial {
   format: FormatExport
   type?: TypeExportTerritorial
+  /** Ne garde, parmi les colonnes de projection, que cette année (import et situations actuelles toujours présents). */
+  annee?: AnneeExport
   /** Limite l'export à un seul indicateur (son `code` du registre) ; tous par défaut. */
   indicateur?: string
 }

@@ -194,6 +194,36 @@ def test_totaux_diagnostic_utilise_la_meme_population_et_la_meme_precision():
     assert totaux_diagnostic(ecoles)["eleves_par_enseignant_etat"] == taux_encadrement(100, 3) == 33.3
 
 
+def test_encadrement_d_un_territoire_est_une_somme_pas_une_moyenne_des_ecoles():
+    # REM des écoles : 100 et 10 (moyenne 55) ; REM du territoire : 1 010 ÷ 11 = 91,8.
+    ecoles = [_ecole(Identifiant_Ecole="A", Effectif_Eleves_Attendus=1000, Enseignants_Actuels=10),
+              _ecole(Identifiant_Ecole="B", Effectif_Eleves_Attendus=10, Enseignants_Actuels=1)]
+    assert totaux_diagnostic(ecoles)["eleves_par_enseignant_etat"] == 91.8
+
+
+def test_ecole_sans_effectif_ne_dilue_ni_l_encadrement_ni_les_eleves_par_classe():
+    ecoles = [_ecole(Identifiant_Ecole="A", Effectif_Eleves_Attendus=600, Classes_Ouvertes=10, Enseignants_Actuels=10),
+              _ecole(Identifiant_Ecole="B", effectif_connu=False, Effectif_Eleves_Attendus=0, Classes_Ouvertes=3,
+                     Enseignants_Actuels=30)]
+    t = totaux_diagnostic(ecoles)
+    assert t["eleves_par_enseignant_etat"] == 60.0          # et non 600 ÷ 40 = 15
+    assert t["eleves_par_classe"] == 60.0
+    assert t["enseignants_en_poste"] == 40                  # l'effectif brut reste complet
+
+
+def test_encadrement_indisponible_sans_aucun_effectif_d_eleves():
+    t = totaux_diagnostic([_ecole(Identifiant_Ecole="A", effectif_connu=False, Enseignants_Actuels=10)])
+    assert t["eleves_par_enseignant_etat"] is None
+
+
+def test_eleves_par_classe_sur_les_seules_ecoles_qui_donnent_eleves_et_classes():
+    ecoles = [_ecole(Identifiant_Ecole="A", Effectif_Eleves_Attendus=240, Classes_Ouvertes=5, Enseignants_Actuels=4),
+              _ecole(Identifiant_Ecole="B", Effectif_Eleves_Attendus=1000, Enseignants_Actuels=4)]
+    t = totaux_diagnostic(ecoles)
+    assert t["classes"] == 5 and t["eleves_par_classe"] == 48.0
+    assert totaux_diagnostic([ecoles[1]])["classes"] is None
+
+
 # --- `arbre_territorial` : arbre complet nation -> arrondissement, pour que la navigation ne déclenche plus un
 # second appel serveur par clic (lot 4.8). ---
 

@@ -415,6 +415,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         'Effectif E',
         'Recrutement à prévoir',
         'Taux de déséquilibre des dotations',
+        'Degré d’aléa (1 − R²)',
       ],
       (['avant', 'apres'] as const).flatMap(moment => {
         const s = moment === 'avant' ? resultat.syntheseAvant : resultat.syntheseApres
@@ -432,6 +433,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
                 g.effectif,
                 g.recrutementAPrevoir,
                 '',
+                '',
               ] as CellValue[],
           ),
           [
@@ -444,6 +446,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
             s.sallesManquantes,
             '',
             s.recrutementAPrevoir,
+            s.tauxDesequilibre ?? '',
             s.degreAlea ?? '',
           ] as CellValue[],
         ]

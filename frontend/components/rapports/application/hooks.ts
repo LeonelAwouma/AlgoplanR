@@ -29,13 +29,7 @@ export function useRapportTerritorial(jeu: IdJeu | null, filtres: FiltresRapport
  */
 export function useExporterRapportTerritorial(jeu: IdJeu | null) {
   return useMutation({
-    mutationFn: ({
-      filtres,
-      options,
-    }: {
-      filtres: FiltresRapportTerritorial
-      options: OptionsExportTerritorial
-    }) => {
+    mutationFn: ({ filtres, options }: { filtres: FiltresRapportTerritorial; options: OptionsExportTerritorial }) => {
       if (jeu === null) return Promise.reject(new Error('Aucun jeu de données chargé.'))
       return exporterRapportTerritorial(jeu, filtres, options)
     },

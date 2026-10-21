@@ -21,9 +21,10 @@ import type {
 } from '../../contrat'
 import type { Acces } from '../acces'
 import { versSyntheseTerritoriale } from '../conversions/simulation'
+import { versTotaux, type TotauxDjango } from '../conversions/territoires'
 import type { SyntheseSousSystemeDjango } from '../conversions/simulation'
 import { valeur } from '../liste'
-import { agregerTotaux, trierParPriorite } from '../moteur/diagnostic'
+import { trierParPriorite } from '../moteur/diagnostic'
 import { calculerFlux, restreindreResultat } from '../moteur/filtre'
 import { diagnosticTerritorial, pointsAttention, reductionDuDeficit, syntheseTableauDeBord } from '../moteur/narration'
 import { breadcrumb, selectionLabel, selectionLevel, territoiresMixtes, trouverNoeud } from '../moteur/territoires'
@@ -118,8 +119,13 @@ export const conversionsDiagnostic: Record<string, Conversion> = {
       source.diagnostics(acces, p.jeu),
       source.diagnosticsFiltres(acces, p.jeu, r.query),
     ])
+    // Totaux du serveur (`totaux_diagnostic`) pour exactement les écoles affichées : les filtres que Django ne sait
+    // pas exprimer (sévérité, multigrade) choisissent les écoles, jamais le calcul des totaux.
+    const totaux = await acces.ecrire<TotauxDjango>('POST', `jeux/${p.jeu}/diagnostic/totaux/`, {
+      ecoles: filtres.map(d => d.school.id),
+    })
     return {
-      totals: agregerTotaux(filtres),
+      totals: versTotaux(totaux),
       ecoles: trierParPriorite(filtres),
       ecolesDuJeu: tous.length,
       donneesElevesDisponibles: tous.some(d => d.school.effectifTotalEleves != null),

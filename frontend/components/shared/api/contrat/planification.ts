@@ -11,6 +11,7 @@
 import type { NiveauTerritorial } from './commun'
 import type { EducationTerritory, SousSysteme } from './education'
 import type { SourceVivier } from './nominations'
+import type { ReferenceAttritionM1 } from './rapports-territoriaux'
 
 /** Année du plan, de la rentrée du plan (N+1) à N+5. */
 export type AnneePlan = 'N+1' | 'N+2' | 'N+3' | 'N+4' | 'N+5'
@@ -66,10 +67,15 @@ export interface Hypotheses {
   version: number
   modifieesLe: string | null
   modifieesPar: string | null
+  /**
+   * Référentiel M1 du rapport DRH (lecture seule, hors du bloc versionné) : 3,33 % d'attrition totale, dont 1,08 %
+   * de retraites calculées nominativement et 2,25 % d'autres départs. Absent des jeux de démonstration hors ligne.
+   */
+  referenceAttrition?: ReferenceAttritionM1 | null
 }
 
 /** Modification des hypothèses : toute la configuration, avec son auteur et son motif. */
-export type CorpsHypotheses = Omit<Hypotheses, 'version' | 'modifieesLe' | 'modifieesPar'> & {
+export type CorpsHypotheses = Omit<Hypotheses, 'version' | 'modifieesLe' | 'modifieesPar' | 'referenceAttrition'> & {
   auteur: string
   motif: string
 }

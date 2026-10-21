@@ -73,7 +73,9 @@ export function diagnosticsParId(acces: Acces, jeu: string): Promise<Map<string,
  * indépendant du scénario affiché (le diagnostic plat ne dépend pas d'un scénario).
  */
 export function arbre(acces: Acces, jeu: string): Promise<TerritorialSummary> {
-  return acces.memo(jeu, 'arbre', async a => versArbre(await a.lire<NoeudArbreDjango>(`jeux/${jeu}/territoires/arbre/`)))
+  return acces.memo(jeu, 'arbre', async a =>
+    versArbre(await a.lire<NoeudArbreDjango>(`jeux/${jeu}/territoires/arbre/`)),
+  )
 }
 
 /** Tous les enseignants du jeu, avec leur barème et leur appartenance au vivier. */

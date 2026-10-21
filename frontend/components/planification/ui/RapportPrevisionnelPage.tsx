@@ -239,8 +239,8 @@ function Priorites({ rapport }: { rapport: RapportPrevisionnel }) {
               )}
             </h3>
             <p>
-              <strong>{f.situation}.</strong> Taux d’encadrement du primaire {fmtDec(f.remBase)} ; retraites de l’horizon{' '}
-              {fmtDec(f.partRetraites)} % du stock.
+              <strong>{f.situation}.</strong> Taux d’encadrement du primaire {fmtDec(f.remBase)} ; retraites de
+              l’horizon {fmtDec(f.partRetraites)} % du stock.
             </p>
             <ol>
               {f.problemes.map(x => (

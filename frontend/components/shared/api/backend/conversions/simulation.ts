@@ -297,6 +297,9 @@ export interface SyntheseSousSystemeDjango {
   restant: number
   recrutement_a_prevoir: number
   degre_alea: number | null
+  degre_alea_statut: 'non_calculable' | 'indicatif' | 'normal'
+  degre_alea_raison: string | null
+  taux_desequilibre: number | null
 }
 
 /** Avant ce scénario (bases après le Prince) et après (ses affectations ordinaires appliquées). */
@@ -325,7 +328,10 @@ export function versSyntheseTerritoriale(s: SyntheseSousSystemeDjango): Synthese
     couvrable: s.couvrable,
     restant: s.restant,
     recrutementAPrevoir: s.recrutement_a_prevoir,
+    tauxDesequilibre: s.taux_desequilibre,
     degreAlea: s.degre_alea,
+    degreAleaStatut: s.degre_alea_statut,
+    degreAleaRaison: s.degre_alea_raison,
   }
 }
 

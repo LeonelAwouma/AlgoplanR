@@ -448,11 +448,16 @@ export interface SyntheseTerritoriale {
   couvrable: number
   restant: number
   recrutementAPrevoir: number
+  /** Taux de déséquilibre des dotations : (besoin + excédent) ÷ somme des cibles, `null` sans cible. */
+  tauxDesequilibre: number | null
   /**
-   * Taux de déséquilibre des dotations : (besoin + excédent) ÷ somme des cibles, `null` sans cible.
-   * Le champ garde son nom d'origine ; ce n'est pas le degré d'aléa (1 − R²) du tableau de bord.
+   * Degré d'aléa statistique : 1 − R² de la régression, école par école, des enseignants sur les élèves
+   * (distinct du taux de déséquilibre). `null` quand il n'est pas calculable (voir `degreAleaRaison`).
    */
   degreAlea: number | null
+  /** Fiabilité (E5) : « non_calculable » sous 3 écoles renseignées, « indicatif » de 3 à 9, « normal » ensuite. */
+  degreAleaStatut: 'non_calculable' | 'indicatif' | 'normal'
+  degreAleaRaison: string | null
 }
 
 /** Décision d'une commission sur une proposition ou une affectation (§3.10). */

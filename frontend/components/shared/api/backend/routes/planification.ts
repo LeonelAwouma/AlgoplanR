@@ -143,6 +143,19 @@ interface HypothesesDjango {
   version: number
   modifiees_le: string | null
   modifiees_par: string | null
+  reference_attrition?: {
+    modele: string
+    formule: string
+    perimetre: string
+    attrition_totale_pct: number
+    intervalle_confiance_points: number
+    retraites_pct: number
+    autres_departs_pct: number
+    fenetre_donnees: string
+    nombre_regions: number
+    nombre_transitions_annuelles: number
+    source: string
+  } | null
 }
 
 interface VersionDjango {
@@ -260,6 +273,21 @@ export function versHypotheses(h: HypothesesDjango): Hypotheses {
     version: h.version,
     modifieesLe: h.modifiees_le,
     modifieesPar: h.modifiees_par,
+    referenceAttrition: h.reference_attrition
+      ? {
+          modele: h.reference_attrition.modele,
+          formule: h.reference_attrition.formule,
+          perimetre: h.reference_attrition.perimetre,
+          attritionTotalePct: h.reference_attrition.attrition_totale_pct,
+          intervalleConfiancePoints: h.reference_attrition.intervalle_confiance_points,
+          retraitesPct: h.reference_attrition.retraites_pct,
+          autresDepartsPct: h.reference_attrition.autres_departs_pct,
+          fenetreDonnees: h.reference_attrition.fenetre_donnees,
+          nombreRegions: h.reference_attrition.nombre_regions,
+          nombreTransitionsAnnuelles: h.reference_attrition.nombre_transitions_annuelles,
+          source: h.reference_attrition.source,
+        }
+      : null,
   }
 }
 

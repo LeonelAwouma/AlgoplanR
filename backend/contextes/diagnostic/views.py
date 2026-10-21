@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from contextes.acces.perimetre import jeu_autorise
+from contextes.commun.erreurs import RefusMetier
 from contextes.commun.outils import bool_param, entier_param, perimetre_depuis, reponse_paginee
 from contextes.simulation import services as sim
 
@@ -26,6 +27,18 @@ def diagnostic(request, jeu):
                             sans_prince=bool_param(request, "sans_prince"))
     d["ecoles"] = reponse_paginee(request, d["ecoles"], "-Up")
     return Response(d)
+
+
+@extend_schema(request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT,
+               summary="Totaux du diagnostic d'une liste d'écoles (lecture seule, restreinte au périmètre du compte)")
+@api_view(["POST"])
+def diagnostic_totaux(request, jeu):
+    j = jeu_autorise(request, jeu, ecriture=False)
+    ecoles = request.data.get("ecoles") if isinstance(request.data, dict) else None
+    if not isinstance(ecoles, list) or not all(isinstance(i, str) for i in ecoles):
+        raise RefusMetier("Liste d'écoles invalide", ["« ecoles » doit être une liste d'identifiants d'écoles"],
+                          code="parametre_invalide")
+    return Response(services.totaux_ecoles(j, perimetre_depuis(request), ecoles))
 
 
 @extend_schema(parameters=GEO, responses=OpenApiTypes.OBJECT, summary="Nœud territorial courant, enfants, fil d'Ariane")

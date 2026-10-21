@@ -8,13 +8,13 @@
 
 import { Calculator } from 'lucide-react'
 
-import type { Hypotheses, IdJeu, MethodeAttrition, SousSysteme } from '@shared/api'
+import type { Hypotheses, IdJeu, MethodeAttrition, ReferenceAttritionM1, SousSysteme } from '@shared/api'
 import { LIBELLE_SOUS_SYSTEME, REGIONS_CAMEROUN } from '@shared/kernel'
 import { Notice, Panel } from '@shared/ui/commun'
 import { ErreurAction } from '@shared/ui/etats'
 
 import { useEstimerAttrition } from '../../../application/hooks'
-import { LIBELLE_METHODE_ATTRITION } from '../../../domain/hypotheses'
+import { LIBELLE_METHODE_ATTRITION, STATUT_TAUX_ATTRITION } from '../../../domain/hypotheses'
 import { Justification } from './Justification'
 
 type Attrition = Hypotheses['attrition']
@@ -24,7 +24,42 @@ const SOUS_SYSTEMES: SousSysteme[] = ['francophone', 'anglophone']
 export interface ProprietesHypothesesAttrition {
   jeu: IdJeu
   attrition: Attrition
+  /** Référentiel M1 du rapport DRH (lecture seule), s'il est fourni par le serveur. */
+  reference?: ReferenceAttritionM1 | null
   onChange: (attrition: Attrition) => void
+}
+
+const fr = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** Bandeau du modèle M1 : attrition totale, retraites (calculées nominativement) et autres départs (appliqués). */
+function BandeauM1({ reference, methode }: { reference: ReferenceAttritionM1; methode: MethodeAttrition }) {
+  return (
+    <Notice
+      tone="info"
+      title={`Modèle ${reference.modele} (${reference.perimetre}) : ${fr(reference.attritionTotalePct)} % d’attrition totale.`}
+    >
+      <ul className="hint">
+        <li>
+          Attrition totale : {fr(reference.attritionTotalePct)} % ± {fr(reference.intervalleConfiancePoints)} point (
+          {reference.fenetreDonnees}, {reference.nombreRegions} régions, {reference.nombreTransitionsAnnuelles}{' '}
+          transitions annuelles).
+        </li>
+        <li>
+          dont {fr(reference.retraitesPct)} % de retraites : calculées nominativement d’après les dates de naissance,
+          jamais par ce taux.
+        </li>
+        <li>
+          et {fr(reference.autresDepartsPct)} % d’autres départs (mutations hors champ, abandons, décès) : c’est le taux
+          appliqué ci-dessous par défaut.
+        </li>
+        <li>
+          Statut du taux retenu : <strong>{STATUT_TAUX_ATTRITION[methode]}</strong> — jamais un taux observé sur ce jeu.
+          Seule l’estimation à partir des données (bouton ci-dessous) est une valeur observée, et elle n’est pas
+          enregistrée.
+        </li>
+      </ul>
+    </Notice>
+  )
 }
 
 /** Champ de taux en %. */
@@ -46,7 +81,7 @@ function Taux({
         id={id}
         type="number"
         min={0}
-        max={20}
+        max={100}
         step={0.1}
         value={valeur}
         onChange={e => onChange(Number(e.target.value))}
@@ -56,7 +91,7 @@ function Taux({
 }
 
 /** Panneau « Attrition hors retraite ». */
-export function HypothesesAttrition({ jeu, attrition, onChange }: ProprietesHypothesesAttrition) {
+export function HypothesesAttrition({ jeu, attrition, reference, onChange }: ProprietesHypothesesAttrition) {
   const estimation = useEstimerAttrition(jeu)
   const e = estimation.data
 
@@ -64,8 +99,9 @@ export function HypothesesAttrition({ jeu, attrition, onChange }: ProprietesHypo
     <Panel
       kicker="Attrition"
       title="Départs hors retraite"
-      hint="Démissions, décès, détachements… La méthode officielle de calcul est à confirmer : la valeur retenue doit être documentée."
+      hint="Mutations hors champ, abandons, décès, détachements… Le modèle officiel M1 fixe 2,25 % par défaut (3,33 % d’attrition totale − 1,08 % de retraites calculées à part)."
     >
+      {reference && <BandeauM1 reference={reference} methode={attrition.methode} />}
       <div className="param-grid">
         <div className="field">
           <label htmlFor="hy-methode">Méthode</label>
@@ -84,7 +120,7 @@ export function HypothesesAttrition({ jeu, attrition, onChange }: ProprietesHypo
         {attrition.methode === 'taux_unique' && (
           <Taux
             id="hy-taux"
-            libelle="Taux annuel (%)"
+            libelle="Autres départs : taux annuel (%)"
             valeur={attrition.tauxUnique}
             onChange={v => onChange({ ...attrition, tauxUnique: v })}
           />

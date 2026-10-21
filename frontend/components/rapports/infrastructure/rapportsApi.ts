@@ -91,6 +91,7 @@ export function exporterRapportTerritorial(
       format: options.format,
       type: options.type === 'nationalComplet' ? 'national_complet' : undefined,
       indicateur: options.indicateur,
+      annee: options.annee,
     },
     `rapport-territorial.${options.format}`,
   )

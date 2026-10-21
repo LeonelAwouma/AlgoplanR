@@ -16,9 +16,12 @@ import { useState } from 'react'
 import { Download, RefreshCw } from 'lucide-react'
 
 import { useUtilisateur } from '@components/acces'
+import { useScenarioAffiche } from '@components/simulation'
 import type {
   AleaParSituation,
   AnneeAttrition,
+  AnneeExport,
+  DefinitionIndicateur,
   EnfantTerritoire,
   FiltresRapportTerritorial,
   FormatExport,
@@ -27,7 +30,7 @@ import type {
   ValeurIndicateur,
 } from '@shared/api'
 import { telechargerFichier } from '@shared/exports/export-csv'
-import { descendre, SELECTION_NATIONALE } from '@shared/kernel'
+import { descendre, selectionLevel } from '@shared/kernel'
 import { useSession } from '@shared/session'
 import { DataTable, KpiCard, Notice, Panel, fmt, fmtDec, type Colonne } from '@shared/ui/commun'
 import { TerritoryBreadcrumb } from '@shared/ui/coquille'
@@ -35,14 +38,27 @@ import { EtatRequetes } from '@shared/ui/etats'
 
 import { useExporterRapportTerritorial, useRapportTerritorial } from '../application/hooks'
 
-/** Sélection territoriale → filtres de la synthèse (`null`/absent n'envoie pas le paramètre). */
-function filtresDe(selection: TerritorySelection): FiltresRapportTerritorial {
+/**
+ * Sélection territoriale des filtres globaux et scénario affiché → filtres de la synthèse (`null`/absent
+ * n'envoie pas le paramètre). Le même objet sert à l'affichage et aux exports : mêmes chiffres.
+ */
+function filtresDe(selection: TerritorySelection, scenario: string | null): FiltresRapportTerritorial {
   return {
     region: selection.region ?? undefined,
     departement: selection.departement ?? undefined,
     commune: selection.commune ?? undefined,
+    scenario: scenario ?? undefined,
   }
 }
+
+/** Taux d'encadrement : des élèves par enseignant, jamais un pourcentage. */
+function celluleEncadrement(v: ValeurIndicateur | undefined): string {
+  if (!v) return '—'
+  if (v.statut === 'sansObjet') return 'Sans objet'
+  return v.taux === null ? '—' : fmtDec(v.taux, 1)
+}
+
+const UNITE_ENCADREMENT = 'élèves par enseignant'
 
 /** Taux d'un indicateur de couverture/encadrement, « — » ou « Sans objet » quand il n'est pas calculable. */
 function celluleTaux(v: ValeurIndicateur | undefined, decimales = 1): string {
@@ -75,8 +91,8 @@ function StatsNoeud({ noeud }: { noeud: IndicateursTerritoire }) {
   const cartes: { libelle: string; valeur: string; hint: string }[] = [
     {
       libelle: "Taux d'encadrement",
-      valeur: noeud.encadrement.apresSimulation.taux === null ? '—' : fmtDec(noeud.encadrement.apresSimulation.taux, 1),
-      hint: 'Élèves par enseignant, après simulation (Σ élèves ÷ Σ enseignants).',
+      valeur: celluleEncadrement(noeud.encadrement.apresSimulation),
+      hint: `${UNITE_ENCADREMENT}, après simulation (Σ élèves ÷ Σ enseignants).`,
     },
     {
       libelle: 'Couverture globale des besoins',
@@ -93,7 +109,11 @@ function StatsNoeud({ noeud }: { noeud: IndicateursTerritoire }) {
       valeur: celluleTaux(noeud.couvertureParec.apresSimulation),
       hint: 'Écoles de plus de 100 élèves avec au moins 3 enseignants déclarés.',
     },
-    { libelle: "Degré d'aléa", valeur: celluleAlea(noeud.alea), hint: '1 − R² (enseignants ~ élèves), après simulation.' },
+    {
+      libelle: "Degré d'aléa",
+      valeur: celluleAlea(noeud.alea),
+      hint: '1 − R² (enseignants ~ élèves), après simulation.',
+    },
     {
       libelle: 'Attrition N+1',
       valeur: celluleAttritionN1(noeud.attrition.annees.n1),
@@ -111,26 +131,125 @@ function StatsNoeud({ noeud }: { noeud: IndicateursTerritoire }) {
   )
 }
 
-/** Panneau de déclenchement des exports Excel / Word. */
-function PanneauExport({ filtres, estDrh }: { filtres: FiltresRapportTerritorial; estDrh: boolean }) {
+type Ventilation = NonNullable<FiltresRapportTerritorial['niveau']> | 'auto'
+
+const LIBELLE_VENTILATION: Record<Exclude<Ventilation, 'auto'>, string> = {
+  region: 'Par région',
+  departement: 'Par département',
+  commune: 'Par arrondissement',
+  ecole: 'Par école',
+  iaeb: 'Par IAEB',
+}
+
+/** Ventilations possibles : seulement les niveaux situés sous le périmètre choisi. */
+function ventilationsPossibles(niveau: ReturnType<typeof selectionLevel>): Exclude<Ventilation, 'auto'>[] {
+  const ordre: Exclude<Ventilation, 'auto'>[] = ['region', 'departement', 'commune', 'ecole']
+  const rang = { national: 0, region: 1, departement: 2, commune: 3, ecole: 4 }[niveau]
+  return ordre.slice(rang)
+}
+
+const ANNEES_EXPORT: { valeur: AnneeExport | ''; libelle: string }[] = [
+  { valeur: '', libelle: 'Toutes les années (N+1 à N+5)' },
+  { valeur: 'n1', libelle: 'N+1' },
+  { valeur: 'n2', libelle: 'N+2' },
+  { valeur: 'n3', libelle: 'N+3' },
+  { valeur: 'n4', libelle: 'N+4' },
+  { valeur: 'n5', libelle: 'N+5' },
+]
+
+/**
+ * Panneau « Exporter ce périmètre » : périmètre (filtres globaux), ventilation, indicateur, scénario affiché,
+ * année et format. Le fichier est produit par le serveur à partir des mêmes fonctions que l'affichage.
+ */
+function PanneauExport({
+  filtres,
+  titre,
+  niveau,
+  scenarioId,
+  registre,
+  estDrh,
+}: {
+  filtres: FiltresRapportTerritorial
+  titre: string
+  niveau: ReturnType<typeof selectionLevel>
+  scenarioId: string
+  registre: DefinitionIndicateur[]
+  estDrh: boolean
+}) {
   const { jeu } = useSession()
   const [format, setFormat] = useState<FormatExport>('xlsx')
+  const [ventilation, setVentilation] = useState<Ventilation>('auto')
+  const [indicateur, setIndicateur] = useState('')
+  const [annee, setAnnee] = useState<AnneeExport | ''>('')
   const telechargement = useExporterRapportTerritorial(jeu)
+  const ventilations = ventilationsPossibles(niveau)
+  const ventilationEffective = ventilation !== 'auto' && ventilations.includes(ventilation) ? ventilation : 'auto'
 
   function exporter(national: boolean) {
     telechargement.mutate(
-      { filtres, options: { format, type: national ? 'nationalComplet' : 'perimetre' } },
+      {
+        filtres: { ...filtres, niveau: ventilationEffective === 'auto' ? undefined : ventilationEffective },
+        options: {
+          format,
+          type: national ? 'nationalComplet' : 'perimetre',
+          indicateur: indicateur || undefined,
+          annee: annee || undefined,
+        },
+      },
       { onSuccess: f => telechargerFichier(f.contenu, f.nomFichier, f.contenu.type) },
     )
   }
+
+  const icone = telechargement.isPending ? (
+    <RefreshCw size={13} className="spin" aria-hidden="true" />
+  ) : (
+    <Download size={13} aria-hidden="true" />
+  )
 
   return (
     <Panel
       kicker="Export"
       title="Exporter ce périmètre"
-      hint="Le fichier reprend exactement les chiffres affichés ci-dessus : même périmètre, même scénario, mêmes valeurs."
+      hint={`Le fichier reprend exactement les chiffres affichés : périmètre « ${titre} », scénario ${scenarioId}. Les écoles sont toutes incluses (aucune pagination).`}
     >
       <div className="filter-bar">
+        <div className="field">
+          <label htmlFor="export-ventilation">Type de rapport</label>
+          <select
+            id="export-ventilation"
+            value={ventilationEffective}
+            onChange={e => setVentilation(e.target.value as Ventilation)}
+          >
+            <option value="auto">Niveau inférieur du périmètre</option>
+            {ventilations.map(v => (
+              <option key={v} value={v}>
+                {LIBELLE_VENTILATION[v]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="export-indicateur">Indicateur</label>
+          <select id="export-indicateur" value={indicateur} onChange={e => setIndicateur(e.target.value)}>
+            <option value="">Tous les indicateurs</option>
+            {registre.map(d => (
+              <option key={d.code} value={d.code}>
+                {d.intitule}
+                {d.unite ? ` (${d.unite})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="export-annee">Année de projection</label>
+          <select id="export-annee" value={annee} onChange={e => setAnnee(e.target.value as AnneeExport | '')}>
+            {ANNEES_EXPORT.map(a => (
+              <option key={a.valeur} value={a.valeur}>
+                {a.libelle}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="field">
           <label htmlFor="format-export-territorial">Format</label>
           <select
@@ -143,13 +262,13 @@ function PanneauExport({ filtres, estDrh }: { filtres: FiltresRapportTerritorial
           </select>
         </div>
         <div className="filter-bar-actions">
-          <button type="button" className="btn btn-sm" disabled={telechargement.isPending} onClick={() => exporter(false)}>
-            {telechargement.isPending ? (
-              <RefreshCw size={13} className="spin" aria-hidden="true" />
-            ) : (
-              <Download size={13} aria-hidden="true" />
-            )}{' '}
-            Exporter ce périmètre
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={telechargement.isPending}
+            onClick={() => exporter(false)}
+          >
+            {icone} Exporter ce périmètre
           </button>
           {estDrh && (
             <button
@@ -158,12 +277,7 @@ function PanneauExport({ filtres, estDrh }: { filtres: FiltresRapportTerritorial
               disabled={telechargement.isPending}
               onClick={() => exporter(true)}
             >
-              {telechargement.isPending ? (
-                <RefreshCw size={13} className="spin" aria-hidden="true" />
-              ) : (
-                <Download size={13} aria-hidden="true" />
-              )}{' '}
-              Export national complet
+              {icone} Export national complet
             </button>
           )}
         </div>
@@ -171,8 +285,8 @@ function PanneauExport({ filtres, estDrh }: { filtres: FiltresRapportTerritorial
       {telechargement.isPending && (
         <p className="hint">
           Génération en cours… Un export national complet (toutes les régions, tous les départements, tous les
-          arrondissements et toutes les écoles) peut prendre plusieurs minutes sur un jeu national : ne fermez pas
-          cette page.
+          arrondissements et toutes les écoles) peut prendre plusieurs minutes sur un jeu national : ne fermez pas cette
+          page.
         </p>
       )}
       {telechargement.isError && (
@@ -189,8 +303,13 @@ export function SyntheseTerritorialePage() {
   const { jeu } = useSession()
   const utilisateur = useUtilisateur()
   const estDrh = utilisateur?.role === 'drh'
-  const [selection, setSelection] = useState<TerritorySelection>(SELECTION_NATIONALE)
-  const filtres = filtresDe(selection)
+  // Navigation = filtres globaux de l'application : changer de territoire ici met à jour la barre de filtres, et
+  // inversement. Aucune sélection locale qui pourrait diverger.
+  const { filtres: filtresGlobaux, setFiltres } = useSession()
+  const selection = filtresGlobaux.territoire
+  const setSelection = (territoire: TerritorySelection) => setFiltres({ ...filtresGlobaux, territoire })
+  const { scenario } = useScenarioAffiche()
+  const filtres = filtresDe(selection, scenario)
 
   const requete = useRapportTerritorial(jeu, filtres)
 
@@ -206,7 +325,11 @@ export function SyntheseTerritorialePage() {
         estEcole ? (
           <strong>{e.territoire.nom}</strong>
         ) : (
-          <button type="button" className="row-action" onClick={() => setSelection(descendre(selection, e.territoire.nom))}>
+          <button
+            type="button"
+            className="row-action"
+            onClick={() => setSelection(descendre(selection, e.territoire.nom))}
+          >
             <strong>{e.territoire.nom}</strong>
           </button>
         ),
@@ -215,9 +338,9 @@ export function SyntheseTerritorialePage() {
     { cle: 'ecoles', entete: 'Écoles', numerique: true, rendu: e => fmt(e.nbEcoles), tri: e => e.nbEcoles },
     {
       cle: 'encadrement',
-      entete: "Taux d'encadrement",
+      entete: `Taux d'encadrement (${UNITE_ENCADREMENT})`,
       numerique: true,
-      rendu: e => celluleTaux(e.encadrement.apresSimulation),
+      rendu: e => celluleEncadrement(e.encadrement.apresSimulation),
       tri: e => e.encadrement.apresSimulation.taux ?? -1,
     },
     {
@@ -260,9 +383,9 @@ export function SyntheseTerritorialePage() {
   return (
     <div className="stack">
       <Notice tone="info" title="Comment lire cette page.">
-        Tous les chiffres viennent du serveur AlgoPlanR : aucun calcul ne se fait dans le navigateur. « Après
-        simulation » tient compte des faits du Prince et du scénario retenu. Une valeur « Sans objet » ou « Non
-        calculable » n'est jamais inventée : la raison est donnée au survol.
+        Tous les chiffres viennent du serveur AlgoPlanR : aucun calcul ne se fait dans le navigateur. « Après simulation
+        » tient compte des faits du Prince et du scénario retenu. Une valeur « Sans objet » ou « Non calculable » n’est
+        jamais inventée : quand elle existe, la raison est indiquée à la place de la valeur.
       </Notice>
 
       <TerritoryBreadcrumb selection={selection} onSelect={setSelection} />
@@ -274,7 +397,9 @@ export function SyntheseTerritorialePage() {
       <Panel
         kicker="Exploration"
         title={`${LIBELLE_NIVEAU_ENFANTS[r.niveauEnfants] ?? 'Territoires'}s`}
-        hint={estEcole ? 'Détail des établissements de cet arrondissement.' : 'Cliquez sur un territoire pour l’explorer.'}
+        hint={
+          estEcole ? 'Détail des établissements de cet arrondissement.' : 'Cliquez sur un territoire pour l’explorer.'
+        }
         flush
       >
         <DataTable
@@ -287,7 +412,14 @@ export function SyntheseTerritorialePage() {
         />
       </Panel>
 
-      <PanneauExport filtres={filtres} estDrh={estDrh} />
+      <PanneauExport
+        filtres={filtres}
+        titre={r.titre}
+        niveau={selectionLevel(selection)}
+        scenarioId={r.scenarioId}
+        registre={r.registreIndicateurs}
+        estDrh={estDrh}
+      />
     </div>
   )
 }

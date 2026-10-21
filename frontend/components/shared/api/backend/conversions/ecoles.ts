@@ -10,7 +10,7 @@
 
 import type { ClassementEcole, EngineSettings, School, SchoolDiagnostic } from '../../contrat'
 import { raisonsPriorite, severite } from '../moteur/diagnostic'
-import { ratio, round2 } from '../moteur/nombres'
+import { round2 } from '../moteur/nombres'
 import {
   accessibilite,
   estOui,
@@ -33,6 +33,10 @@ export interface EcoleDjango {
   Circonscription_IAEB: string
   Effectif_Eleves_Attendus: number
   Enseignants_Actuels: number
+  /** Taux d'encadrement de l'école (élèves par enseignant), calculé par le serveur ; `null` si effectif inconnu. */
+  rem?: number | null
+  /** Élèves par classe ouverte, calculé par le serveur ; `null` sans classes ouvertes ou sans effectif. */
+  eleves_par_classe?: number | null
   Salles_Simple_Flux: number
   Salles_Double_Flux: number
   Accessibilite_Zone: string
@@ -130,7 +134,8 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
   const school = versSchool(e, ligne)
   const enseignants = nombre(e.Enseignants_Actuels)
   const eleves = school.effectifTotalEleves
-  const parEnseignant = ratio(eleves, enseignants > 0 ? enseignants : null)
+  // Taux d'encadrement et élèves par classe : lus du serveur (fonction commune), jamais refaits ici.
+  const parEnseignant = e.rem ?? null
   const norme = settings.besoin.elevesParMaitre
   const besoin = nombre(e.be)
   const excedent = nombre(e.xe)
@@ -161,7 +166,7 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
       excedent,
       surnombre: nombre(e.ae),
       sallesManquantes: nombre(e.se),
-      remActuel: parEnseignant == null ? null : round2(parEnseignant),
+      remActuel: parEnseignant,
       methode: eleves == null ? 'repli_classes' : 'norme_eleves',
     },
     classement: classer(e),
@@ -176,14 +181,10 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
       zoneRouge: Boolean(e.est_zone_rouge),
       rang: e.rang_priorite ?? null,
     },
-    elevesParEnseignant: parEnseignant == null ? null : round2(parEnseignant),
-    elevesParEnseignantEtat: parEnseignant == null ? null : round2(parEnseignant),
+    elevesParEnseignant: parEnseignant,
+    elevesParEnseignantEtat: parEnseignant,
     // Sans le nombre de classes ouvertes, le ratio n'est pas calculable : BMAX est une capacité, pas un effectif de classes.
-    elevesParClasse: (() => {
-      const classes = school.nombreClassesOuvertes
-      const r = ratio(eleves, classes != null && classes > 0 ? classes : null)
-      return r == null ? null : round2(r)
-    })(),
+    elevesParClasse: e.eleves_par_classe ?? null,
     effectifMoyenParNiveau: null,
     pressionPedagogique: norme > 0 && parEnseignant != null ? round2(parEnseignant / norme) : null,
     deficitAbsolu: besoin,

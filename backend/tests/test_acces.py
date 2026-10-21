@@ -399,6 +399,43 @@ def test_arbre_territorial_d_un_delegue_ne_porte_que_sa_region(centre):
     assert autre["perimetre"]["region"] == "Centre"
 
 
+def test_totaux_d_une_liste_d_ecoles_sont_ceux_du_serveur_et_restent_dans_le_perimetre(centre, littoral, drh):
+    jeu_centre, jeu_littoral = _jeu_demo(centre), _jeu_demo(littoral)
+    diag = centre.get(B + f"jeux/{jeu_centre}/diagnostic/", {"taille": 500}).json()
+    ecoles = [e["Identifiant_Ecole"] for e in diag["ecoles"]["resultats"]]
+    plat = diag["totaux"]
+    r = centre.post(B + f"jeux/{jeu_centre}/diagnostic/totaux/", {"ecoles": ecoles}, content_type="application/json")
+    assert r.status_code == 200
+    assert r.json() == plat                                    # même fonction, mêmes écoles : mêmes totaux
+    # Sous-ensemble : somme des deux moitiés = total (jamais une moyenne).
+    moitie = len(ecoles) // 2
+    a = centre.post(B + f"jeux/{jeu_centre}/diagnostic/totaux/", {"ecoles": ecoles[:moitie]},
+                    content_type="application/json").json()
+    b = centre.post(B + f"jeux/{jeu_centre}/diagnostic/totaux/", {"ecoles": ecoles[moitie:]},
+                    content_type="application/json").json()
+    assert a["nb_ecoles"] + b["nb_ecoles"] == plat["nb_ecoles"]
+    # Le jeu d'un autre délégué est introuvable.
+    assert centre.post(B + f"jeux/{jeu_littoral}/diagnostic/totaux/", {"ecoles": ecoles},
+                       content_type="application/json").status_code == 404
+    # Le périmètre borne la liste : sur un jeu national, des identifiants de toutes les régions ne comptent que
+    # ceux de la région demandée.
+    jeu_national = _jeu_demo(drh)
+    toutes = drh.get(B + f"jeux/{jeu_national}/diagnostic/", {"taille": 500}).json()
+    ids = [e["Identifiant_Ecole"] for e in toutes["ecoles"]["resultats"]]
+    region = toutes["ecoles"]["resultats"][0]["Region"]
+    dans_region = sum(1 for e in toutes["ecoles"]["resultats"] if e["Region"] == region)
+    r = drh.post(B + f"jeux/{jeu_national}/diagnostic/totaux/?region={region}", {"ecoles": ids},
+                 content_type="application/json")
+    assert r.json()["nb_ecoles"] == dans_region <= toutes["totaux"]["nb_ecoles"]
+    # Le DRH lit (sans écrire) les totaux d'un jeu régional.
+    assert drh.post(B + f"jeux/{jeu_centre}/diagnostic/totaux/", {"ecoles": ecoles},
+                    content_type="application/json").json() == plat
+    # Corps invalide.
+    for corps in ({}, {"ecoles": "E1"}, {"ecoles": [1, 2]}):
+        assert centre.post(B + f"jeux/{jeu_centre}/diagnostic/totaux/", corps,
+                           content_type="application/json").status_code == 422
+
+
 def test_fichiers_d_un_autre_delegue_inutilisables(centre, littoral):
     f = littoral.post(B + "fichiers/", {"type": "etablissements",
                                         "fichier": _csv("Identifiant_Ecole,Region\nL1,Littoral\n", "l.csv")}).json()
