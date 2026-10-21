@@ -98,16 +98,56 @@ def classeur_perimetre(rapport: dict, tableaux: List[dict]) -> bytes:
     return buf.getvalue()
 
 
+COLONNES_RESUME = ["Nb écoles", "Taux d'encadrement", "Couverture globale (%)", "Couverture opérationnelle (%)",
+                   "Couverture PAREC (%)", "Degré d'aléa", "Attrition N+1"]
+CLES_RESUME = ["nb_ecoles", "encadrement", "couverture_globale", "couverture_operationnelle", "couverture_parec",
+              "alea", "attrition_n1"]
+COLONNES_ETABLISSEMENTS = ["Identifiant", "Nom", "Région", "Département", "Arrondissement", "Élèves",
+                           "Effectif import", "Effectif après Prince", "Effectif après simulation",
+                           "Taux d'encadrement", "Besoin initial", "Couverture globale (%)", "Besoin après Prince",
+                           "Couverture opérationnelle (%)", "PAREC éligible (> 100 élèves)", "PAREC couverte"]
+CLES_ETABLISSEMENTS = ["id", "nom", "region", "departement", "commune", "eleves", "effectif_import",
+                       "effectif_apres_prince", "effectif_apres_simulation", "taux_encadrement", "besoin_initial",
+                       "couverture_globale_pct", "besoin_apres_prince", "couverture_operationnelle_pct",
+                       "parec_eligible", "parec_couverte"]
+
+
+def _feuille_resume(wb: Workbook, nom: str, lignes: List[dict], deja: set, *, avec_departement: bool = False
+                    ) -> None:
+    entetes = ["Territoire", "Région", *(["Département"] if avec_departement else []), *COLONNES_RESUME]
+    sortie = []
+    for l in lignes:
+        t = l["territoire"]
+        base = [t["nom"], t.get("region") or ""]
+        if avec_departement:
+            base.append(t.get("departement") or "")
+        sortie.append(base + [l[c] for c in CLES_RESUME])
+    ecrire_feuille(wb, nom, entetes, sortie, deja)
+
+
+def _feuille_etablissements(wb: Workbook, lignes: List[dict], deja: set) -> None:
+    sortie = [[l[c] for c in CLES_ETABLISSEMENTS] for l in lignes]
+    ecrire_feuille(wb, "Établissements", COLONNES_ETABLISSEMENTS, sortie, deja)
+
+
 def classeur_national_complet(complet: dict) -> bytes:
-    """Une feuille de synthèse nationale, une feuille par région, et la méthodologie. Le détail par
-    arrondissement et par école reste dans les exports par département (document plus maniable que les quelque
-    360 arrondissements et plus de 13 000 écoles du pays en une seule feuille)."""
+    """Classeur exhaustif : synthèse nationale, une feuille par région (ses départements), puis une feuille par
+    palier couvrant tout le pays — Régions, Départements, Arrondissements, Établissements — chacune filtrable
+    (autofiltre), et la méthodologie. Les quatre feuilles par palier donnent les indicateurs clés après
+    simulation ; le détail complet par situation (import, après Prince, N+1 à N+5) reste dans les feuilles
+    nationale et régionales, et dans l'export par périmètre (type=perimetre) pour un territoire précis."""
     wb = Workbook()
     wb.remove(wb.active)
     deja: set = set()
     _feuilles_rapport(wb, "National — ", complet["national"]["tableaux"], deja)
     for section in complet["regions"]:
         _feuilles_rapport(wb, f"{section['titre'][:10]} — ", section["tableaux"], deja)
+    exhaustif = complet.get("exhaustif")
+    if exhaustif:
+        _feuille_resume(wb, "Régions", exhaustif["regions"], deja)
+        _feuille_resume(wb, "Départements", exhaustif["departements"], deja)
+        _feuille_resume(wb, "Arrondissements", exhaustif["arrondissements"], deja, avec_departement=True)
+        _feuille_etablissements(wb, exhaustif["etablissements"], deja)
     feuille_methodologie(wb, complet["registre_indicateurs"], deja)
     buf = io.BytesIO()
     wb.save(buf)

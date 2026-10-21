@@ -26,6 +26,8 @@ from domaine.rapport.territorial import (
     LigneEcoleParec,
     REGISTRE_INDICATEURS,
     SANS_OBJET,
+    SEUIL_ELEVES_PAREC,
+    SEUIL_ENSEIGNANTS_PAREC,
     alea_qualifie,
     couverture_globale,
     couverture_operationnelle,
@@ -152,7 +154,7 @@ def _indicateur_parec(d: _Donnees, p: dict, sim: List[ProjectionEcole]) -> Dict[
     return out
 
 
-def _indicateur_encadrement(d: _Donnees, p: dict, sim: List[ProjectionEcole]) -> Dict[str, dict]:
+def _indicateur_encadrement(d: _Donnees, p: dict, sim: List[ProjectionEcole], annees: List[dict]) -> Dict[str, dict]:
     imp_proj = ecoles_a_l_import(d.ecoles_import(p))
     prince_proj = ecoles_a_l_import(d.ecoles_apres_prince(p))   # même constructeur : « Ecole -> ProjectionEcole »
     out = {
@@ -163,7 +165,6 @@ def _indicateur_encadrement(d: _Donnees, p: dict, sim: List[ProjectionEcole]) ->
         "apres_simulation": _valeur(sum(e.eleves_initial for e in sim if e.eleves_connus),
                                     sum(e.effectif_initial for e in sim if e.eleves_connus)),
     }
-    annees = pl.annees(d.ctx, p, sim)       # suivi=True : trajectoire réellement ajustée (quotas retenus, E3)
     for k, ligne in enumerate(annees[:5]):
         eff = ligne.get("effectif_debut") or 0
         eleves = ligne.get("eleves")
@@ -187,8 +188,7 @@ def _indicateur_alea(d: _Donnees, p: dict, sim: List[ProjectionEcole]) -> Dict[s
     }
 
 
-def _indicateur_attrition(d: _Donnees, p: dict, sim: List[ProjectionEcole], *, niveau: str) -> Dict[str, Any]:
-    annees = pl.annees(d.ctx, p, sim)       # suivi=True : trajectoire réellement ajustée (quotas retenus, E3)
+def _indicateur_attrition(annees: List[dict], *, niveau: str) -> Dict[str, Any]:
     lignes = {}
     for k, ligne in enumerate(annees[:5]):
         lignes[f"n{k + 1}"] = {
@@ -209,14 +209,15 @@ def _indicateur_attrition(d: _Donnees, p: dict, sim: List[ProjectionEcole], *, n
 def _indicateurs_territoire(d: _Donnees, p: dict, *, niveau: str) -> dict:
     sim = d.ecoles_apres_simulation(p)
     lignes_sim = _lignes_couverture(d, p)
+    annees = pl.annees(d.ctx, p, sim)       # suivi=True (E3) ; calculé une fois, partagé par deux indicateurs
     return {
         "nb_ecoles": len(sim),
-        "encadrement": _indicateur_encadrement(d, p, sim),
+        "encadrement": _indicateur_encadrement(d, p, sim, annees),
         "couverture_globale": _indicateur_couverture_globale(d, p, lignes_sim, sim),
         "couverture_operationnelle": {"apres_simulation": couverture_operationnelle(lignes_sim)},
         "couverture_parec": _indicateur_parec(d, p, sim),
         "alea": _indicateur_alea(d, p, sim),
-        "attrition": _indicateur_attrition(d, p, sim, niveau=niveau),
+        "attrition": _indicateur_attrition(annees, niveau=niveau),
     }
 
 
@@ -304,29 +305,103 @@ def tableaux_pour_export(rapport: dict, *, indicateur: Optional[str] = None) -> 
     return tableaux
 
 
+def _resume_territoire(bloc: dict) -> dict:
+    """Une ligne de synthèse (indicateurs clés après simulation, attrition N+1) pour les feuilles exhaustives
+    (tous les départements, tous les arrondissements) de l'export national complet : le détail complet par
+    situation reste dans les tableaux nationaux et régionaux, et dans l'export par périmètre (type=perimetre)."""
+    return {
+        "nb_ecoles": bloc["nb_ecoles"],
+        "encadrement": _cellule(bloc["encadrement"]["apres_simulation"]),
+        "couverture_globale": _cellule(bloc["couverture_globale"]["apres_simulation"]),
+        "couverture_operationnelle": _cellule(bloc["couverture_operationnelle"]["apres_simulation"]),
+        "couverture_parec": _cellule(bloc["couverture_parec"]["apres_simulation"]),
+        "alea": _cellule_alea(bloc["alea"]["apres_simulation"]),
+        "attrition_n1": _cellule_attrition(bloc["attrition"]["annees"]["n1"]),
+    }
+
+
+def _lignes_etablissements(d: _Donnees, ecoles: List[ProjectionEcole]) -> List[dict]:
+    """Une ligne par établissement, calculée en un seul passage sur les écoles déjà chargées (jamais un appel à
+    `construire()` par école) : le classeur national complet reste praticable avec plusieurs milliers d'écoles."""
+    out = []
+    for e in ecoles:
+        i, pr = d.avant.ecoles_par_id.get(e.id), d.prep.ecoles_par_id.get(e.id)
+        if i is None or pr is None:
+            continue
+        besoin_initial, besoin_apres_prince = int(i.ind.be), int(pr.ind.be)
+        postes_resorbes = min(besoin_initial, max(0.0, e.effectif_initial - i.enseignants_actuels))
+        couverts = min(besoin_apres_prince, max(0.0, e.effectif_initial - pr.enseignants_actuels))
+        out.append({
+            "id": e.id, "nom": e.nom, "region": e.region, "departement": e.departement, "commune": e.commune,
+            "eleves": e.eleves_initial if e.eleves_connus else "Inconnu",
+            "effectif_import": i.enseignants_actuels, "effectif_apres_prince": pr.enseignants_actuels,
+            "effectif_apres_simulation": e.effectif_initial,
+            "taux_encadrement": (taux_encadrement(e.eleves_initial, e.effectif_initial, 1)
+                                 if e.eleves_connus and e.effectif_initial > 0 else "—"),
+            "besoin_initial": besoin_initial,
+            "couverture_globale_pct": (round(postes_resorbes / besoin_initial * 100, 1)
+                                       if besoin_initial > 0 else "Sans objet"),
+            "besoin_apres_prince": besoin_apres_prince,
+            "couverture_operationnelle_pct": (round(couverts / besoin_apres_prince * 100, 1)
+                                              if besoin_apres_prince > 0 else "Sans objet"),
+            "parec_eligible": "Oui" if e.eleves_connus and e.eleves_initial > SEUIL_ELEVES_PAREC else "Non",
+            "parec_couverte": ("Oui" if e.effectif_initial >= SEUIL_ENSEIGNANTS_PAREC
+                               else "Non") if e.eleves_connus and e.eleves_initial > SEUIL_ELEVES_PAREC else "—",
+        })
+    return out
+
+
 def construire_national_complet(jeu, *, scenario_id: Optional[str] = None,
                                 indicateur: Optional[str] = None) -> dict:
-    """Une synthèse nationale, puis une section par région, ventilée jusqu'aux arrondissements (décision validée
-    pour l'export national complet, réservé au DRH) : chaque région liste ses départements, et chaque
-    département sa propre section listant ses arrondissements. Les écoles restent dans le classeur Excel du
-    même export, et dans le Word propre à chaque arrondissement — ce document resterait sinon illisible
-    (environ 360 arrondissements)."""
-    national = construire(jeu, {}, scenario_id=scenario_id)
-    regions = []
-    for enfant_region in national["enfants"]:
-        p_region = {"region": enfant_region["territoire"]["region"]}
-        rapport_region = construire(jeu, p_region, scenario_id=scenario_id)
-        departements = []
-        for enfant_dept in rapport_region["enfants"]:
-            p_dept = {**p_region, "departement": enfant_dept["territoire"]["departement"]}
-            rapport_dept = construire(jeu, p_dept, scenario_id=scenario_id)
-            departements.append({"titre": rapport_dept["titre"], "niveau": "departement",
-                                 "tableaux": tableaux_pour_export(rapport_dept, indicateur=indicateur)})
-        regions.append({"titre": rapport_region["titre"], "niveau": "region",
-                        "tableaux": tableaux_pour_export(rapport_region, indicateur=indicateur),
-                        "departements": departements})
+    """Export national complet (réservé au DRH), exhaustif : synthèse nationale, les dix régions, tous les
+    départements, tous les arrondissements et le détail de tous les établissements — chacun recalculé sur ses
+    propres écoles (jamais une moyenne), et filtrable dans le classeur (une feuille par palier, autofiltre).
+
+    Les paliers région → département → arrondissement sont parcourus une seule fois chacun (`pl.groupes`, pas de
+    relance de `construire()` par territoire) : le coût reste proportionnel au nombre de départements et
+    d'arrondissements réels du jeu, pas à une récursion redondante. Le document Word imbriqué (région →
+    département → arrondissement) réutilise exactement les mêmes blocs d'indicateurs que les feuilles Excel."""
+    d = _Donnees(jeu, scenario_id)
+    toutes = d.ecoles_apres_simulation({})
+
+    def bloc_de(p: dict, niveau: str) -> dict:
+        return _indicateurs_territoire(d, p, niveau=niveau)
+
+    national_bloc = bloc_de({}, "national")
+    enfants_national, regions_mot, flat_regions, flat_departements, flat_arrondissements = [], [], [], [], []
+
+    for terr_r, restr_r, ecoles_r in pl.groupes(toutes, "region"):
+        bloc_r = bloc_de(restr_r, "region")
+        enfants_national.append({"territoire": terr_r, **bloc_r})
+        flat_regions.append({"territoire": terr_r, **_resume_territoire(bloc_r)})
+        enfants_region, departements_mot = [], []
+        for terr_d, restr_d, ecoles_d in pl.groupes(ecoles_r, "departement"):
+            pd = {**restr_r, **restr_d}
+            bloc_d = bloc_de(pd, "departement")
+            enfants_region.append({"territoire": terr_d, **bloc_d})
+            flat_departements.append({"territoire": terr_d, **_resume_territoire(bloc_d)})
+            enfants_departement = []
+            for terr_a, restr_a, _ in pl.groupes(ecoles_d, "commune"):
+                pa = {**pd, **restr_a}
+                bloc_a = bloc_de(pa, "commune")
+                enfants_departement.append({"territoire": terr_a, **bloc_a})
+                flat_arrondissements.append({"territoire": terr_a, **_resume_territoire(bloc_a)})
+            rapport_dept = {"titre": terr_d["nom"], "noeud": bloc_d, "enfants": enfants_departement}
+            departements_mot.append({"titre": rapport_dept["titre"], "niveau": "departement",
+                                     "tableaux": tableaux_pour_export(rapport_dept, indicateur=indicateur)})
+        rapport_region = {"titre": terr_r["nom"], "noeud": bloc_r, "enfants": enfants_region}
+        regions_mot.append({"titre": rapport_region["titre"], "niveau": "region",
+                            "tableaux": tableaux_pour_export(rapport_region, indicateur=indicateur),
+                            "departements": departements_mot})
+
+    national_rapport = {"titre": "Cameroun", "noeud": national_bloc, "enfants": enfants_national}
     return {
-        "national": {"titre": national["titre"], "niveau": "national",
-                    "tableaux": tableaux_pour_export(national, indicateur=indicateur)},
-        "regions": regions, "registre_indicateurs": REGISTRE_INDICATEURS,
+        "national": {"titre": "Cameroun", "niveau": "national",
+                    "tableaux": tableaux_pour_export(national_rapport, indicateur=indicateur)},
+        "regions": regions_mot,
+        "exhaustif": {
+            "regions": flat_regions, "departements": flat_departements, "arrondissements": flat_arrondissements,
+            "etablissements": _lignes_etablissements(d, toutes),
+        },
+        "registre_indicateurs": REGISTRE_INDICATEURS,
     }

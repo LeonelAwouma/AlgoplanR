@@ -64,7 +64,9 @@ CODES_INDICATEURS = {d["code"] for d in REGISTRE_INDICATEURS}
                            OpenApiParameter("commune", str)],
                responses={(200, "application/octet-stream"): OpenApiTypes.BINARY},
                summary="Export Excel ou Word de la synthèse territoriale (respecte le périmètre demandé ; "
-                       "type=national_complet, réservé au DRH, regroupe les dix régions jusqu'aux arrondissements)")
+                       "type=national_complet, réservé au DRH, est exhaustif : national, régions, tous les "
+                       "départements, tous les arrondissements et le détail de tous les établissements en xlsx "
+                       "(synthétique jusqu'aux arrondissements en docx)")
 @api_view(["GET"])
 def rapport_territorial_export(request, jeu):
     j = jeu_autorise(request, jeu, ecriture=False)

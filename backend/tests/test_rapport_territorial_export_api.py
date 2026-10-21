@@ -91,6 +91,38 @@ def test_national_complet_drh_seulement(c, jeu, centre):
     assert r.status_code == 403, r.content
 
 
+def test_national_complet_xlsx_exhaustif(c, jeu):
+    """Décision corrigée : le classeur national complet est exhaustif (régions, départements, arrondissements,
+    établissements), pas seulement synthétique — vérifié par le nombre de lignes de chaque feuille."""
+    from contextes.donnees import depots
+    from contextes.donnees.models import JeuDeDonnees
+
+    ecoles = depots.charger_ecoles(JeuDeDonnees.objects.get(id=jeu))
+    regions = {e.region for e in ecoles if e.region}
+    departements = {(e.region, e.departement) for e in ecoles if e.region and e.departement}
+    communes = {(e.region, e.departement, e.commune) for e in ecoles if e.region and e.departement and e.commune}
+
+    octets = _get_fichier(c, f"jeux/{jeu}/rapports/territorial/export/", format="xlsx", type="national_complet")
+    wb = load_workbook(io.BytesIO(octets))
+    for nom in ("Régions", "Départements", "Arrondissements", "Établissements"):
+        assert nom in wb.sheetnames, wb.sheetnames
+
+    assert wb["Régions"].max_row - 1 == len(regions)
+    assert wb["Départements"].max_row - 1 == len(departements)
+    assert wb["Arrondissements"].max_row - 1 == len(communes)
+    assert wb["Établissements"].max_row - 1 == len(ecoles)
+    assert wb["Établissements"].auto_filter.ref is not None
+
+    # Cohérence avec le JSON national (4.6) : même taux d'encadrement après simulation pour une région donnée.
+    national = c.get(B + f"jeux/{jeu}/rapports/territorial/").json()
+    noms_json = {e["territoire"]["nom"]: e["encadrement"]["apres_simulation"]["taux"] for e in national["enfants"]}
+    ws = wb["Régions"]
+    entetes = [cell.value for cell in ws[1]]
+    idx_territoire, idx_encadrement = entetes.index("Territoire"), entetes.index("Taux d'encadrement")
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        assert row[idx_encadrement] == noms_json[row[idx_territoire]]
+
+
 def test_format_et_type_invalides_refuses(c, jeu):
     r = c.get(B + f"jeux/{jeu}/rapports/territorial/export/", {"format": "pdf"})
     assert r.status_code == 422, r.content
