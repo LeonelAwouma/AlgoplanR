@@ -10,9 +10,11 @@
 
 import type { UseQueryResult } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { RefreshCw, ServerOff } from 'lucide-react'
+import { Calculator, RefreshCw, ServerOff } from 'lucide-react'
 
-import { estInjoignable, messageErreur } from '@shared/api'
+import { appeler, estAucunScenario, estInjoignable, messageErreur, route } from '@shared/api'
+import { useEcritureJeu } from '@shared/requetes'
+import { useSession } from '@shared/session'
 import { Notice } from '@shared/ui/commun'
 
 /** Délai après lequel l'attente est expliquée : un grand fichier national se calcule en plusieurs secondes. */
@@ -40,8 +42,46 @@ export function ChargementEnCours({ libelle = 'Chargement des données…' }: { 
   )
 }
 
+/** Calcul des trois scénarios géographiques de base (action explicite, jamais déclenchée par une simple lecture). */
+const ROUTE_SCENARIOS_BASE = route<unknown[]>()('POST', 'jeux/{jeu}/scenarios/base/')
+
+/**
+ * Message explicite quand le jeu n'a aucun scénario, avec l'action pour les calculer (utilisateur autorisé). Un
+ * utilisateur qui ne peut pas écrire sur ce jeu (le DRH sur un jeu régional) reçoit le refus du serveur, expliqué.
+ */
+export function AucunScenario({ erreur, onReessayer }: { erreur: unknown; onReessayer?: () => void }) {
+  const { jeu } = useSession()
+  const calcul = useEcritureJeu(jeu, 'scenarios', (id, _aucun: void) =>
+    appeler(ROUTE_SCENARIOS_BASE, { params: { jeu: id } }),
+  )
+  return (
+    <Notice tone="warn" title="Aucun scénario calculé.">
+      {messageErreur(erreur)}{' '}
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={calcul.isPending}
+        onClick={() => calcul.mutate(undefined, { onSuccess: () => onReessayer?.() })}
+      >
+        {calcul.isPending ? (
+          <RefreshCw size={13} className="spin" aria-hidden="true" />
+        ) : (
+          <Calculator size={13} aria-hidden="true" />
+        )}{' '}
+        Calculer les scénarios de base
+      </button>
+      {calcul.isError && (
+        <p className="hint" role="alert">
+          {messageErreur(calcul.error)}
+        </p>
+      )}
+    </Notice>
+  )
+}
+
 /** Erreur d'une requête, avec un bouton pour réessayer. */
 export function ErreurApi({ erreur, onReessayer }: { erreur: unknown; onReessayer?: () => void }) {
+  if (estAucunScenario(erreur)) return <AucunScenario erreur={erreur} onReessayer={onReessayer} />
   const injoignable = estInjoignable(erreur)
   return (
     <Notice tone="alert" title={injoignable ? 'Serveur AlgoPlanR injoignable.' : 'Les données n’ont pas pu être lues.'}>
