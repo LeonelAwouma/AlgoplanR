@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from ..acces.regions import cle_region
+from ..commun.encadrement import taux_encadrement
 from ..commun.texte import cle_tri_fr, est_vide, norm
 from ..donnees import colonnes as C
 from .bareme import detail_bareme
@@ -59,10 +60,13 @@ def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], c
       des bases importées : avant les faits du Prince et avant l'algorithme). Sans `effectifs_import`, l'effectif des
       écoles du résultat, déjà mis à jour des faits du Prince. Après : l'effectif de chaque école (faits du Prince
       compris) gagne ses arrivées et perd ses départs ordinaires (une affectation part de l'école d'attache de
-      l'enseignant).
+      l'enseignant). Seules les écoles à l'effectif d'élèves connu (`effectif_connu`) entrent dans ces sommes —
+      élèves et enseignants ensemble (décision « Encadrement », lot 4) — pour ne pas diluer le ratio avec des
+      enseignants d'écoles dont on ne connaît pas les élèves.
     - Turnover : le fichier n'a pas d'historique de départs ; est « récent » un enseignant dont l'ancienneté au
       poste est sous le seuil de recevabilité. Avant = récents ÷ effectif ; après = (récents + déplacés) ÷ effectif,
       car un enseignant déplacé repart à zéro dans son nouveau poste (le vivier n'en contient jamais de récents).
+      Non concerné par le filtre élèves-connus : c'est un indicateur sur les enseignants, indépendant des élèves.
     `enseignants` : tous les enseignants du jeu (le résultat ne contient que le vivier).
     """
     seuil = float(cfg["seuils"]["anciennete_poste_recevabilite_ans"])
@@ -83,7 +87,12 @@ def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], c
         national[cle] += valeur
         regions.setdefault(region, nouveau())[cle] += valeur
 
+    def eleves_connus(id_ecole: Any) -> bool:
+        return bool((ecoles.get(id_ecole) or {}).get("effectif_connu", True))
+
     for e in ecoles.values():
+        if not eleves_connus(e[C.COL_ETAB_ID]):
+            continue      # population commune (élèves ET enseignants) : voir docstring ci-dessus
         r = region_de(e[C.COL_ETAB_ID])
         cumuler(r, "eleves", float(e.get(C.COL_ETAB_NE) or 0))
         importe = (effectifs_import or {}).get(e[C.COL_ETAB_ID])
@@ -94,8 +103,9 @@ def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], c
         if a["phase"] == "effet_de_prince":
             continue          # déjà dans l'effectif des écoles : les bases sont recalculées avant l'algorithme
         depart = origine.get(a["id_ens"])
-        cumuler(region_de(a["id_etab"]), "enseignants_apres", 1)
-        if depart in ecoles:
+        if eleves_connus(a["id_etab"]):
+            cumuler(region_de(a["id_etab"]), "enseignants_apres", 1)
+        if depart in ecoles and eleves_connus(depart):
             cumuler(region_de(depart), "enseignants_apres", -1)
     for t in enseignants:
         r = region_de(t.ecole_attache)
@@ -116,8 +126,8 @@ def comparer_encadrement_turnover(res: Dict[str, Any], enseignants: List[Any], c
             "territoire": nom,
             "eleves": int(brut["eleves"]),
             "enseignants_avant": int(brut["enseignants_avant"]), "enseignants_apres": int(brut["enseignants_apres"]),
-            "rem_avant": _ratio(brut["eleves"], brut["enseignants_avant"], 2),
-            "rem_apres": _ratio(brut["eleves"], brut["enseignants_apres"], 2),
+            "rem_avant": taux_encadrement(brut["eleves"], brut["enseignants_avant"], 2, defaut=0.0),
+            "rem_apres": taux_encadrement(brut["eleves"], brut["enseignants_apres"], 2, defaut=0.0),
             "effectif": int(brut["effectif"]), "recents": int(brut["recents"]), "deplaces": int(brut["deplaces"]),
             "turnover_avant": _ratio(brut["recents"], brut["effectif"], 4),
             "turnover_apres": _ratio(brut["recents"] + brut["deplaces"], brut["effectif_apres"], 4),

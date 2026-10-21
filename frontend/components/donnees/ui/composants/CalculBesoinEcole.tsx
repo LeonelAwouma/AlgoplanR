@@ -85,7 +85,7 @@ export function CalculBesoinEcole({ diagnostic: d, elevesParMaitre }: Proprietes
 
       {d.pressionPedagogique != null && (
         <p className="hint">
-          REM actuel : {fmtPct(d.pressionPedagogique)} de la norme ({norme} élèves par maître).
+          Taux d’encadrement actuel : {fmtPct(d.pressionPedagogique)} de la norme ({norme} élèves par enseignant).
         </p>
       )}
     </Panel>

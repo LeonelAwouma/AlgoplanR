@@ -212,6 +212,8 @@ export type ScenarioRecrutement = 'min' | 'maintien' | 'besoin' | 'plafond'
 export interface LigneTableauRapport {
   libelle: string
   valeurs: (number | null)[]
+  /** Vrai pour les lignes de taux d'encadrement (une décimale), faux pour les effectifs (entiers). */
+  decimal: boolean
 }
 
 export interface RecrutementsRegion extends Record<ScenarioRecrutement, number> {

@@ -3,8 +3,9 @@
 /**
  * Onglet « Projection N+1 à N+5 » : lecture seule des chiffres du serveur.
  *
- * Rien ne se règle ni ne se calcule ici : les effectifs, départs, besoins, recrutements et REM viennent du tableau de
- * planification du périmètre, calculé avec les hypothèses du jeu (retraite, attrition, quotas). Pour les modifier,
+ * Rien ne se règle ni ne se calcule ici : les effectifs, départs, besoins, recrutements et le taux d’encadrement
+ * viennent du tableau de planification du périmètre, calculé avec les hypothèses du jeu (retraite, attrition,
+ * quotas). Pour les modifier,
  * il faut passer par « Hypothèses de calcul ». L'effectif de fin d'une année est celui de début de la suivante.
  */
 
@@ -51,7 +52,7 @@ function exporter(perimetre: string, lignes: LigneProjection[]) {
       'Évolution',
       'Besoin',
       'Quota calculé',
-      'REM projeté',
+      'Taux d’encadrement projeté (élèves/enseignant)',
     ],
     lignes.map(l => [
       l.annee,
@@ -180,7 +181,7 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
                   Quota calculé
                 </th>
                 <th scope="col" className="num">
-                  REM projeté
+                  Taux d’encadrement projeté
                 </th>
               </tr>
             </thead>
@@ -208,15 +209,15 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
       <Panel
         kicker="Évolution"
         title="Effectif en fin d’année et élèves par enseignant"
-        hint="Les colonnes donnent l’effectif en fin d’année ; la courbe, le REM projeté (élèves des écoles dont l’effectif est connu ÷ enseignants au début de l’année), à titre indicatif."
+        hint="Les colonnes donnent l’effectif en fin d’année ; la courbe, le taux d’encadrement projeté (élèves des écoles dont l’effectif est connu ÷ enseignants au début de l’année), à titre indicatif."
       >
         {avecRem ? (
           <Combo
-            titre="Effectif en fin d’année et REM projeté"
+            titre="Effectif en fin d’année et taux d’encadrement projeté"
             series={SERIE_EFFECTIF}
             courbe={{
               cle: 'rem',
-              label: 'REM projeté',
+              label: 'Taux d’encadrement projeté',
               couleur: 'var(--violet)',
               format: v => fmtDec(v, 1),
               max: remMax * 1.1,

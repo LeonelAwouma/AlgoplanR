@@ -23,7 +23,7 @@ import { useRapportPrevisionnel, type RequetePlanification } from '../applicatio
 
 const TON_PRIORITE: Record<FichePrioriteRegion['priorite'], Tone> = { 1: 'alert', 2: 'warn', 3: 'ok' }
 
-/** Cellule numérique : entier, ou décimal pour les REM. */
+/** Cellule numérique : entier, ou décimal pour les taux d'encadrement. */
 function cellule(v: number | null, decimal = false): string {
   return decimal ? fmtDec(v) : fmt(v)
 }
@@ -34,7 +34,7 @@ function TableauNational({ rapport }: { rapport: RapportPrevisionnel }) {
     <Panel
       kicker="§3 · Tableau national"
       title={`Primaire — ${rapport.perimetre}`}
-      hint={`Stock et départs suivent la trajectoire « sous plafond ». REM obtenu = élèves de l’année ÷ stock après départs et recrutements (référence ${fmtDec(n.remReference)}).`}
+      hint={`Stock et départs suivent la trajectoire « sous plafond ». Taux d’encadrement obtenu = élèves de l’année ÷ stock après départs et recrutements (référence ${fmtDec(n.remReference)} élèves par enseignant).`}
       flush
     >
       <div className="table-scroll table-scroll-libre">
@@ -55,7 +55,7 @@ function TableauNational({ rapport }: { rapport: RapportPrevisionnel }) {
                 <th scope="row">{l.libelle}</th>
                 {l.valeurs.map((v, i) => (
                   <td key={i} className="num">
-                    {cellule(v, l.libelle.startsWith('REM'))}
+                    {cellule(v, l.decimal)}
                   </td>
                 ))}
               </tr>
@@ -131,16 +131,16 @@ function ScenariosRegions({ rapport }: { rapport: RapportPrevisionnel }) {
                 </th>
               ))}
               <th scope="col" className="num">
-                REM base
+                Taux d’encadrement base
               </th>
               <th scope="col" className="num">
-                REM final S-min
+                Taux d’encadrement final S-min
               </th>
               <th scope="col" className="num">
-                REM final S-besoin
+                Taux d’encadrement final S-besoin
               </th>
               <th scope="col" className="num">
-                REM final plafond
+                Taux d’encadrement final plafond
               </th>
             </tr>
           </thead>
@@ -227,7 +227,7 @@ function Priorites({ rapport }: { rapport: RapportPrevisionnel }) {
     <Panel
       kicker="§8 · Priorités régionales"
       title="Problèmes à traiter par région"
-      hint={`Priorité 1 si le REM du primaire dépasse la référence (${fmtDec(p.remReference)}) de plus de ${fmt(p.ecartRem)} points ; priorité 2 si les retraites de l’horizon dépassent ${fmtDec(p.seuilRetraites)} % du stock ou si l’encadrement est proche de la norme ; priorité 3 sinon.`}
+      hint={`Priorité 1 si le taux d’encadrement du primaire dépasse la référence (${fmtDec(p.remReference)}) de plus de ${fmt(p.ecartRem)} points ; priorité 2 si les retraites de l’horizon dépassent ${fmtDec(p.seuilRetraites)} % du stock ou si l’encadrement est proche de la norme ; priorité 3 sinon.`}
     >
       <div className="stack">
         {rapport.priorites.map(f => (
@@ -239,7 +239,7 @@ function Priorites({ rapport }: { rapport: RapportPrevisionnel }) {
               )}
             </h3>
             <p>
-              <strong>{f.situation}.</strong> REM du primaire {fmtDec(f.remBase)} ; retraites de l’horizon{' '}
+              <strong>{f.situation}.</strong> Taux d’encadrement du primaire {fmtDec(f.remBase)} ; retraites de l’horizon{' '}
               {fmtDec(f.partRetraites)} % du stock.
             </p>
             <ol>

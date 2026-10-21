@@ -65,7 +65,7 @@ function colonnesEtablissements(onOuvrirEcole: (id: string) => void): Colonne<Li
     },
     {
       cle: 'rem',
-      entete: 'REM',
+      entete: 'Encadrement',
       numerique: true,
       rendu: l => avantApres(l.REM_Avant, l.REM_Apres, 1),
     },

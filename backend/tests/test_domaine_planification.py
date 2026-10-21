@@ -180,6 +180,48 @@ def test_rapport_scenarios_et_tableaux():
     assert any("CORR_60" in x for x in r["limites"]) is False   # aucun agent signalé à la construction
 
 
+def test_rem_base_population_commune_effectif_connu():
+    """Décision « Encadrement » (lot 4) : une école à l'effectif d'élèves inconnu ne contribue ni à ses élèves ni
+    à ses enseignants. Vérifié à la main : A (200 él., 4 ens.), B (100 él., 2 ens.), connus ; C (élèves inconnus,
+    3 ens.). Avant la correction, C aurait dilué le dénominateur (300 ÷ 9 = 33,3) sans contribuer au numérateur ;
+    après, C est hors de l'agrégat des deux côtés (300 ÷ 6 = 50,0)."""
+    from domaine.planification import rapport as rap
+    a = Ecole(id="A", region="Centre", effectif_eleves=200, enseignants_actuels=4, effectif_connu=True)
+    b = Ecole(id="B", region="Centre", effectif_eleves=100, enseignants_actuels=2, effectif_connu=True)
+    c = Ecole(id="C", region="Centre", effectif_eleves=0, enseignants_actuels=3, effectif_connu=False)
+    proj = rap.ecoles_a_l_import([a, b, c])
+    assert [e.eleves_connus for e in proj] == [True, True, False]
+    assert rap.rem_base(proj) == pytest.approx(50.0)          # et non 33.3 (300 ÷ 9) avant correction
+
+
+def test_rem_base_somme_sur_somme_pas_moyenne_des_ratios():
+    """L'encadrement d'un territoire est Σ élèves ÷ Σ enseignants, jamais la moyenne des REM de ses écoles."""
+    from domaine.planification import rapport as rap
+    x = Ecole(id="X", region="Centre", effectif_eleves=100, enseignants_actuels=1, effectif_connu=True)
+    y = Ecole(id="Y", region="Centre", effectif_eleves=100, enseignants_actuels=9, effectif_connu=True)
+    proj = rap.ecoles_a_l_import([x, y])
+    moyenne_des_rem = (100 / 1 + 100 / 9) / 2
+    assert rap.rem_base(proj) == pytest.approx(20.0)           # (100+100) / (1+9)
+    assert rap.rem_base(proj) != pytest.approx(moyenne_des_rem, rel=0.01)
+
+
+def test_tableau_national_sans_libelle_rem_avec_cle_decimal_stable():
+    """Lot 4 : le sigle « REM » ne doit plus apparaître dans les libellés produits pour l'interface ; la mise en
+    forme décimale des lignes de taux d'encadrement repose sur une clé stable (`decimal`), pas sur un filtrage du
+    texte du libellé (fragile, et dépendant d'une graphie qui change)."""
+    from domaine.planification import rapport as rap
+    ecoles, ens = _jeu_regions()
+    h = _hyp(DIR_NOM_AN=856)
+    h["attrition"]["taux_unique"] = 2.25
+    proj, _ = projeter_ecoles(ecoles, ens, defaut(), h)
+    r = rap.construire(proj, ens, h, 3)
+    assert not any("REM" in l["libelle"] for l in r["national"]["lignes"])
+    decimales = {l["libelle"] for l in r["national"]["lignes"] if l["decimal"]}
+    assert decimales == {f"Taux d'encadrement obtenu – {rap.LIBELLES_SCENARIOS[s]}"
+                         for s in ("besoin", "min", "maintien", "plafond")}
+    assert not any(l["decimal"] for l in r["national"]["lignes"] if l["libelle"] == "Élèves projetés")
+
+
 def test_classement_des_regions():
     from domaine.planification.rapport import classer
     assert classer(127.5, 4.7, 74.4, 7)[0] == 1

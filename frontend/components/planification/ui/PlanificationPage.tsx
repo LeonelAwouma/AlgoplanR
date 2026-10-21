@@ -7,7 +7,7 @@
  * filtres : effectifs, départs, besoins, ressources du vivier, quotas,
  * nominations et déploiements, besoin restant. Les ventilations, le plan des
  * départs, la fiabilité des données et les versions sont en onglets, dont la projection N+1 à N+5 (lecture
- * seule : effectifs, départs, recrutements, REM).
+ * seule : effectifs, départs, recrutements, taux d’encadrement).
  */
 
 import { useState } from 'react'

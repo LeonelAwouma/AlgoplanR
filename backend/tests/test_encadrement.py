@@ -59,6 +59,24 @@ def test_sans_donnees_pas_de_division_par_zero():
     assert out["national"]["rem_avant"] == 0.0 and out["national"]["turnover_apres"] == 0.0
 
 
+def test_population_commune_effectif_connu():
+    """Décision « Encadrement » (lot 4) : une école à l'effectif d'élèves inconnu est hors de l'agrégat, élèves
+    et enseignants ensemble — mêmes écoles A/B/C et même résultat (50,0) que `rem_base` sur le même jeu, preuve
+    que les deux fonctions, désormais branchées sur la même formule, s'accordent."""
+    res = {"etab_enrichi": [
+        {"Identifiant_Ecole": "A", "Region": "Centre", "Effectif_Eleves_Attendus": 200, "Enseignants_Actuels": 4,
+         "effectif_connu": True},
+        {"Identifiant_Ecole": "B", "Region": "Centre", "Effectif_Eleves_Attendus": 100, "Enseignants_Actuels": 2,
+         "effectif_connu": True},
+        {"Identifiant_Ecole": "C", "Region": "Centre", "Effectif_Eleves_Attendus": 0, "Enseignants_Actuels": 3,
+         "effectif_connu": False},
+    ], "affectations": [], "vivier": []}
+    out = comparer_encadrement_turnover(res, [], defaut())
+    n = out["national"]
+    assert (n["eleves"], n["enseignants_avant"]) == (300, 6)        # C exclue des deux côtés, pas seulement élèves
+    assert n["rem_avant"] == pytest.approx(50.0) and n["rem_apres"] == pytest.approx(50.0)
+
+
 def test_route_encadrement(drh):
     c = drh
     r = c.post(B + "jeux/demonstration/", {}, content_type="application/json")

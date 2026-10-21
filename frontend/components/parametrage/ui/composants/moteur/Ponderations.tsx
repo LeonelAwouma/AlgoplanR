@@ -170,7 +170,7 @@ export function Ponderations({ parametres, maj }: { parametres: EngineSettings; 
       <Panel
         kicker="Étage 2"
         title="Poids de l’école (indice u)"
-        hint="u = t1 × α + t2 × σ + β : α points d’accessibilité de l’école, σ points de sécurité, β points selon le nombre d’élèves par maître (REM). t1 et t2 pondèrent α et σ ; les valeurs de l’algorithme sont 0,30 et 0,70. Le poids de l’école u entre dans le score d’appariement par Z2, face au barème de l’enseignant Z1 : ce que l’un gagne, l’autre le perd."
+        hint="u = t1 × α + t2 × σ + β : α points d’accessibilité de l’école, σ points de sécurité, β points selon le taux d’encadrement (élèves par enseignant). t1 et t2 pondèrent α et σ ; les valeurs de l’algorithme sont 0,30 et 0,70. Le poids de l’école u entre dans le score d’appariement par Z2, face au barème de l’enseignant Z1 : ce que l’un gagne, l’autre le perd."
       >
         <Curseur
           id="e-ecole-t1"

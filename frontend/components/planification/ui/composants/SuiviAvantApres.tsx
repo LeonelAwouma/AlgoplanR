@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * REM et degré d'aléa avant / après le recalcul algorithmique, pour le national puis chaque région.
+ * Taux d'encadrement et degré d'aléa avant / après le recalcul algorithmique, pour le national puis chaque région.
  * Avant : bases importées. Après : bases après les faits du Prince et les mouvements du scénario.
  */
 
@@ -32,14 +32,14 @@ function Ecart({ avant, apres, decimales }: { avant: number | null; apres: numbe
 }
 
 function exporter(suivi: Suivi, scenarioNom: string) {
-  void exporterXLSX('rem-et-alea-avant-apres.xlsx', [
+  void exporterXLSX('taux-encadrement-et-alea-avant-apres.xlsx', [
     {
-      nom: 'REM et aléa',
+      nom: 'Encadrement et aléa',
       entetes: [
         'Territoire',
-        'REM avant (import)',
-        'REM après (recalcul)',
-        'Écart REM',
+        'Taux d’encadrement avant (import)',
+        'Taux d’encadrement après (recalcul)',
+        'Écart taux d’encadrement',
         'Aléa avant (import)',
         'Aléa après (recalcul)',
         'Écart aléa',
@@ -66,7 +66,7 @@ function exporter(suivi: Suivi, scenarioNom: string) {
         ['Scénario', scenarioNom],
         ['Avant', 'Bases enseignants et écoles telles qu’importées : avant les faits du Prince et avant l’algorithme.'],
         ['Après', 'Bases après les faits du Prince et les mouvements proposés par le scénario (recalcul).'],
-        ['REM', 'Élèves par enseignant : effectif d’élèves attendu ÷ enseignants.'],
+        ['Taux d’encadrement', 'Élèves par enseignant : effectif d’élèves attendu ÷ enseignants.'],
         [
           'Degré d’aléa',
           '1 − R² de la régression du nombre d’enseignants sur le nombre d’élèves, école par école : 0 = les enseignants suivent parfaitement les effectifs, 1 = aucun alignement.',
@@ -76,13 +76,13 @@ function exporter(suivi: Suivi, scenarioNom: string) {
   ])
 }
 
-/** Panneau « REM et degré d'aléa, avant / après ». */
+/** Panneau « Taux d'encadrement et degré d'aléa, avant / après ». */
 export function SuiviAvantApres({ suivi, scenarioNom }: ProprietesSuiviAvantApres) {
   return (
     <Panel
       kicker="Suivi du recalcul"
-      title={`REM et degré d’aléa, avant / après — ${scenarioNom}`}
-      hint="Avant : les bases importées (effectifs déclarés, avant les faits du Prince et avant l’algorithme). Après : le recalcul (faits du Prince et mouvements du scénario). REM : élèves par enseignant. Degré d’aléa : 1 − R² (enseignants ~ élèves), de 0 (parfaitement aligné) à 1."
+      title={`Taux d’encadrement et degré d’aléa, avant / après — ${scenarioNom}`}
+      hint="Avant : les bases importées (effectifs déclarés, avant les faits du Prince et avant l’algorithme). Après : le recalcul (faits du Prince et mouvements du scénario). Taux d’encadrement : élèves par enseignant. Degré d’aléa : 1 − R² (enseignants ~ élèves), de 0 (parfaitement aligné) à 1."
       actions={
         <button type="button" className="btn btn-sm" onClick={() => exporter(suivi, scenarioNom)}>
           <Download size={13} aria-hidden="true" /> Exporter (Excel)
@@ -95,10 +95,10 @@ export function SuiviAvantApres({ suivi, scenarioNom }: ProprietesSuiviAvantApre
             <tr>
               <th scope="col">Territoire</th>
               <th scope="col" className="num">
-                REM avant
+                Encadrement avant
               </th>
               <th scope="col" className="num">
-                REM après
+                Encadrement après
               </th>
               <th scope="col" className="num">
                 Écart

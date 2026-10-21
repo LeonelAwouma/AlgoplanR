@@ -59,7 +59,7 @@ export function raisonsPriorite(d: SchoolDiagnostic): DiagnosticReason[] {
   if (c.remActuel != null && d.pressionPedagogique != null && d.pressionPedagogique > 1) {
     raisons.push({
       code: 'pression_eleves',
-      texte: `REM actuel de ${fr(c.remActuel)} élèves par maître, au-dessus de la norme de ${fr(Math.round(c.remActuel / d.pressionPedagogique))}.`,
+      texte: `Taux d’encadrement actuel de ${fr(c.remActuel)} élèves par enseignant, au-dessus de la norme de ${fr(Math.round(c.remActuel / d.pressionPedagogique))}.`,
     })
   }
 

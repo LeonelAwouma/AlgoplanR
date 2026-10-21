@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from ..commun.encadrement import taux_encadrement
 from ..commun.texte import norm
 from .projection import arrondi
 from .rapport import stock_fin
@@ -81,7 +82,7 @@ def appliquer_suivi(annees: List[dict], p: Dict[str, Optional[str]], *, quotas: 
                  "besoin_restant": max(0, besoin_ajuste - a["ressources_vivier"] - (retenu or 0))}
         ligne["effectif_fin"] = stock_fin(ligne)
         if a.get("eleves"):                   # REM projeté : élèves de l'année ÷ effectif au début de l'année (ajusté)
-            ligne["rem"] = round(a["eleves"] / debut, 1) if debut > 0 else None
+            ligne["rem"] = taux_encadrement(a["eleves"], debut, 1)
         if recrutements_supposes and k + 1 < len(annees):
             # Écart réellement transmis à l'année suivante : fin d'année ajustée moins le début théorique (non
             # ajusté) de l'année suivante, tel que produit par `calculer_annees`. Capture à la fois l'écart de

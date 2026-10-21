@@ -22,6 +22,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
 
+from ..commun.encadrement import taux_encadrement
 from ..commun.texte import norm, texte
 from ..diagnostic.indicateurs import calculer_indicateurs
 from ..donnees.modeles import Ecole, Enseignant
@@ -160,7 +161,7 @@ def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], 
         ind0 = calculer_indicateurs(depart, cfg)
         p = ProjectionEcole(
             id=e.id, nom=e.nom or e.id, region=e.region, departement=e.departement, commune=e.commune,
-            iaeb=e.iaeb, sous_systeme=code_sous_systeme(e.sous_systeme), eleves_connus=e.effectif_eleves > 0,
+            iaeb=e.iaeb, sous_systeme=code_sous_systeme(e.sous_systeme), eleves_connus=e.effectif_connu,
             effectif_initial=initial, arrivees=arrivees.get(e.id, 0),
             deficit_initial=int(ind0.be), excedent_initial=int(ind0.xe), cible_initial=int(ind0.Ke),
             eleves_initial=e.effectif_eleves)
@@ -286,7 +287,10 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
             # Détail DRH (hors contrat) : taux appliqué, classes libérées, rattrapage, plafond, REM projeté.
             "taux_attrition": round(taux, 4), "origine_taux": origine, "directeurs_decharges": directeurs,
             "rattrapage": rattrapage, "plafond": plafond,
-            "rem": round(eleves / effectif, 1) if effectif > 0 else None,
+            # REM projeté : formule partagée (domaine/commun/encadrement.py) ; population = effectif du
+            # périmètre (non restreinte aux seules écoles à élèves connus, contrairement à rem_base — voir
+            # module docstring de `rapport.rem_base`).
+            "rem": taux_encadrement(eleves, effectif, 1),
         })
         if scenario == "min":
             recrutes = retraites

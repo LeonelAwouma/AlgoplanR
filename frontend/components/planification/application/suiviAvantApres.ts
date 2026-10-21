@@ -1,5 +1,5 @@
 /**
- * Indicateurs de suivi « avant / après » : REM (élèves par enseignant) et degré d'aléa.
+ * Indicateurs de suivi « avant / après » : taux d'encadrement (élèves par enseignant) et degré d'aléa.
  *
  * Avant : les bases telles qu'importées (effectifs déclarés, avant les faits du Prince et avant l'algorithme).
  * Après : les bases après le recalcul (faits du Prince et mouvements du scénario). Fonction pure : le serveur calcule,
@@ -34,7 +34,7 @@ export function ecart(avant: number | null, apres: number | null): number | null
   return avant === null || apres === null ? null : Math.round((apres - avant) * 100) / 100
 }
 
-/** Met côte à côte REM et aléa, avant et après, pour le national puis chaque région. */
+/** Met côte à côte le taux d'encadrement et l'aléa, avant et après, pour le national puis chaque région. */
 export function construireSuiviAvantApres(
   encadrement: ComparaisonEncadrement | null | undefined,
   alea: DegreAlea | null | undefined,

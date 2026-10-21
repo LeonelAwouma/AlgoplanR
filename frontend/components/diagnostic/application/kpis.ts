@@ -163,9 +163,9 @@ export function construireKpis(e: EntreeKpis): { principaux: Kpi[]; secondaires:
     },
     {
       cle: 'rem',
-      label: 'REM national',
+      label: 'Taux d’encadrement',
       valeur: decimal(totals.elevesParEnseignantEtat, 1),
-      hint: 'Élèves par maître : somme des élèves ÷ somme des enseignants, non la moyenne des écoles.',
+      hint: 'Élèves par enseignant (national) : somme des élèves ÷ somme des enseignants, non la moyenne des écoles.',
       etape: 'effective',
       disponible: totals.elevesParEnseignantEtat != null,
       cible: 'territoires',

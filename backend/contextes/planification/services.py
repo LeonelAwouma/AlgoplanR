@@ -116,8 +116,8 @@ def documentation(jeu) -> dict:
             "l'école (règle du référentiel MINEDUB) est recalculée chaque année sur cet effectif.",
             f"Les prises de fonction de directeurs ({d['DIR_NOM_AN']} par an, dont {d['DIR_H_PRI_PCT']} % sans classe "
             "au primaire) libèrent des classes, rapportées à l'effectif du périmètre.",
-            f"REM de référence du rapport : {d['REM_REF_PRI']} élèves par enseignant au primaire ; le REM projeté "
-            "du périmètre est donné à titre indicatif."]},
+            f"Taux d'encadrement de référence du rapport : {d['REM_REF_PRI']} élèves par enseignant au primaire ; "
+            "le taux d'encadrement projeté du périmètre est donné à titre indicatif."]},
         {"titre": "Quotas de recrutement", "paragraphes": [
             h["quotas"]["justification"],
             f"Le déficit initial est rattrapé sur {d['ETAL_N']} an(s) (ETAL_N). {plafond}"]},

@@ -147,7 +147,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Classement',
       'Postes déclarés',
       'Écart déclaré/calculé',
-      'REM actuel',
+      'Taux d’encadrement actuel',
       'Accessibilité α',
       'Sécurité σ',
       'Poids w',
@@ -206,7 +206,6 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Dont zone non renseignée',
       'En déficit',
       'Postes manquants',
-      'Points de sécurité σ',
       'Restant après simulation',
       'Règle appliquée',
     ],
@@ -218,11 +217,10 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
         z === 'verte' ? ecoles.filter(d => d.school.zoneSecurite === null).length : 0,
         ecoles.filter(d => d.besoinTheorique > 0).length,
         ecoles.reduce((s, d) => s + d.besoinTheorique, 0),
-        parametres.priorite.pointsSecurite[z],
         resultat
           ? resultat.uncoveredPosts.filter(p => (p.priorite.zoneSecurite ?? 'verte') === z).length
           : 'Aucune simulation',
-        z === 'rouge' && parametres.mobilite.regleZoneRouge
+        z === 'rouge'
           ? 'Aucun poste imposé ni proposé hors vœux : volontaires, primes ou recrutement'
           : 'Affectations ordinaires',
       ]

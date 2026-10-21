@@ -63,11 +63,11 @@ export const NOTIONS: NotionMethodologique[] = [
   {
     titre: 'Priorité des écoles — poids de vulnérabilité et indice',
     explication:
-      "La vulnérabilité d'une école combine des points d'accessibilité (urbain 5, semi-urbain 10, rural 15, rural enclavé 20) et de sécurité (zone verte 0, jaune 10, rouge 25), pondérés par t1 et t2 (t1 + t2 = 1). Elle fixe le niveau de difficulté de l'école. Comme elle ne mesure pas l'ampleur du besoin, on lui ajoute des points de besoin selon le REM actuel : c'est le poids du poste Up. Les postes sont servis par poids décroissant ; à poids égal, les écoles passent avant les structures, puis l'école au REM le plus élevé.",
+      "La vulnérabilité d'une école combine des points d'accessibilité (urbain 5, semi-urbain 10, rural 15, rural enclavé 20) et de sécurité (zone verte 0, jaune 10, rouge 25), pondérés par t1 et t2 (t1 + t2 = 1). Elle fixe le niveau de difficulté de l'école. Comme elle ne mesure pas l'ampleur du besoin, on lui ajoute des points de besoin selon le taux d'encadrement actuel : c'est le poids du poste Up. Les postes sont servis par poids décroissant ; à poids égal, les écoles passent avant les structures, puis l'école au taux d'encadrement le plus élevé.",
     formule:
-      'wp = 0,30 × α + 0,70 × σ ; niveau 1 si wp ≥ 30, 2 si wp ≥ 15, sinon 3 ; βp = 0 (REM ≤ 80), 5 (≤ 100), 10 (≤ 150), 15 au-delà ou sans maître ; Up = wp + βp',
+      'wp = 0,30 × α + 0,70 × σ ; niveau 1 si wp ≥ 30, 2 si wp ≥ 15, sinon 3 ; βp = 0 (taux d’encadrement ≤ 80), 5 (≤ 100), 10 (≤ 150), 15 au-delà ou sans enseignant ; Up = wp + βp',
     parametrable:
-      'Les coefficients t1 (0,30) et t2 (0,70) se règlent dans la configuration du moteur. Les seuils de niveau de difficulté (30 et 15) et les tranches de REM sont des constantes du moteur, non paramétrables aujourd’hui.',
+      'Les coefficients t1 (0,30) et t2 (0,70) se règlent dans la configuration du moteur. Les seuils de niveau de difficulté (30 et 15) et les tranches de taux d’encadrement sont des constantes du moteur, non paramétrables aujourd’hui.',
   },
   {
     titre: 'Demandes de mutation — qui est recevable',
@@ -218,5 +218,5 @@ export const VOCABULAIRE: { technique: string; simplifie: string }[] = [
   { technique: 'Indice de priorité u', simplifie: 'Ordre de service des écoles' },
   { technique: 'Score de priorité S', simplifie: 'Classement des demandes de mutation' },
   { technique: 'Acceptation différée', simplifie: 'Satisfaction des vœux' },
-  { technique: 'REM', simplifie: 'Élèves par maître' },
+  { technique: 'Taux d’encadrement', simplifie: 'Élèves par enseignant' },
 ]

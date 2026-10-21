@@ -65,10 +65,10 @@ export async function exporterClasseurRapportPrevisionnel(
     [
       'Région',
       ...SCENARIOS.map(s => LIBELLE_SCENARIO[s]),
-      'REM base',
-      'REM final S-min',
-      'REM final S-besoin',
-      'REM final plafond',
+      'Taux d’encadrement base',
+      'Taux d’encadrement final S-min',
+      'Taux d’encadrement final S-besoin',
+      'Taux d’encadrement final plafond',
     ],
     [...sc.lignes, sc.national].map(l => [
       l.region,
@@ -113,7 +113,8 @@ export async function exporterClasseurRapportPrevisionnel(
 
   ajouter(
     'PRIORITES',
-    ['Région', 'Priorité', 'REM primaire base', 'Retraites / stock (%)', 'Situation', 'Orientation', 'Problèmes'],
+    ['Région', 'Priorité', 'Taux d’encadrement primaire base', 'Retraites / stock (%)', 'Situation', 'Orientation',
+     'Problèmes'],
     rapport.priorites.map(f => [
       f.region,
       f.priorite,
