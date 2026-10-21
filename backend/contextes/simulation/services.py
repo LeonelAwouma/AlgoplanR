@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 from contextes.commun.erreurs import RefusMetier
 from contextes.donnees import depots
 from contextes.parametrage.services import config_jeu
+from domaine.mobilite.bareme import REGLE_SITUATION_VERSION
 from domaine.mobilite.moteur import ResultatAffectation, lancer_affectation
 from domaine.mobilite.scenarios import SCENARIO_PRESETS, SCENARIOS_GEOGRAPHIQUES
 from domaine.parametrage import config as cfg_dom
@@ -56,6 +57,12 @@ def executer_moteur(jeu, cfg: dict, *, faits: Optional[list] = None, arbitrages:
     return lancer_affectation(ecoles, enseignants, cfg, faits_prince=faits, arbitrages=arbitrages)
 
 
+#: Versions des règles du calcul inscrites dans la configuration stockée avec chaque résultat : un résultat calculé sous
+#: d'autres versions est obsolète. Même mécanisme que la règle des régions étanches.
+MARQUE_REGLES = "_regles_du_calcul"
+REGLES_DU_CALCUL = {"situation_matrimoniale": REGLE_SITUATION_VERSION}
+
+
 @transaction.atomic
 def calculer(scenario: Scenario, *, ecoles=None, enseignants=None) -> dict:
     jeu = scenario.jeu
@@ -64,7 +71,8 @@ def calculer(scenario: Scenario, *, ecoles=None, enseignants=None) -> dict:
     res = executer_moteur(jeu, cfg, faits=faits, arbitrages=arbs, ecoles=ecoles, enseignants=enseignants).vers_dict()
     blob = zlib.compress(json.dumps(res, default=str, ensure_ascii=False).encode("utf-8"), 6)
     ResultatSimulation.objects.update_or_create(
-        scenario=scenario, defaults={"donnees": blob, "config": cfg, "empreinte": empreinte(jeu, cfg, faits, arbs)})
+        scenario=scenario, defaults={"donnees": blob, "config": {**cfg, MARQUE_REGLES: REGLES_DU_CALCUL},
+                                     "empreinte": empreinte(jeu, cfg, faits, arbs)})
     if scenario.obsolete:
         scenario.obsolete = False
         scenario.save(update_fields=["obsolete"])
@@ -183,11 +191,16 @@ def scenario_du_jeu(jeu, sid: int) -> Scenario:
 
 
 def est_obsolete(sc: Scenario) -> bool:
-    """Scénario à recalculer : paramètres modifiés depuis, ou résultat calculé avant la règle des régions étanches."""
+    """Scénario à recalculer : paramètres modifiés depuis, résultat calculé avant la règle des régions étanches, ou
+    calculé sous une autre version des règles du calcul (ex. composante matrimoniale : situation vide ou non reconnue =
+    0 point). Les décisions déjà validées ne sont jamais modifiées ; seules les nouvelles décisions exigent un
+    scénario à jour (`exiger_a_jour`)."""
     if sc.obsolete:
         return True
     try:
-        return "regions_etanches" not in (sc.resultat.config.get("regles_dreb") or {})
+        config = sc.resultat.config
+        return ("regions_etanches" not in (config.get("regles_dreb") or {})
+                or config.get(MARQUE_REGLES) != REGLES_DU_CALCUL)
     except ResultatSimulation.DoesNotExist:
         return False
 

@@ -1,33 +1,40 @@
 """Barème individuel (composantes C1 à C5) — fidèle à calculer_bareme_individuel."""
 from __future__ import annotations
 
-from typing import Dict
+import unicodedata
+from typing import Dict, Optional
 
 from ..commun.texte import norm
 from ..donnees.modeles import Enseignant
 
 
-def points_situation(situation: str, cfg: dict) -> float:
-    s = norm(situation)
-    p = cfg["points_situation_familiale"]
-    if "mari" in s:
-        return float(p["marie"])
-    if "divorc" in s:
-        return float(p["divorce"])
-    if "veuf" in s or "veuve" in s:
-        return float(p["veuf"])
-    return float(p["celibataire"])
+#: Version de la règle de la composante matrimoniale (C3). v2 : une situation vide ou non reconnue vaut 0 point ; elle
+#: n'est plus assimilée à « célibataire » (v1, règle du moteur d'origine). Les scénarios calculés sous une autre version
+#: sont signalés obsolètes (`simulation.services.est_obsolete`) : ils sont à recalculer avant toute nouvelle décision,
+#: les décisions déjà validées restant inchangées.
+REGLE_SITUATION_VERSION = 2
 
 
-def categorie_situation(situation: str) -> str:
-    s = norm(situation)
+def categorie_situation(situation: Optional[str]) -> Optional[str]:
+    """Catégorie de barème d'une situation déclarée : « marie », « divorce », « veuf » ou « celibataire » (explicitement
+    renseigné) ; `None` pour une valeur vide ou non reconnue — jamais assimilée à « célibataire »."""
+    s = "".join(c for c in unicodedata.normalize("NFD", norm(situation)) if not unicodedata.combining(c))
     if "mari" in s:
         return "marie"
     if "divorc" in s:
         return "divorce"
     if "veuf" in s or "veuve" in s:
         return "veuf"
-    return "celibataire"
+    if "celib" in s:
+        return "celibataire"
+    return None
+
+
+def points_situation(situation: Optional[str], cfg: dict) -> float:
+    """Points de la composante matrimoniale : ceux de la catégorie reconnue, 0 pour une situation vide ou non
+    reconnue (qui est signalée par le contrôle qualité des données, jamais comptée comme « célibataire »)."""
+    categorie = categorie_situation(situation)
+    return 0.0 if categorie is None else float(cfg["points_situation_familiale"][categorie])
 
 
 def _age(e: Enseignant) -> float:

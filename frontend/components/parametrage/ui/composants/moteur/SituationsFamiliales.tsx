@@ -2,9 +2,9 @@
 
 /**
  * Points par situation matrimoniale (critère C3 du barème). Le serveur ne connaît que quatre catégories — marié(e),
- * divorcé(e), veuf(ve) et célibataire — et compte toute autre situation, ou une situation non renseignée, comme
- * « célibataire » : seuls ces quatre réglages sont proposés (les autres n'ont aucun effet), et l'écran dit combien
- * d'enseignants tombent dans ce cas, plutôt que de laisser croire qu'ils valent zéro point.
+ * divorcé(e), veuf(ve) et célibataire (explicitement renseigné) : seuls ces quatre réglages sont proposés. Une situation
+ * non renseignée ou non reconnue vaut 0 point (règle à valider par le métier) ; l'écran dit combien d'enseignants sont
+ * dans ce cas, pour que la donnée soit corrigée à la source.
  */
 
 import { useMemo } from 'react'
@@ -31,7 +31,7 @@ export interface ProprietesSituationsFamiliales {
 export function SituationsFamiliales({ parametres, maj, inventaire }: ProprietesSituationsFamiliales) {
   const points = parametres.scoring.pointsSituationFamiliale
 
-  /** Situations déclarées que le serveur compte comme « célibataire » : autres graphies, non reconnues, non renseignées. */
+  /** Situations déclarées que le serveur ne reconnaît pas (ou absentes) : 0 point, signalées au contrôle qualité. */
   const autres = useMemo(() => {
     if (!inventaire) return { effectif: 0, valeurs: [] as { valeur: string; effectif: number }[] }
     const hors = inventaire.reconnues
@@ -84,10 +84,11 @@ export function SituationsFamiliales({ parametres, maj, inventaire }: Proprietes
 
       {inventaire && autres.effectif > 0 && (
         <>
-          <Notice tone="warn" title="Des enseignants sont comptés comme « célibataire ».">
-            {fmt(autres.effectif)} enseignant(s) déclarent une autre situation que marié(e), divorcé(e), veuf(ve) ou
-            célibataire, ou n’en déclarent aucune : le moteur leur attribue les points de « célibataire » (
-            {fmt(points.celibataire ?? 0)} point(s)).
+          <Notice tone="warn" title="Situation absente ou non reconnue : 0 point.">
+            {fmt(autres.effectif)} enseignant(s) n’ont aucune situation matrimoniale renseignée, ou une valeur qui n’est
+            ni célibataire, ni marié(e), ni divorcé(e), ni veuf(ve) : la composante matrimoniale du barème vaut 0 point
+            pour eux (jamais les {fmt(points.celibataire ?? 0)} points de « célibataire »). Corrigez la donnée à la
+            source ; règle à valider par le métier avant toute décision officielle.
           </Notice>
           {autres.valeurs.length > 0 && (
             <ul className="reason-list">
