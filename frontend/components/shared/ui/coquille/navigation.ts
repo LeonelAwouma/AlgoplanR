@@ -34,6 +34,7 @@ import {
   FlaskConical,
   Gauge,
   Gavel,
+  Globe,
   GraduationCap,
   History,
   KeyRound,
@@ -79,6 +80,7 @@ export type PageKey =
   | 'nominations'
   | 'mouvements'
   | 'indicateurs'
+  | 'synthese-territoriale'
   | 'reports'
   | 'audit'
   | 'methodology'
@@ -393,6 +395,14 @@ export const RUBRIQUES: Rubrique[] = [
         sousTitre: 'Scénarios, retraites par région, redéploiement, priorités',
         icon: FileText,
         exigeSimulation: true,
+      },
+      {
+        id: 'synthese-territoriale',
+        label: 'Synthèse territoriale',
+        sousTitre: 'Encadrement, couverture, aléa et attrition par territoire, exports Excel et Word',
+        icon: Globe,
+        onglet: true,
+        exigeDonnees: true,
       },
       {
         id: 'reports',

@@ -9,12 +9,10 @@
 import { useState } from 'react'
 import { Play } from 'lucide-react'
 
-import type { EngineSettings, GeographicScope, IdJeu, OrdreExamenVoeux } from '@shared/api'
+import type { EngineSettings, GeographicScope, IdJeu } from '@shared/api'
 import { AVERTISSEMENT_SCENARIO_ETENDU, LIBELLE_SCOPE, cloner } from '@shared/kernel'
 import { Notice, Panel } from '@shared/ui/commun'
 import { ErreurAction } from '@shared/ui/etats'
-
-import { estNonApplique } from '@components/parametrage'
 
 import { useCreerScenario } from '../../application/hooks'
 
@@ -31,21 +29,18 @@ function Regle({
   explication,
   coche,
   onChange,
-  nonApplique = false,
 }: {
   libelle: string
   explication: string
   coche: boolean
   onChange: (coche: boolean) => void
-  /** Le serveur ne lit pas ce réglage : affiché sans pouvoir le modifier. */
-  nonApplique?: boolean
 }) {
   return (
     <label className="switch-row">
-      <input type="checkbox" checked={coche} disabled={nonApplique} onChange={e => onChange(e.target.checked)} />
+      <input type="checkbox" checked={coche} onChange={e => onChange(e.target.checked)} />
       <span>
         <b>{libelle}</b>
-        <span>{nonApplique ? `Non appliqué : le calcul n’utilise pas ce réglage. ${explication}` : explication}</span>
+        <span>{explication}</span>
       </span>
     </label>
   )
@@ -61,11 +56,7 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
   const [norme, setNorme] = useState(parametres.besoin.elevesParMaitre)
   const [tolerance, setTolerance] = useState(parametres.besoin.toleranceArrondi)
   const [niveauxParMaitre, setNiveauxParMaitre] = useState(parametres.besoin.niveauxParMaitre)
-  const [ordre, setOrdre] = useState<OrdreExamenVoeux>(parametres.mobilite.ordreExamen)
   const [doubleFlux, setDoubleFlux] = useState(parametres.besoin.doubleFluxAutorise)
-  const [solutionProche, setSolutionProche] = useState(parametres.mobilite.solutionProche)
-  const [obligatoire, setObligatoire] = useState(parametres.mobilite.redeploiementObligatoire)
-  const [zoneRouge, setZoneRouge] = useState(parametres.mobilite.regleZoneRouge)
 
   /** Description lisible du scénario, enregistrée avec lui. */
   function description(): string {
@@ -74,9 +65,7 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
       `un maître pour ${norme} élèves${tolerance > 0 ? ` (tolérance ${tolerance})` : ''}`,
       `${niveauxParMaitre} niveau(x) par maître`,
       `stabilité ${stabilite} ans`,
-      `vœux examinés ${ordre === 'voeux' ? "dans l'ordre de l'enseignant" : 'par poids des écoles'}`,
       ...(doubleFlux ? [] : ['sans double flux']),
-      ...(obligatoire ? [] : ['sans redéploiement obligatoire']),
     ].join(', ')
   }
 
@@ -84,10 +73,6 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
     // Les règles du formulaire s'appliquent sur une copie des règles en vigueur.
     const regles = cloner(parametres)
     regles.mobilite.stabiliteMinimaleAns = stabilite
-    regles.mobilite.ordreExamen = ordre
-    regles.mobilite.solutionProche = solutionProche
-    regles.mobilite.redeploiementObligatoire = obligatoire
-    regles.mobilite.regleZoneRouge = zoneRouge
     regles.besoin.elevesParMaitre = norme
     regles.besoin.toleranceArrondi = tolerance
     regles.besoin.niveauxParMaitre = niveauxParMaitre
@@ -165,18 +150,6 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
             onChange={e => setStabilite(Number(e.target.value))}
           />
         </div>
-        <div className="field">
-          <label htmlFor="sc-ordre">Ordre d’examen des vœux</label>
-          <select
-            id="sc-ordre"
-            value={ordre}
-            disabled={estNonApplique('mobilite', 'ordreExamen')}
-            onChange={e => setOrdre(e.target.value as OrdreExamenVoeux)}
-          >
-            <option value="voeux">Ordre choisi par l’enseignant (par défaut)</option>
-            <option value="poids">Poids des écoles (variante)</option>
-          </select>
-        </div>
       </div>
 
       <div className="switch-list">
@@ -185,27 +158,6 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
           explication="Une salle en double flux compte pour deux maîtres dans BMAX."
           coche={doubleFlux}
           onChange={setDoubleFlux}
-        />
-        <Regle
-          libelle="Solution la plus proche pour les demandes non satisfaites"
-          explication="Proposition hors vœux, dans la commune, le département puis la région des écoles demandées."
-          coche={solutionProche}
-          onChange={setSolutionProche}
-          nonApplique={estNonApplique('mobilite', 'solutionProche')}
-        />
-        <Regle
-          libelle="Redéploiement obligatoire"
-          explication="Les écoles restées non couvertes reçoivent un maître d’une école excédentaire du même sous-système."
-          coche={obligatoire}
-          onChange={setObligatoire}
-          nonApplique={estNonApplique('mobilite', 'redeploiementObligatoire')}
-        />
-        <Regle
-          libelle="Règle de la zone rouge"
-          explication="Aucun poste en zone rouge n’est proposé hors vœux ni imposé."
-          coche={zoneRouge}
-          onChange={setZoneRouge}
-          nonApplique={estNonApplique('mobilite', 'regleZoneRouge')}
         />
       </div>
 

@@ -8,7 +8,7 @@
 
 import { Calculator } from 'lucide-react'
 
-import type { Hypotheses, IdJeu, MethodeAttrition, NiveauTerritorial, SousSysteme } from '@shared/api'
+import type { Hypotheses, IdJeu, MethodeAttrition, SousSysteme } from '@shared/api'
 import { LIBELLE_SOUS_SYSTEME, REGIONS_CAMEROUN } from '@shared/kernel'
 import { Notice, Panel } from '@shared/ui/commun'
 import { ErreurAction } from '@shared/ui/etats'
@@ -18,14 +18,6 @@ import { LIBELLE_METHODE_ATTRITION } from '../../../domain/hypotheses'
 import { Justification } from './Justification'
 
 type Attrition = Hypotheses['attrition']
-
-/** Niveaux d'arrondi proposés. */
-const NIVEAUX_ARRONDI: { valeur: NiveauTerritorial; libelle: string }[] = [
-  { valeur: 'national', libelle: 'National' },
-  { valeur: 'region', libelle: 'Région' },
-  { valeur: 'departement', libelle: 'Département' },
-  { valeur: 'commune', libelle: 'Commune' },
-]
 
 const SOUS_SYSTEMES: SousSysteme[] = ['francophone', 'anglophone']
 
@@ -89,21 +81,6 @@ export function HypothesesAttrition({ jeu, attrition, onChange }: ProprietesHypo
             ))}
           </select>
         </div>
-        <div className="field">
-          <label htmlFor="hy-arrondi">Niveau d’arrondi — non appliqué</label>
-          <select
-            id="hy-arrondi"
-            disabled
-            value={attrition.niveauArrondi}
-            onChange={ev => onChange({ ...attrition, niveauArrondi: ev.target.value as NiveauTerritorial })}
-          >
-            {NIVEAUX_ARRONDI.map(n => (
-              <option key={n.valeur} value={n.valeur}>
-                {n.libelle}
-              </option>
-            ))}
-          </select>
-        </div>
         {attrition.methode === 'taux_unique' && (
           <Taux
             id="hy-taux"
@@ -144,9 +121,8 @@ export function HypothesesAttrition({ jeu, attrition, onChange }: ProprietesHypo
 
       <p className="hint">
         L’attrition est arrondie à l’entier le plus proche sur le territoire affiché : la somme des régions peut donc
-        différer du total national de quelques unités. Le niveau d’arrondi n’est pas appliqué par le calcul : le
-        modifier ne change aucun résultat. Le taux unique reste, quelle que soit la méthode, le taux de repli (région ou
-        sous-système non renseigné).
+        différer du total national de quelques unités. Le taux unique reste, quelle que soit la méthode, le taux de
+        repli (région ou sous-système non renseigné).
       </p>
 
       <div className="topbar-actions">

@@ -20,11 +20,12 @@ import type {
   ZoneSecurite,
 } from '../../contrat'
 import type { Acces } from '../acces'
+import { versSyntheseTerritoriale } from '../conversions/simulation'
+import type { SyntheseSousSystemeDjango } from '../conversions/simulation'
 import { valeur } from '../liste'
 import { agregerTotaux, trierParPriorite } from '../moteur/diagnostic'
 import { calculerFlux, restreindreResultat } from '../moteur/filtre'
 import { diagnosticTerritorial, pointsAttention, reductionDuDeficit, syntheseTableauDeBord } from '../moteur/narration'
-import { syntheseTerritoriale } from '../moteur/synthese'
 import { breadcrumb, selectionLabel, selectionLevel, territoiresMixtes, trouverNoeud } from '../moteur/territoires'
 import * as source from '../sources'
 import type { Conversion } from '../types'
@@ -166,12 +167,19 @@ export const conversionsDiagnostic: Record<string, Conversion> = {
   },
 
   'GET jeux/{jeu}/synthese/': async (r, acces, p): Promise<SyntheseDiagnostic> => {
-    const [{ selection, noeud }, diagnostics, attrition, complet] = await Promise.all([
+    const [{ selection, noeud }, diagnostics, complet] = await Promise.all([
       noeudDe(acces, p.jeu, r.query),
       source.diagnosticsFiltres(acces, p.jeu, r.query),
-      source.attritionDuJeu(acces, p.jeu),
       resultatDemande(acces, p.jeu, valeur(r.query.scenario)),
     ])
+    // Synthèse par sous-système (besoin, excédent, recrutement à prévoir) : même périmètre territorial que le
+    // nœud ci-dessus, lue du serveur (`synthese_par_sous_systeme`), jamais recalculée ici.
+    const brut = await acces.lire<{ synthese_territoriale: SyntheseSousSystemeDjango }>(`jeux/${p.jeu}/synthese/`, {
+      region: selection.region || undefined,
+      departement: selection.departement || undefined,
+      commune: selection.commune || undefined,
+      scenario: valeur(r.query.scenario),
+    })
     const resultat = complet ? resultatDuPerimetre(complet, noeud) : null
     const perimetre = selectionLabel(selection)
     return {
@@ -181,7 +189,7 @@ export const conversionsDiagnostic: Record<string, Conversion> = {
       diagnosticTerritorial: diagnosticTerritorial(noeud.totals, noeud.totals.enseignantsEtat, resultat, perimetre),
       pointsAttention: pointsAttention(diagnostics, noeud, null),
       territoiresMixtes: territoiresMixtes(noeud.children),
-      syntheseTerritoriale: syntheseTerritoriale(diagnostics, attrition),
+      syntheseTerritoriale: versSyntheseTerritoriale(brut.synthese_territoriale),
       parSeverite: Object.fromEntries(
         SEVERITES.map(s => [s, diagnostics.filter(d => d.severite === s).length]),
       ) as Record<SchoolSeverity, number>,

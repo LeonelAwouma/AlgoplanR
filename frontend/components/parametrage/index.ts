@@ -6,4 +6,3 @@
  */
 
 export * from './application/hooks'
-export { estNonApplique } from './domain/champsMoteur'

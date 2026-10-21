@@ -29,10 +29,11 @@ import {
   type PosteDjango,
   type ScenarioDjango,
   type SyntheseDjango,
+  type SyntheseSousSystemeAvantApresDjango,
 } from './conversions/simulation'
+import { versArbre, type NoeudArbreDjango } from './conversions/territoires'
 import { booleen, valeur, valeurs } from './liste'
-import { versAttrition, type AttritionDjango, type HypotheseAttrition } from './moteur/attrition'
-import { appliquerFiltres, construireArbreTerritorial } from './moteur/territoires'
+import { appliquerFiltres } from './moteur/territoires'
 
 /** Paramètres de calcul du jeu. */
 export function parametres(acces: Acces, jeu: string): Promise<EngineSettings> {
@@ -40,13 +41,6 @@ export function parametres(acces: Acces, jeu: string): Promise<EngineSettings> {
     const r = await a.lire<{ parametres: ConfigDjango; annee_scolaire?: string }>(`jeux/${jeu}/parametres/`)
     return versEngineSettings(r.parametres, r.annee_scolaire)
   })
-}
-
-/** Attrition hors retraite du jeu : les hypothèses de planification en sont l'unique source. */
-export function attritionDuJeu(acces: Acces, jeu: string): Promise<HypotheseAttrition> {
-  return acces.memo(jeu, 'attrition', async a =>
-    versAttrition((await a.lire<{ attrition: AttritionDjango }>(`jeux/${jeu}/hypotheses/`)).attrition),
-  )
 }
 
 /**
@@ -73,9 +67,13 @@ export function diagnosticsParId(acces: Acces, jeu: string): Promise<Map<string,
   )
 }
 
-/** Arbre territorial complet du jeu. */
+/**
+ * Arbre territorial complet du jeu, tel que le calcule le serveur (`arbre_territorial`) : un délégué régional
+ * ne reçoit jamais que sa propre région, le serveur l'impose avant de construire l'arbre. Mémorisé par jeu,
+ * indépendant du scénario affiché (le diagnostic plat ne dépend pas d'un scénario).
+ */
 export function arbre(acces: Acces, jeu: string): Promise<TerritorialSummary> {
-  return acces.memo(jeu, 'arbre', async a => construireArbreTerritorial(await diagnostics(a, jeu)))
+  return acces.memo(jeu, 'arbre', async a => versArbre(await a.lire<NoeudArbreDjango>(`jeux/${jeu}/territoires/arbre/`)))
 }
 
 /** Tous les enseignants du jeu, avec leur barème et leur appartenance au vivier. */
@@ -162,25 +160,25 @@ export function vivier(acces: Acces, jeu: string, scenario: string): Promise<Ens
 /** Données et résultat national complet d'un scénario. */
 export function resultat(acces: Acces, jeu: string, scenario: string): Promise<SimulationResult> {
   return acces.memo(jeu, `scenario:${scenario}:resultat`, async a => {
-    const [detail, brut, settings, attrition, ecoles, aff, viv, postes, candidatures, controles, journal] =
-      await Promise.all([
-        a.lire<ScenarioDjango>(`jeux/${jeu}/scenarios/${scenario}/`),
-        a.lire<{ synthese: SyntheseDjango }>(`jeux/${jeu}/scenarios/${scenario}/resultat/`),
-        parametres(a, jeu),
-        attritionDuJeu(a, jeu),
-        diagnosticsParId(a, jeu),
-        affectations(a, jeu, scenario),
-        vivier(a, jeu, scenario),
-        listeScenario<PosteDjango>(a, jeu, scenario, 'postes'),
-        listeScenario<CandidatureDjango>(a, jeu, scenario, 'candidatures'),
-        a.lire<{ controles: ControleDjango[] }>(`jeux/${jeu}/scenarios/${scenario}/invariants/`),
-        listeScenario<JournalDjango>(a, jeu, scenario, 'journal'),
-      ])
+    const [detail, brut, settings, ecoles, aff, viv, postes, candidatures, controles, journal] = await Promise.all([
+      a.lire<ScenarioDjango>(`jeux/${jeu}/scenarios/${scenario}/`),
+      a.lire<{ synthese: SyntheseDjango; synthese_sous_systeme: SyntheseSousSystemeAvantApresDjango }>(
+        `jeux/${jeu}/scenarios/${scenario}/resultat/`,
+      ),
+      parametres(a, jeu),
+      diagnosticsParId(a, jeu),
+      affectations(a, jeu, scenario),
+      vivier(a, jeu, scenario),
+      listeScenario<PosteDjango>(a, jeu, scenario, 'postes'),
+      listeScenario<CandidatureDjango>(a, jeu, scenario, 'candidatures'),
+      a.lire<{ controles: ControleDjango[] }>(`jeux/${jeu}/scenarios/${scenario}/invariants/`),
+      listeScenario<JournalDjango>(a, jeu, scenario, 'journal'),
+    ])
     return versResultat({
       scenario: detail,
       settings: detail.configuration ? versEngineSettings(detail.configuration) : settings,
-      attrition,
       synthese: brut.synthese,
+      syntheseSousSysteme: brut.synthese_sous_systeme,
       affectations: aff,
       vivier: viv,
       postesNonPourvus: postes,

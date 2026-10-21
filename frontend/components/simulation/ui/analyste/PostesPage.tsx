@@ -94,7 +94,7 @@ export function PostesPage() {
       <Notice tone="neutral" title="Référentiel des écoles nécessiteuses et des structures d’accueil (§3.1).">
         Un poste = une unité de besoin b d’une école nécessiteuse, ou une place d’une structure fixée par la hiérarchie.
         Les postes sont classés par indice de priorité u = w + β décroissant ; à indice égal, les écoles passent avant
-        les structures, puis l’école au REM actuel le plus élevé.
+        les structures, puis l’école au taux d’encadrement actuel le plus élevé.
       </Notice>
       <Panel kicker="Postes" title={`${fmt(postes.data.total)} postes à couvrir`} flush>
         <DataTable

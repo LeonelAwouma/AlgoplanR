@@ -1,10 +1,11 @@
 /**
- * Agrégations territoriales : Cameroun → Région → Département → Commune → École.
+ * Territoires : Cameroun → Région → Département → Commune → École.
  *
- * L'arbre est construit à partir des seuls libellés présents dans les données
- * importées ; aucun découpage administratif n'est supposé ni complété. Une
- * école dont la région est vide est rattachée à un nœud explicitement nommé
- * « Région non renseignée », pour qu'elle reste comptée et visible.
+ * L'arbre complet et ses totaux sont calculés par le serveur (`arbre_territorial`, `totaux_diagnostic`) et lus
+ * tels quels (`conversions/territoires.ts`) : ce module ne fait plus que de la navigation et du filtrage sur un
+ * arbre déjà agrégé — retrouver un nœud, filtrer une liste de diagnostics, assembler un code de territoire.
+ * Une école dont la région est vide est rattachée à un nœud explicitement nommé « Région non renseignée », pour
+ * qu'elle reste comptée et visible.
  */
 
 import type {
@@ -16,7 +17,6 @@ import type {
   Zone,
   ZoneSecurite,
 } from '../../contrat'
-import { agregerTotaux } from './diagnostic'
 
 export const LIBELLE_MANQUANT = {
   region: 'Région non renseignée',
@@ -155,7 +155,9 @@ export function appliquerFiltres(diagnostics: SchoolDiagnostic[], f: GlobalFilte
   return resultat
 }
 
-function territoire(
+/** Construit un `EducationTerritory` (code, niveau, nom, chemin complet) — pour tout arbre déjà agrégé, y
+ * compris celui du serveur (`conversions/territoires.ts`) : aucun calcul, un simple assemblage de libellés. */
+export function territoire(
   level: TerritoryLevel,
   nom: string,
   region: string | null,
@@ -164,78 +166,6 @@ function territoire(
   parentCode: string | null,
 ): EducationTerritory {
   return { code: territoryCode([region, departement, commune]), level, nom, region, departement, commune, parentCode }
-}
-
-/**
- * Construit l'arbre territorial complet à partir des diagnostics fournis.
- * Chaque nœud porte ses totaux agrégés et la liste des écoles rattachées.
- */
-export function construireArbreTerritorial(diagnostics: SchoolDiagnostic[]): TerritorialSummary {
-  interface Bucket {
-    nom: string
-    diagnostics: SchoolDiagnostic[]
-    enfants: Map<string, Bucket>
-  }
-
-  const racine: Bucket = { nom: 'Cameroun', diagnostics: [], enfants: new Map() }
-
-  for (const d of diagnostics) {
-    const t = territoiresDe(d)
-    racine.diagnostics.push(d)
-
-    let region = racine.enfants.get(t.region)
-    if (!region) {
-      region = { nom: t.region, diagnostics: [], enfants: new Map() }
-      racine.enfants.set(t.region, region)
-    }
-    region.diagnostics.push(d)
-
-    let departement = region.enfants.get(t.departement)
-    if (!departement) {
-      departement = { nom: t.departement, diagnostics: [], enfants: new Map() }
-      region.enfants.set(t.departement, departement)
-    }
-    departement.diagnostics.push(d)
-
-    let commune = departement.enfants.get(t.commune)
-    if (!commune) {
-      commune = { nom: t.commune, diagnostics: [], enfants: new Map() }
-      departement.enfants.set(t.commune, commune)
-    }
-    commune.diagnostics.push(d)
-  }
-
-  const parPostes = (a: TerritorialSummary, b: TerritorialSummary) =>
-    b.totals.postesNecessaires - a.totals.postesNecessaires || a.territory.nom.localeCompare(b.territory.nom, 'fr')
-
-  function sommaire(
-    bucket: Bucket,
-    level: TerritoryLevel,
-    region: string | null,
-    departement: string | null,
-    commune: string | null,
-    parentCode: string | null,
-  ): TerritorialSummary {
-    const code = territoryCode([region, departement, commune])
-    let children: TerritorialSummary[] = []
-    if (level === 'national') {
-      children = [...bucket.enfants.values()].map(b => sommaire(b, 'region', b.nom, null, null, code))
-    } else if (level === 'region') {
-      children = [...bucket.enfants.values()].map(b => sommaire(b, 'departement', region, b.nom, null, code))
-    } else if (level === 'departement') {
-      children = [...bucket.enfants.values()].map(b => sommaire(b, 'commune', region, departement, b.nom, code))
-    }
-    children.sort(parPostes)
-
-    return {
-      territory: territoire(level, bucket.nom, region, departement, commune, parentCode),
-      totals: agregerTotaux(bucket.diagnostics),
-      schoolIds: bucket.diagnostics.map(d => d.school.id),
-      children,
-    }
-  }
-
-  return sommaire(racine, 'national', null, null, null, null)
 }
 
 /** Retrouve le nœud correspondant à une sélection, `null` s'il n'existe pas. */

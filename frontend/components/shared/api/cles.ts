@@ -30,6 +30,7 @@ export const FAMILLES_DONNEES = [
   'arbitrages',
   'recrues',
   'rapport',
+  'rapport-territorial',
   'hypotheses',
   'planification',
   'quotas',

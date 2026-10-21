@@ -107,7 +107,7 @@ describe('Vœux affichés', () => {
 
 // --- Audit exhaustif : aucun réglage proposé n'est inerte sans le dire ---------------------------------------------
 
-import { REGLAGES_FIXES, REGLAGES_NON_APPLIQUES, estNonApplique } from '../components/parametrage/domain/champsMoteur'
+import { REGLAGES_FIXES } from '../components/parametrage/domain/champsMoteur'
 
 /** Feuilles de l'arbre des réglages : les objets sont parcourus, les tableaux et valeurs simples sont des feuilles. */
 function feuilles(noeud: unknown, chemin: string[] = []): string[][] {
@@ -140,22 +140,18 @@ describe('Audit des réglages', () => {
     JSON.stringify(versConfigDjango(changer(reglages, chemin) as never)) !== reference
   const toutes = feuilles(reglages)
 
-  it('chaque réglage est soit transmis au serveur, soit déclaré « non appliqué », soit une constante affichée', () => {
-    const orphelins = toutes
-      .filter(c => !transmis(c) && !couvert(c, REGLAGES_NON_APPLIQUES) && !couvert(c, REGLAGES_FIXES))
-      .map(c => c.join('.'))
+  it('chaque réglage est soit transmis au serveur, soit une constante du moteur déclarée', () => {
+    const orphelins = toutes.filter(c => !transmis(c) && !couvert(c, REGLAGES_FIXES)).map(c => c.join('.'))
     assert.deepEqual(orphelins, [], `réglages ignorés par le serveur et non déclarés : ${orphelins.join(', ')}`)
   })
 
-  it('aucun réglage déclaré « non appliqué » ou « fixe » n’est en réalité transmis', () => {
-    const faux = toutes
-      .filter(c => transmis(c) && (couvert(c, REGLAGES_NON_APPLIQUES) || couvert(c, REGLAGES_FIXES)))
-      .map(c => c.join('.'))
-    assert.deepEqual(faux, [], `déclarés inactifs alors que le serveur les lit : ${faux.join(', ')}`)
+  it('aucune constante déclarée n’est en réalité transmise au serveur', () => {
+    const faux = toutes.filter(c => transmis(c) && couvert(c, REGLAGES_FIXES)).map(c => c.join('.'))
+    assert.deepEqual(faux, [], `déclarés fixes alors que le serveur les lit : ${faux.join(', ')}`)
   })
 
-  it('les listes ne contiennent que des réglages qui existent', () => {
-    for (const c of [...REGLAGES_NON_APPLIQUES, ...REGLAGES_FIXES]) {
+  it('la liste des constantes ne contient que des réglages qui existent', () => {
+    for (const c of REGLAGES_FIXES) {
       assert.ok(
         toutes.some(f => f.length >= c.length && c.every((cle, i) => cle === f[i])),
         `réglage inconnu : ${c.join('.')}`,
@@ -166,11 +162,5 @@ describe('Audit des réglages', () => {
   it('les champs éditables de la page « Configuration du moteur » sont tous transmis', () => {
     const inertes = CHEMINS_MOTEUR_EDITABLES.filter(c => !transmis([...c])).map(c => c.join('.'))
     assert.deepEqual(inertes, [])
-  })
-
-  it('estNonApplique reconnaît exactement les entrées de la liste', () => {
-    assert.ok(estNonApplique('mobilite', 'solutionProche'))
-    assert.ok(!estNonApplique('mobilite', 'phaseVoeux'))
-    assert.ok(!estNonApplique('besoin', 'elevesParMaitre'))
   })
 })

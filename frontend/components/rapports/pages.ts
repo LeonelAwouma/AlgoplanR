@@ -7,3 +7,4 @@
  */
 
 export { RapportPage } from './ui/RapportPage'
+export { SyntheseTerritorialePage } from './ui/SyntheseTerritorialePage'

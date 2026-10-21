@@ -2,10 +2,11 @@
  * Rapport de décision : le rapport structuré du serveur, mis en sections.
  */
 
-import type { DecisionReport, DecisionReportSection } from '../../contrat'
+import type { DecisionReport, DecisionReportSection, RapportTerritorial } from '../../contrat'
 import * as source from '../sources'
 import { libellePhase, type SyntheseDjango } from '../conversions/simulation'
 import { valeur } from '../liste'
+import { camelProfond } from './planification'
 import type { Conversion } from '../types'
 
 /** Rapport tel que le sert le serveur (`domaine/rapport/rapport.py`). */
@@ -189,6 +190,22 @@ function sections(r: RapportDjango, projection: ProjectionDjango | null): Decisi
 }
 
 export const conversionsRapports: Record<string, Conversion> = {
+  // Clés du serveur déjà au format cible (lot 4) : seule la casse change (camelProfond), aucun recalcul côté client.
+  'GET jeux/{jeu}/rapports/territorial/': async (req, acces, p): Promise<RapportTerritorial> => {
+    const q = req.query
+    return camelProfond(
+      await acces.lire(`jeux/${p.jeu}/rapports/territorial/`, {
+        region: valeur(q.region),
+        departement: valeur(q.departement),
+        commune: valeur(q.commune),
+        iaeb: valeur(q.iaeb),
+        sous_systeme: valeur(q.sousSysteme),
+        niveau: valeur(q.niveau),
+        scenario: valeur(q.scenario),
+      }),
+    )
+  },
+
   'GET jeux/{jeu}/rapport/': async (req, acces, p): Promise<DecisionReport> => {
     const q = req.query
     const r = await acces.lire<RapportDjango>(`jeux/${p.jeu}/rapport/`, {
