@@ -351,7 +351,7 @@ def test_un_delegue_ne_voit_pas_les_donnees_d_une_autre_region(centre, littoral)
     for url in (f"jeux/{jeu}/", f"jeux/{jeu}/etablissements/", f"jeux/{jeu}/enseignants/",
                 f"jeux/{jeu}/recherche/enseignants/?q=a", f"jeux/{jeu}/diagnostic/", f"jeux/{jeu}/synthese/",
                 f"jeux/{jeu}/scenarios/{sid}/affectations/", f"jeux/{jeu}/scenarios/{sid}/export/",
-                f"jeux/{jeu}/rapport/", f"jeux/{jeu}/parametres/"):
+                f"jeux/{jeu}/rapport/", f"jeux/{jeu}/rapports/territorial/", f"jeux/{jeu}/parametres/"):
         assert centre.get(B + url).status_code == 404, url
     assert centre.delete(B + f"jeux/{jeu}/").status_code == 404
     assert centre.post(B + f"jeux/{jeu}/scenarios/base/").status_code == 404
