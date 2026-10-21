@@ -2,15 +2,20 @@ from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.decorators import api_view
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from contextes.acces.perimetre import jeu_autorise
-from contextes.commun.outils import entier_param, perimetre_depuis
+from contextes.commun.erreurs import RefusMetier
+from contextes.commun.outils import SansNegociation, entier_param, perimetre_depuis, reponse_docx, reponse_excel
 from contextes.planification.views import perimetre as perimetre_planification
 from contextes.simulation import services as sim
 from domaine.diagnostic.territoires import restreindre_resultat
 from domaine.rapport.rapport import construire_rapport
+from domaine.rapport.territorial import REGISTRE_INDICATEURS
 
+from . import export_docx as docx_rt
+from . import export_xlsx as xlsx_rt
 from . import rapport_territorial as rt
 
 
@@ -46,3 +51,57 @@ def rapport_territorial(request, jeu):
     niveau_demande = (request.query_params.get("niveau") or "").strip()
     return Response(rt.construire(j, p, scenario_id=request.query_params.get("scenario") or None,
                                   niveau_demande=niveau_demande))
+
+
+FORMATS_EXPORT = ("xlsx", "docx")
+TYPES_EXPORT = ("perimetre", "national_complet")
+CODES_INDICATEURS = {d["code"] for d in REGISTRE_INDICATEURS}
+
+
+@extend_schema(parameters=[OpenApiParameter("format", str), OpenApiParameter("type", str),
+                           OpenApiParameter("indicateur", str), OpenApiParameter("scenario", int),
+                           OpenApiParameter("region", str), OpenApiParameter("departement", str),
+                           OpenApiParameter("commune", str)],
+               responses={(200, "application/octet-stream"): OpenApiTypes.BINARY},
+               summary="Export Excel ou Word de la synthèse territoriale (respecte le périmètre demandé ; "
+                       "type=national_complet, réservé au DRH, regroupe les dix régions jusqu'aux arrondissements)")
+@api_view(["GET"])
+def rapport_territorial_export(request, jeu):
+    j = jeu_autorise(request, jeu, ecriture=False)
+    q = request.query_params
+    format_ = (q.get("format") or "").strip().lower()
+    if format_ not in FORMATS_EXPORT:
+        raise RefusMetier("Format d'export invalide", [f"« format » doit valoir {' ou '.join(FORMATS_EXPORT)}"],
+                          code="parametre_invalide")
+    type_ = (q.get("type") or "perimetre").strip().lower()
+    if type_ not in TYPES_EXPORT:
+        raise RefusMetier("Type d'export invalide", [f"« type » doit valoir {' ou '.join(TYPES_EXPORT)}"],
+                          code="parametre_invalide")
+    indicateur = (q.get("indicateur") or "").strip() or None
+    if indicateur and indicateur not in CODES_INDICATEURS:
+        raise RefusMetier("Indicateur inconnu", [f"« indicateur » doit valoir l'un de {sorted(CODES_INDICATEURS)}"],
+                          code="parametre_invalide")
+    scenario_id = q.get("scenario") or None
+
+    if type_ == "national_complet":
+        if not request.user.est_drh:
+            raise PermissionDenied("L'export national complet est réservé au DRH.", code="reserve_drh")
+        complet = rt.construire_national_complet(j, scenario_id=scenario_id, indicateur=indicateur)
+        nom = f"rapport-national-complet-{j.id}.{format_}"
+        if format_ == "xlsx":
+            octets = xlsx_rt.classeur_national_complet(complet)
+            return reponse_excel(octets, nom)
+        octets = docx_rt.document_national_complet(complet, jeu_nom=j.nom, scenario_id=scenario_id or "")
+        return reponse_docx(octets, nom)
+
+    p = perimetre_planification(request)
+    rapport = rt.construire(j, p, scenario_id=scenario_id)
+    tableaux = rt.tableaux_pour_export(rapport, indicateur=indicateur)
+    slug = rapport["titre"].lower().replace(" ", "-").replace(">", "-").strip("-") or "cameroun"
+    nom = f"rapport-territorial-{slug}.{format_}"
+    if format_ == "xlsx":
+        return reponse_excel(xlsx_rt.classeur_perimetre(rapport, tableaux), nom)
+    return reponse_docx(docx_rt.document_perimetre(rapport, tableaux, jeu_nom=j.nom), nom)
+
+
+rapport_territorial_export.cls.content_negotiation_class = SansNegociation

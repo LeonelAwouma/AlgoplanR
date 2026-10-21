@@ -36,6 +36,8 @@ hiddenimports = [
     "waitress",
     "python_calamine",
     "openpyxl",
+    "docx",          # exports Word (lot 4) ; gabarits XML collectés par le hook officiel hook-docx.py
+    "lxml.etree",    # dépendance de python-docx ; hook officiel hook-lxml.py
 ]
 
 hiddenimports += collect_submodules("algoplanr")

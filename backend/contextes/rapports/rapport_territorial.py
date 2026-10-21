@@ -37,6 +37,12 @@ LIBELLE_NIVEAU = {"national": "Cameroun", "region": "Région", "departement": "D
                   "commune": "Arrondissement", "ecole": "École", "iaeb": "IAEB"}
 SITUATIONS_ENCADREMENT = ("import", "apres_prince", "apres_simulation", *[f"n{k + 1}" for k in range(5)])
 SITUATIONS_ALEA = ("import", "apres_prince", "apres_simulation")
+SITUATIONS_ANNEES = tuple(f"n{k + 1}" for k in range(5))
+
+LIBELLE_SITUATION = {"import": "Import", "apres_prince": "Après Prince", "apres_simulation": "Après simulation",
+                     **{f"n{k + 1}": ANNEES_PLAN[k] for k in range(5)}}
+ORIGINE_COURTE = {"hypothese_nationale": "national", "hypothese_regionale": "régional",
+                  "hypothese_sous_systeme": "sous-système"}
 
 
 def _valeur(numerateur: Optional[float], denominateur: Optional[float]) -> dict:
@@ -232,4 +238,95 @@ def construire(jeu, p: dict, *, scenario_id: Optional[str] = None, niveau_demand
         "titre": pl.libelle(p), "scenario_id": str(d.ctx.scenario.pk),
         "noeud": noeud, "niveau_enfants": niveau_enfant, "enfants": enfants,
         "registre_indicateurs": REGISTRE_INDICATEURS,
+    }
+
+
+# --- Mise en tableaux pour les exports (xlsx / docx) -----------------------------------------------------------
+
+def _cellule(v: dict) -> Any:
+    """Valeur d'une cellule de tableau d'export pour un indicateur de couverture/encadrement : le taux (nombre),
+    ou un texte explicite (« Non calculable », « Sans objet ») quand il n'est pas calculable — jamais inventé."""
+    if v.get("statut") == "sans_objet":
+        return "Sans objet"
+    if v.get("taux") is None:
+        return "—"
+    return v["taux"]
+
+
+def _cellule_alea(v: dict) -> Any:
+    if v["valeur"] is None:
+        return "Non calculable"
+    suffixe = " (indicatif)" if v["statut"] == "indicatif" else ""
+    return f"{v['valeur']}{suffixe}"
+
+
+def _cellule_attrition(annee: dict) -> str:
+    taux = annee.get("taux_pct")
+    if taux is None:
+        return "—"
+    origine = ORIGINE_COURTE.get(annee.get("origine"), "")
+    return f"{taux:g} % ({origine})" if origine and origine != "national" else f"{taux:g} %"
+
+
+def _ligne_territoire(nom: str, bloc: dict, code: str, situations: tuple) -> dict:
+    if code == "alea":
+        return {"territoire": nom, "valeurs": [_cellule_alea(bloc["alea"][s]) for s in situations]}
+    if code == "attrition":
+        return {"territoire": nom, "valeurs": [_cellule_attrition(bloc["attrition"]["annees"][s]) for s in situations]}
+    return {"territoire": nom, "valeurs": [_cellule(bloc[code][s]) for s in situations]}
+
+
+def tableaux_pour_export(rapport: dict, *, indicateur: Optional[str] = None) -> List[dict]:
+    """Un tableau par indicateur (ou un seul si `indicateur` est précisé) : le nœud courant en première ligne,
+    puis chacun de ses enfants — jamais une ligne recalculée autrement que par les mêmes fonctions que le JSON."""
+    registre = REGISTRE_INDICATEURS
+    if indicateur:
+        registre = [x for x in registre if x["code"] == indicateur]
+    tableaux = []
+    for definition in registre:
+        code = definition["code"]
+        if code == "couverture_operationnelle":
+            situations = ("apres_simulation",)
+        elif code == "alea":
+            situations = SITUATIONS_ALEA
+        elif code == "attrition":
+            situations = SITUATIONS_ANNEES
+        else:
+            situations = SITUATIONS_ENCADREMENT
+        lignes = [_ligne_territoire(rapport["titre"], rapport["noeud"], code, situations)]
+        for enfant in rapport["enfants"]:
+            lignes.append(_ligne_territoire(enfant["territoire"]["nom"], enfant, code, situations))
+        tableaux.append({
+            "code": code, "intitule": definition["intitule"], "formule": definition["formule"],
+            "population": definition["population"], "source": definition["source"], "limites": definition["limites"],
+            "colonnes": [LIBELLE_SITUATION[s] for s in situations], "lignes": lignes,
+        })
+    return tableaux
+
+
+def construire_national_complet(jeu, *, scenario_id: Optional[str] = None,
+                                indicateur: Optional[str] = None) -> dict:
+    """Une synthèse nationale, puis une section par région, ventilée jusqu'aux arrondissements (décision validée
+    pour l'export national complet, réservé au DRH) : chaque région liste ses départements, et chaque
+    département sa propre section listant ses arrondissements. Les écoles restent dans le classeur Excel du
+    même export, et dans le Word propre à chaque arrondissement — ce document resterait sinon illisible
+    (environ 360 arrondissements)."""
+    national = construire(jeu, {}, scenario_id=scenario_id)
+    regions = []
+    for enfant_region in national["enfants"]:
+        p_region = {"region": enfant_region["territoire"]["region"]}
+        rapport_region = construire(jeu, p_region, scenario_id=scenario_id)
+        departements = []
+        for enfant_dept in rapport_region["enfants"]:
+            p_dept = {**p_region, "departement": enfant_dept["territoire"]["departement"]}
+            rapport_dept = construire(jeu, p_dept, scenario_id=scenario_id)
+            departements.append({"titre": rapport_dept["titre"], "niveau": "departement",
+                                 "tableaux": tableaux_pour_export(rapport_dept, indicateur=indicateur)})
+        regions.append({"titre": rapport_region["titre"], "niveau": "region",
+                        "tableaux": tableaux_pour_export(rapport_region, indicateur=indicateur),
+                        "departements": departements})
+    return {
+        "national": {"titre": national["titre"], "niveau": "national",
+                    "tableaux": tableaux_pour_export(national, indicateur=indicateur)},
+        "regions": regions, "registre_indicateurs": REGISTRE_INDICATEURS,
     }
