@@ -6,7 +6,8 @@
  * Rien ne se règle ni ne se calcule ici : les effectifs, départs, besoins, recrutements et le taux d’encadrement
  * viennent du tableau de planification du périmètre, calculé avec les hypothèses du jeu (retraite, attrition,
  * quotas). Pour les modifier,
- * il faut passer par « Hypothèses de calcul ». L'effectif de fin d'une année est celui de début de la suivante.
+ * il faut passer par « Hypothèses de calcul ». L'effectif de fin d'une année (S − R − A + Q) est celui de début de la
+ * suivante.
  */
 
 import { Download } from 'lucide-react'
@@ -94,7 +95,9 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
       <Notice tone="info" title="Lecture seule : chiffres du serveur.">
         Cette projection est calculée par le serveur à partir des hypothèses du jeu
         {taux !== null ? ` (attrition hors retraite : ${fmtDec(taux, 2)} % par an)` : ''}. Elle ne se modifie pas ici :
-        les hypothèses se règlent dans « Hypothèses de calcul ». Une projection n’est pas un engagement.
+        les hypothèses se règlent dans « Hypothèses de calcul ». Une projection n’est pas un engagement. L’effectif de
+        fin est le stock administratif (début − retraites − attrition + recrutements) : les directeurs déchargés y
+        restent et ne sont retirés que des enseignants disponibles pour tenir une classe, une seule fois.
       </Notice>
 
       {quotasRetenus && (

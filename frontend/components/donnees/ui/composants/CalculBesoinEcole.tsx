@@ -115,9 +115,7 @@ export function CalculBesoinEcole({ diagnostic: d, elevesParMaitre }: Proprietes
         )}
         <Ligne
           libelle={
-            calcul.groupesPedagogiques !== undefined
-              ? 'm — minimum pédagogique, max(3 ; G)'
-              : 'm — minimum pédagogique'
+            calcul.groupesPedagogiques !== undefined ? 'm — minimum pédagogique, max(3 ; G)' : 'm — minimum pédagogique'
           }
           valeur={fmt(calcul.minimumPedagogique)}
         />

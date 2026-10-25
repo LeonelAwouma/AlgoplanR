@@ -4829,3 +4829,11 @@ button.kpi:hover {
   padding-left: 18px;
   font-size: 14px;
 }
+
+/* Définition d'une ligne du tableau prévisionnel (vue Analyste), sous son libellé. */
+.ligne-detail {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+  max-width: 48ch;
+}

@@ -24,6 +24,7 @@ import { EcolesPlanification } from './composants/EcolesPlanification'
 import { EtatPlanificationPanel } from './composants/EtatPlanificationPanel'
 import { FiabilitePanel } from './composants/FiabilitePanel'
 import { PlanDepartsPanel } from './composants/PlanDepartsPanel'
+import { PrevisionnelCinqAns } from './composants/PrevisionnelCinqAns'
 import { ProjectionCinqAns } from './composants/ProjectionCinqAns'
 import { TableauCinqAns } from './composants/TableauCinqAns'
 import { VentilationSousSystemes, VentilationTerritoriale } from './composants/Ventilations'
@@ -88,6 +89,8 @@ export function PlanificationPage() {
         </div>
         <p className="hint">Le territoire se choisit dans la barre de filtres, en haut de la page.</p>
       </Panel>
+
+      <PrevisionnelCinqAns jeu={jeu} requete={requete} />
 
       {tableau.data ? <TableauCinqAns tableau={tableau.data} /> : <EtatRequetes requetes={[tableau]} />}
 

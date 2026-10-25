@@ -25,6 +25,11 @@ contre le moteur.
 
 Le jeu doit être importé en tant que DRH (jeu national). Les fichiers 3 à 8 contiennent plusieurs régions.
 
+**Norme d'encadrement.** Les chiffres de ce jeu ont été calibrés avec l'ancienne norme de 60 élèves par maître. Depuis le
+référentiel d'octobre 2026, la norme par défaut est de 74,4 : pour retrouver les résultats ci-dessous, régler la norme
+à 60 dans « Paramétrage → Règles du besoin » avant l'étape 2 (le test `test_jeu_nominations.py` le fait). Avec 74,4,
+moins d'écoles sont déficitaires et les postes ouverts changent.
+
 ## Ce que contient chaque fichier
 
 **Écoles** : jeu de démonstration (graine 2026) où quatre écoles sont sous-dotées pour créer des postes ouverts :

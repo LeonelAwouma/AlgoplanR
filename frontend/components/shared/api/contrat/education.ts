@@ -328,12 +328,7 @@ export interface CalculBesoin {
 export type ProvenanceGroupes = 'observe' | 'estime' | 'secours' | 'indetermine'
 /** Lecture de la colonne Classes_Multigrades. */
 export type StatutMultigrades =
-  | 'renseigne'
-  | 'non_renseigne'
-  | 'invalide'
-  | 'incoherent'
-  | 'historique_oui'
-  | 'historique_non'
+  'renseigne' | 'non_renseigne' | 'invalide' | 'incoherent' | 'historique_oui' | 'historique_non'
 /** Fiabilité d'un besoin : confirmé (données observées), estimé (hypothèse de regroupement) ou provisoire. */
 export type StatutBesoin = 'confirme' | 'estime' | 'provisoire'
 
