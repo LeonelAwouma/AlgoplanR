@@ -96,6 +96,8 @@ class Etablissement(models.Model):
     longitude = models.FloatField(null=True, blank=True)
     effectif_connu = models.BooleanField(default=True)
     salles_connues = models.BooleanField(default=True)
+    #: Colonne Salles_Double_Flux renseignée dans le fichier ; vide pour les jeux importés avant ce suivi.
+    salles_double_flux_connues = models.BooleanField(null=True, blank=True)
     classes_ouvertes = models.FloatField(null=True, blank=True)
     ordre = models.IntegerField(default=0)
 

@@ -20,6 +20,7 @@ def _ecole(m: EtablissementDb) -> Ecole:
         "nom_etab": m.nom, "type_etab": m.type_etab, "latitude": m.latitude, "longitude": m.longitude,
     })
     e.effectif_connu, e.salles_connues, e.classes_ouvertes = m.effectif_connu, m.salles_connues, m.classes_ouvertes
+    e.salles_double_flux_connues = m.salles_double_flux_connues
     return e
 
 
@@ -53,7 +54,7 @@ def enregistrer(jeu, ecoles: List[Ecole], enseignants: List[Enseignant]) -> None
             salles_double_flux=e.salles_double_flux, accessibilite=e.accessibilite, securite=e.securite,
             multigrade=e.multigrade, nom=e.nom, type_etab=e.type_etab, latitude=e.latitude,
             longitude=e.longitude, effectif_connu=e.effectif_connu, salles_connues=e.salles_connues,
-            classes_ouvertes=e.classes_ouvertes, ordre=i)
+            salles_double_flux_connues=e.salles_double_flux_connues, classes_ouvertes=e.classes_ouvertes, ordre=i)
         for i, e in enumerate(ecoles)], batch_size=500)
     EnseignantDb.objects.bulk_create([
         EnseignantDb(

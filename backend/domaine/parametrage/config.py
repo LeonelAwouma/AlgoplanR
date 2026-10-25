@@ -34,16 +34,27 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "bonification_ciblee": 20,
     },
     "vulnerabilite": {"t1": 0.30, "t2": 0.70},
-    # Besoin d'une école (formules du guide MINEDUB, lues par domaine/diagnostic/indicateurs.py) :
+    # Besoin d'une école (formules du guide MINEDUB et du rapport MINEDUB d'octobre 2026, lues par
+    # domaine/diagnostic/indicateurs.py) :
+    #   C = ceil(N / norme_eleves_par_maitre)                       (besoin selon le REM de référence, indicatif),
     #   P = max(1 ; ceil((N - effectif_premiere_section) / norme_eleves_par_maitre)),
-    #   m = nombre_niveaux (ou ceil(nombre_niveaux / niveaux_par_maitre_multigrade) pour une école multigrade),
+    #   m = max(plancher_pedagogique ; G), G = groupes pédagogiques observés, estimés ou de secours :
+    #       Classes_Ouvertes (observé, si groupes_depuis_classes_ouvertes),
+    #       sinon nombre_niveaux - M x (niveaux_par_maitre_multigrade - 1) avec M = Classes_Multigrades (estimé),
+    #       sinon groupes_secours (provisoire : Classes_Multigrades non renseigné),
     #   BMAX = salles simple flux + 2 x salles double flux (1 x si le double flux n'est pas autorisé).
+    # Un excédent qui dépend d'un minimum non observé n'alimente le vivier que dans la part sûre (voir indicateurs.py),
+    # sauf si mobiliser_excedent_incertain.
     "besoin": {
-        "norme_eleves_par_maitre": 60,
+        "norme_eleves_par_maitre": 74.4,
         "effectif_premiere_section": 20,
+        "plancher_pedagogique": 3,
         "nombre_niveaux": 6,
         "niveaux_par_maitre_multigrade": 2,
+        "groupes_secours": 6,
         "minimum_selon_multigrades": True,
+        "groupes_depuis_classes_ouvertes": True,
+        "mobiliser_excedent_incertain": False,
         "double_flux_autorise": True,
     },
     "regles_dreb": {
@@ -55,6 +66,21 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "regions_etanches": True,
     },
 }
+
+#: Norme d'encadrement historique d'AlgoPlanR (note de cadrage), remplacée par le REM de référence du rapport MINEDUB
+#: d'octobre 2026 (74,4 élèves par enseignant). Conservée pour la traçabilité et les comparaisons avant/après.
+NORME_HISTORIQUE = 60
+NORME_REFERENCE_2026 = 74.4
+
+
+def config_historique() -> Dict[str, Any]:
+    """Référentiel d'avant octobre 2026 : norme de 60, minimum pédagogique de 6 niveaux (ou 3 pour une école
+    « multigrade »), excédents tous mobilisables. Sert aux comparaisons et à la parité avec le moteur d'origine."""
+    cfg = defaut()
+    cfg["besoin"].update({"norme_eleves_par_maitre": NORME_HISTORIQUE, "plancher_pedagogique": 1,
+                          "mobiliser_excedent_incertain": True})
+    return cfg
+
 
 # Groupes dont la somme des poids est attendue égale à 1 (avertissement, jamais bloquant).
 GROUPES_POIDS = ("poids_bareme_individuel", "poids_score_appariement")
@@ -142,6 +168,13 @@ def valider(surcharge: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
         erreurs.append("besoin.effectif_premiere_section doit être compris entre 0 et la norme (exclue)")
     if b["nombre_niveaux"] < 1 or b["niveaux_par_maitre_multigrade"] < 1:
         erreurs.append("besoin.nombre_niveaux et besoin.niveaux_par_maitre_multigrade doivent valoir au moins 1")
+    for cle in ("plancher_pedagogique", "groupes_secours", "nombre_niveaux", "niveaux_par_maitre_multigrade"):
+        if float(b[cle]) != int(b[cle]):
+            erreurs.append(f"besoin.{cle} doit être un nombre entier")
+    if not 1 <= b["plancher_pedagogique"] <= 30:
+        erreurs.append("besoin.plancher_pedagogique doit être compris entre 1 et 30")
+    if not 1 <= b["groupes_secours"] <= 30:
+        erreurs.append("besoin.groupes_secours doit être compris entre 1 et 30")
     for g in GROUPES_POIDS:
         if any(p < 0 for p in cfg[g].values()):
             erreurs.append(f"{g} : poids négatif interdit")

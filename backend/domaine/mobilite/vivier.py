@@ -57,7 +57,9 @@ def construire_postes(ecoles: Iterable[Ecole]) -> List[Poste]:
 
 def construire_vivier(ens: Iterable[Enseignant], ecoles: Iterable[Ecole], cfg: dict, *,
                       exclus: Optional[Iterable[str]] = None) -> List[Enseignant]:
-    """Vivier = pour chaque école excédentaire, ses xe meilleurs agents (ancienneté au poste >= seuil).
+    """Vivier = pour chaque école excédentaire, ses meilleurs agents (ancienneté au poste >= seuil), dans la limite de
+    son excédent sûr : la part de l'excédent qui dépend d'un minimum pédagogique non observé (classes multigrades
+    inconnues, ancien « Oui ») attend une validation administrative et ne déclenche aucune sortie automatique.
 
     `exclus` : matricules écartés de la mobilité ordinaire, comme les agents déjà déplacés par un fait du Prince.
     """
@@ -69,8 +71,8 @@ def construire_vivier(ens: Iterable[Enseignant], ecoles: Iterable[Ecole], cfg: d
 
     quotas: Dict[str, float] = {}
     for ec in ecoles:
-        if ec.ind.xe > 0:
-            quotas[ec.id.strip()] = ec.ind.xe
+        if ec.ind.xe_sur > 0:
+            quotas[ec.id.strip()] = ec.ind.xe_sur
 
     par_ecole: Dict[str, List[Enseignant]] = {}
     for e in ens:
