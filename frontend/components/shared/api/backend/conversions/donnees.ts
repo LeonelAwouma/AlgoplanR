@@ -381,6 +381,26 @@ export interface QualiteDjango {
     liste_tronquee: boolean
     regle: string
   } | null
+  import_regional?: {
+    region: string
+    etablissements_fichier: number
+    etablissements_retenus: number
+    etablissements_autres_regions: number
+    etablissements_ecartes: number
+    enseignants_fichier: number
+    enseignants_retenus: number
+    enseignants_autres_regions: number
+    enseignants_non_rattaches: number
+    enseignants_ambigus: number
+    anomalies: {
+      fichier: 'etablissements' | 'enseignants'
+      ligne: number
+      code: string
+      motif: string
+      valeur: string
+    }[]
+    anomalies_tronquees: boolean
+  } | null
 }
 
 /**
@@ -456,6 +476,22 @@ export function versRapportQualite(q: QualiteDjango, ecoles: SchoolDiagnostic[])
           })),
           listeTronquee: q.reconciliation_effectifs.liste_tronquee,
           regle: q.reconciliation_effectifs.regle,
+        }
+      : null,
+    importRegional: q.import_regional
+      ? {
+          region: q.import_regional.region,
+          etablissementsFichier: q.import_regional.etablissements_fichier,
+          etablissementsRetenus: q.import_regional.etablissements_retenus,
+          etablissementsAutresRegions: q.import_regional.etablissements_autres_regions,
+          etablissementsEcartes: q.import_regional.etablissements_ecartes,
+          enseignantsFichier: q.import_regional.enseignants_fichier,
+          enseignantsRetenus: q.import_regional.enseignants_retenus,
+          enseignantsAutresRegions: q.import_regional.enseignants_autres_regions,
+          enseignantsNonRattaches: q.import_regional.enseignants_non_rattaches,
+          enseignantsAmbigus: q.import_regional.enseignants_ambigus,
+          anomalies: q.import_regional.anomalies,
+          anomaliesTronquees: q.import_regional.anomalies_tronquees,
         }
       : null,
   }

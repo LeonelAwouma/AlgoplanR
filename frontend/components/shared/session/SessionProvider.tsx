@@ -51,8 +51,6 @@ export interface Session {
   fermerJeu: () => void
   setPage: (page: PageKey) => void
   changerMode: (mode: ViewMode) => void
-  /** La Vue analyste est réservée au DRH : pour un délégué, le mode reste « simple » quel que soit le réglage. */
-  interdireAnalyste: (interdit: boolean) => void
   /** Change le thème et le mémorise pour les prochaines ouvertures. */
   changerTheme: (theme: Theme) => void
   setMenuOuvert: (ouvert: boolean) => void
@@ -77,9 +75,7 @@ const ContexteSession = createContext<Session | null>(null)
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [jeu, setJeu] = useState<IdJeu | null>(null)
   const [page, setPage] = useState<PageKey>('import')
-  const [modeChoisi, setMode] = useState<ViewMode>('simple')
-  const [analysteInterdit, interdireAnalyste] = useState(false)
-  const mode: ViewMode = analysteInterdit ? 'simple' : modeChoisi
+  const [mode, setMode] = useState<ViewMode>('simple')
   const [theme, setTheme] = useState<Theme>('clair')
   const [menuOuvert, setMenuOuvert] = useState(false)
   const [barreReduite, setBarreReduite] = useState(false)
@@ -196,7 +192,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       fermerJeu,
       setPage,
       changerMode,
-      interdireAnalyste,
       changerTheme,
       setMenuOuvert,
       basculerBarre,

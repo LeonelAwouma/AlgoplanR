@@ -7,7 +7,7 @@
 
 import Image from 'next/image'
 import { motion } from 'motion/react'
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import {
   ArrowRight,
   CheckCircle2,
@@ -38,19 +38,24 @@ import {
 import type { Theme } from '@shared/session/theme'
 import { Pill } from '@shared/ui/commun'
 import {
+  estDepliable,
   etapeAccessible,
   etapeSuivante,
   etapesVisibles,
+  groupesVisibles,
+  indexApresTouche,
+  menusOuverts,
   parcoursVisible,
   premiereEtapeAccessible,
   rubriqueDePage,
-  rubriquesVisibles,
+  sousMenu,
   sousTitreDePage,
   titreDePage,
   type EtatJeu,
   type NavItem,
   type PageKey,
   type RoleAcces,
+  type ToucheNavigation,
   type ViewMode,
 } from './navigation'
 
@@ -66,10 +71,17 @@ const INDISPONIBLE = 'Disponible une fois les données importées et analysées'
  */
 const SANS_RESTAURATION_FIREFOX = { autoComplete: 'off' } as Record<string, string>
 
+/** Vrai quand la barre est réellement réduite aux icônes : la réduction n'a cours que sur écran large. */
+function barreReduiteAffichee(reduite: boolean): boolean {
+  return reduite && typeof window !== 'undefined' && window.matchMedia('(min-width: 861px)').matches
+}
+
 /**
- * Barre latérale : une entrée par menu, puis « Paramètres avancés » à part. Elle
- * ouvre la première étape disponible du menu ; les autres se parcourent par les
- * étapes affichées en tête de page. Sur écran large, elle peut être réduite à ses icônes.
+ * Barre latérale : en-tête AlgoPlanR, puis deux groupes de menus (« Pilotage et opérations », « Administration »).
+ * Un menu qui compte plusieurs écrans se déplie (bouton à chevron, `aria-expanded`) ; le menu qui contient la page
+ * active est déplié, son écran actif est marqué `aria-current="page"`. Un menu à écran unique est un lien direct.
+ * Flèches haut/bas, Début et Fin déplacent le focus d'une entrée à l'autre. Sur écran large, la barre peut être
+ * réduite à ses icônes : un clic sur un menu ouvre alors son premier écran disponible.
  */
 export function Sidebar({
   page,
@@ -100,70 +112,178 @@ export function Sidebar({
 }) {
   const etat: EtatJeu = { donneesChargees, simulationPrete }
   const rubriqueCourante = rubriqueDePage(page)
+  const navRef = useRef<HTMLElement>(null)
+
+  // Le menu de la page active est toujours déplié quand on y arrive ; la personne peut ensuite le replier.
+  const [ouverts, setOuverts] = useState<ReadonlySet<string>>(() => menusOuverts(new Set(), page))
+  const [pageSuivie, setPageSuivie] = useState(page)
+  if (page !== pageSuivie) {
+    setPageSuivie(page)
+    setOuverts(menusOuverts(ouverts, page))
+  }
+  const basculer = (id: string) =>
+    setOuverts(prev => {
+      const suivant = new Set(prev)
+      if (!suivant.delete(id)) suivant.add(id)
+      return suivant
+    })
+
+  const aller = (cible: PageKey) => {
+    onNavigate(cible)
+    onFermer()
+  }
+
+  const surTouche = (ev: KeyboardEvent<HTMLElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(ev.key)) return
+    const boutons = Array.from(
+      navRef.current?.querySelectorAll<HTMLButtonElement>('button[data-nav]:not(:disabled)') ?? [],
+    ).filter(b => b.offsetParent !== null)
+    const courant = boutons.indexOf(document.activeElement as HTMLButtonElement)
+    if (courant < 0) return
+    const i = indexApresTouche(ev.key as ToucheNavigation, courant, boutons.length)
+    if (i < 0) return
+    ev.preventDefault()
+    boutons[i].focus()
+  }
 
   const classes = ['sidebar', ouverte && 'open', reduite && 'reduite'].filter(Boolean).join(' ')
 
   return (
     <aside className={classes} aria-label="Navigation principale">
-      <button
-        type="button"
-        className="sidebar-bascule"
-        onClick={onBasculer}
-        aria-expanded={!reduite}
-        aria-label={reduite ? 'Déployer le menu' : 'Réduire le menu'}
-        title={reduite ? 'Déployer le menu' : 'Réduire le menu'}
-      >
-        {reduite ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
-      </button>
-      <nav>
-        {[false, true].map(avance => {
-          const rubriques = rubriquesVisibles(mode, role).filter(r => !!r.avance === avance)
-          if (rubriques.length === 0) return null
-          return (
-            <ul className={avance ? 'nav-list nav-list-avancee' : 'nav-list'} key={avance ? 'avancee' : 'principale'}>
+      <div className="sidebar-entete">
+        <Image className="sidebar-logo" src="/logo-mark.png" alt="" width={64} height={38} />
+        <span className="sidebar-marque">
+          <span className="sidebar-marque-nom">AlgoPlanR</span>
+          <span className="sidebar-marque-sous">Gestion prévisionnelle des enseignants</span>
+        </span>
+        <button
+          type="button"
+          className="sidebar-bascule"
+          onClick={onBasculer}
+          aria-expanded={!reduite}
+          aria-label={reduite ? 'Déployer le menu' : 'Réduire le menu'}
+          title={reduite ? 'Déployer le menu' : 'Réduire le menu'}
+        >
+          {reduite ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
+        </button>
+      </div>
+      <nav ref={navRef} onKeyDown={surTouche}>
+        {groupesVisibles(mode, role).map(({ groupe, rubriques }) => (
+          <div className="nav-groupe" key={groupe.id}>
+            <h2 className="nav-groupe-titre" id={`nav-groupe-${groupe.id}`}>
+              {groupe.label}
+            </h2>
+            <ul className="nav-list" aria-labelledby={`nav-groupe-${groupe.id}`}>
               {rubriques.map(rubrique => {
-                const cible = premiereEtapeAccessible(rubrique, mode, role, etat)
                 const Icone = rubrique.icon
-                const aide = cible ? rubrique.sousTitre : INDISPONIBLE
+                const entrees = sousMenu(rubrique, mode, role)
+                const active = rubrique === rubriqueCourante
+                const cible = premiereEtapeAccessible(rubrique, mode, role, etat)
+
+                if (!estDepliable(rubrique, mode, role)) {
+                  // Lien direct : un seul écran, ou aucun écran de parcours.
+                  const direct = entrees.find(e => etapeAccessible(e, etat)) ?? cible
+                  const aide = direct ? rubrique.sousTitre : INDISPONIBLE
+                  return (
+                    <li key={rubrique.id}>
+                      <button
+                        type="button"
+                        className="nav-item nav-rubrique"
+                        data-nav=""
+                        data-actif={active ? 'rubrique' : undefined}
+                        aria-current={active ? 'page' : undefined}
+                        disabled={!direct}
+                        {...SANS_RESTAURATION_FIREFOX}
+                        // Réduite, la barre n'affiche plus que l'icône : le libellé passe dans l'infobulle.
+                        title={reduite ? `${rubrique.label} — ${aide}` : aide}
+                        aria-label={reduite ? rubrique.label : undefined}
+                        onClick={() => direct && aller(direct.id)}
+                      >
+                        {active && (
+                          <motion.span
+                            className="nav-actif"
+                            layoutId="nav-actif"
+                            transition={{ type: 'spring', stiffness: 520, damping: 40 }}
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="nav-icone">
+                          <Icone size={18} aria-hidden="true" />
+                        </span>
+                        <span className="nav-item-texte">
+                          <span>{rubrique.label}</span>
+                          {mode === 'analyste' && <small>{rubrique.sousTitre}</small>}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                }
+
+                const ouvert = ouverts.has(rubrique.id)
+                const idSous = `nav-sous-${rubrique.id}`
                 return (
                   <li key={rubrique.id}>
                     <button
                       type="button"
-                      className="nav-item"
-                      aria-current={rubrique === rubriqueCourante ? 'page' : undefined}
-                      disabled={!cible}
-                      {...SANS_RESTAURATION_FIREFOX}
-                      // Réduite, la barre n'affiche plus que l'icône : le libellé passe dans l'infobulle.
-                      title={reduite ? `${rubrique.label} — ${aide}` : aide}
+                      className="nav-item nav-rubrique"
+                      data-nav=""
+                      data-actif={active ? 'rubrique' : undefined}
+                      aria-expanded={reduite ? undefined : ouvert}
+                      aria-controls={idSous}
+                      title={
+                        reduite
+                          ? `${rubrique.label} — ${cible ? rubrique.sousTitre : INDISPONIBLE}`
+                          : rubrique.sousTitre
+                      }
                       aria-label={reduite ? rubrique.label : undefined}
                       onClick={() => {
-                        if (!cible) return
-                        onNavigate(cible.id)
-                        onFermer()
+                        if (barreReduiteAffichee(reduite)) {
+                          if (cible) aller(cible.id)
+                          return
+                        }
+                        basculer(rubrique.id)
                       }}
                     >
-                      {/* Surbrillance de l'entrée active : elle glisse d'une entrée à l'autre. */}
-                      {rubrique === rubriqueCourante && (
-                        <motion.span
-                          className="nav-actif"
-                          layoutId="nav-actif"
-                          transition={{ type: 'spring', stiffness: 520, damping: 40 }}
-                          aria-hidden="true"
-                        />
-                      )}
-                      <Icone size={17} aria-hidden="true" />
+                      <span className="nav-icone">
+                        <Icone size={18} aria-hidden="true" />
+                      </span>
                       <span className="nav-item-texte">
-                        <span>{rubrique.label}</span>
-                        {/* La vue Décideur reste sobre : le détail de chaque menu est dans l'infobulle. */}
+                        <span>
+                          {rubrique.label}
+                          {active && <span className="sr-only"> (menu de la page active)</span>}
+                        </span>
                         {mode === 'analyste' && <small>{rubrique.sousTitre}</small>}
                       </span>
+                      <ChevronRight className="nav-chevron" size={16} aria-hidden="true" />
                     </button>
+                    <ul className="nav-sous" id={idSous} hidden={!ouvert}>
+                      {entrees.map(entree => {
+                        const accessible = etapeAccessible(entree, etat)
+                        const courante = entree.id === page
+                        return (
+                          <li key={entree.id}>
+                            <button
+                              type="button"
+                              className="nav-sous-item"
+                              data-nav=""
+                              aria-current={courante ? 'page' : undefined}
+                              disabled={!accessible}
+                              {...SANS_RESTAURATION_FIREFOX}
+                              title={accessible ? entree.sousTitre : INDISPONIBLE}
+                              onClick={() => aller(entree.id)}
+                            >
+                              {entree.label}
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
                   </li>
                 )
               })}
             </ul>
-          )
-        })}
+          </div>
+        ))}
       </nav>
 
       <p className="privacy-note" title={reduite ? 'Traitement local' : undefined}>
@@ -185,7 +305,6 @@ export function Sidebar({
 export function Topbar({
   mode,
   onModeChange,
-  analysteDisponible = true,
   theme,
   onThemeChange,
   onOuvrirMenu,
@@ -201,8 +320,6 @@ export function Topbar({
 }: {
   mode: ViewMode
   onModeChange: (m: ViewMode) => void
-  /** La Vue analyste est réservée au DRH : le bouton n'est pas proposé aux délégués. */
-  analysteDisponible?: boolean
   theme: Theme
   onThemeChange: (t: Theme) => void
   onOuvrirMenu: () => void
@@ -274,11 +391,9 @@ export function Topbar({
           <button type="button" aria-pressed={mode === 'simple'} onClick={() => onModeChange('simple')}>
             Décideur
           </button>
-          {analysteDisponible && (
-            <button type="button" aria-pressed={mode === 'analyste'} onClick={() => onModeChange('analyste')}>
-              Analyste
-            </button>
-          )}
+          <button type="button" aria-pressed={mode === 'analyste'} onClick={() => onModeChange('analyste')}>
+            Analyste
+          </button>
         </div>
         <button
           type="button"

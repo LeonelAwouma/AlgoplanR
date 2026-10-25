@@ -34,7 +34,7 @@ import {
 } from '@shared/ui/coquille'
 import { CameroonFlagRail } from '@shared/ui/coquille/CameroonFlagRail'
 import { BandeauMiseAJour, useMiseAJour } from '@shared/ui/coquille/MiseAJour'
-import { pageAnalysteSeule, pageReserveeAuDrh, type PageKey } from '@shared/ui/coquille/navigation'
+import { pageReserveeAuDrh, type PageKey } from '@shared/ui/coquille/navigation'
 import { ErreurAction, ErreurApi } from '@shared/ui/etats'
 import { PageTransition } from '@shared/ui/motion'
 
@@ -85,7 +85,6 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
     setPage,
     mode,
     changerMode,
-    interdireAnalyste,
     theme,
     changerTheme,
     menuOuvert,
@@ -115,17 +114,15 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
     if (jeuDisparu) fermerJeu()
   }, [jeuDisparu, fermerJeu])
 
-  // La Vue analyste (dont « Fait de Prince ») n'est ouverte qu'au DRH.
-  useEffect(() => {
-    interdireAnalyste(utilisateur.role !== 'drh')
-  }, [interdireAnalyste, utilisateur.role])
-
   const donneesChargees = !!meta.data
   const simulationPrete = affiche.calcules.length > 0
   const estDrh = utilisateur.role === 'drh'
   const regionImposee = utilisateur.role === 'delegue' ? utilisateur.region : null
-  /** Une page réservée au DRH n'est jamais rendue pour un délégué ; le serveur refuse de toute façon ses routes. */
-  const pageInterdite = !estDrh && (pageReserveeAuDrh(page) || pageAnalysteSeule(page))
+  /**
+   * Une page réservée au DRH n'est jamais rendue pour un délégué ; le serveur refuse de toute façon ses routes.
+   * Les Vues Décideur et Analyste sont ouvertes aux deux rôles : le mode ne change ni les droits ni le périmètre.
+   */
+  const pageInterdite = !estDrh && pageReserveeAuDrh(page)
   /** Le DRH ne modifie que les jeux nationaux ; le serveur refuse les autres écritures. */
   const jeuModifiable = !estDrh || meta.data?.portee === 'national'
 
@@ -156,7 +153,6 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
         <Topbar
           mode={mode}
           onModeChange={changerMode}
-          analysteDisponible={estDrh}
           theme={theme}
           onThemeChange={changerTheme}
           onOuvrirMenu={() => setMenuOuvert(true)}
@@ -225,8 +221,9 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
 
                 {regionImposee && page === 'import' && (
                   <Notice tone="info" title={`Accès limité à la région ${regionImposee}.`}>
-                    Chaque ligne des classeurs doit relever de cette région : un fichier qui contient une autre région
-                    est refusé en entier, avec la liste des lignes concernées.
+                    Vous pouvez déposer un fichier régional ou la base nationale : AlgoPlanR ne conserve que les
+                    établissements de votre région et les enseignants rattachés par le code de leur école. Un fichier
+                    régional qui contient une autre région est refusé en entier, avec la liste des lignes concernées.
                   </Notice>
                 )}
 

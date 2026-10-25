@@ -14,7 +14,11 @@
  *
  * Les écrans techniques ne sont proposés qu'en Vue analyste : la vue Décideur
  * conserve exactement le même moteur et les mêmes données, mais n'expose que
- * les écrans de pilotage.
+ * les écrans de pilotage. Les deux rôles (DRH et délégué régional) disposent des deux
+ * vues : changer de vue ne modifie ni les permissions ni le périmètre territorial.
+ *
+ * Dans la barre latérale, les menus sont présentés en deux groupes (voir `GROUPES_SIDEBAR`) ; l'ordre des
+ * menus dans le parcours guidé (`RUBRIQUES`) reste celui du travail : on importe avant de lire le tableau de bord.
  */
 
 import {
@@ -471,6 +475,23 @@ export const RUBRIQUES: Rubrique[] = [
 
 const TOUTES = RUBRIQUES.flatMap(r => r.etapes)
 
+/** Regroupement des menus dans la barre latérale. */
+export interface GroupeSidebar {
+  id: 'pilotage' | 'administration'
+  label: string
+  /** Identifiants des menus du groupe, dans l'ordre d'affichage. */
+  rubriques: readonly string[]
+}
+
+export const GROUPES_SIDEBAR: readonly GroupeSidebar[] = [
+  {
+    id: 'pilotage',
+    label: 'Pilotage et opérations',
+    rubriques: ['accueil', 'donnees', 'affectations', 'planification', 'rapports'],
+  },
+  { id: 'administration', label: 'Administration', rubriques: ['comptes', 'avancees'] },
+]
+
 /** Titre de page affiché dans l'en-tête. */
 export function titreDePage(page: PageKey): string {
   return TOUTES.find(i => i.id === page)?.label ?? "Vue d'ensemble"
@@ -491,7 +512,7 @@ export function pageReserveeAuDrh(page: PageKey): boolean {
   return TOUTES.some(i => i.id === page && i.drhSeulement)
 }
 
-/** Vrai si la page n'existe qu'en Vue analyste, réservée au DRH : un délégué ne l'ouvre jamais. */
+/** Vrai si la page n'existe qu'en Vue analyste (ouverte au DRH comme au délégué ; ses droits d'accès restent ceux de la page). */
 export function pageAnalysteSeule(page: PageKey): boolean {
   return TOUTES.some(i => i.id === page && i.analysteSeulement)
 }
@@ -552,4 +573,46 @@ export function etapeSuivante(
   const etape = parcours.slice(i + 1).find(e => !ignorer.includes(e.id))
   if (!etape) return undefined
   return { etape, accessible: etapeAccessible(etape, etat) }
+}
+
+/**
+ * Entrées du sous-menu d'un menu dans la barre latérale : les écrans du parcours ; pour « Paramètres avancés »,
+ * et pour un menu sans écran de parcours (« Comptes et accès »), tous les écrans visibles. Les onglets de détail des autres menus restent
+ * accessibles par la barre d'onglets de la page.
+ */
+export function sousMenu(rubrique: Rubrique, mode: ViewMode, role: RoleAcces): NavItem[] {
+  const parcours = parcoursVisible(rubrique, mode, role)
+  return rubrique.avance || parcours.length === 0 ? etapesVisibles(rubrique, mode, role) : parcours
+}
+
+/** Vrai si le menu se déplie : il compte plusieurs entrées. Sinon, c'est un lien direct. */
+export function estDepliable(rubrique: Rubrique, mode: ViewMode, role: RoleAcces): boolean {
+  return sousMenu(rubrique, mode, role).length > 1
+}
+
+/** Groupes de la barre latérale et menus visibles de chacun (un groupe sans menu visible disparaît). */
+export function groupesVisibles(mode: ViewMode, role: RoleAcces): { groupe: GroupeSidebar; rubriques: Rubrique[] }[] {
+  const visibles = rubriquesVisibles(mode, role)
+  return GROUPES_SIDEBAR.map(groupe => ({
+    groupe,
+    rubriques: groupe.rubriques.flatMap(id => visibles.filter(r => r.id === id)),
+  })).filter(g => g.rubriques.length > 0)
+}
+
+/** Menus à déplier quand la page courante change : les menus déjà ouverts, plus celui qui contient la page. */
+export function menusOuverts(ouverts: ReadonlySet<string>, page: PageKey): ReadonlySet<string> {
+  const courant = rubriqueDePage(page)
+  return courant && !ouverts.has(courant.id) ? new Set([...ouverts, courant.id]) : ouverts
+}
+
+/** Touches de navigation au clavier dans la barre latérale. */
+export type ToucheNavigation = 'ArrowDown' | 'ArrowUp' | 'Home' | 'End'
+
+/** Index de l'entrée à focaliser après une touche, parmi `total` entrées navigables (parcours circulaire). */
+export function indexApresTouche(touche: ToucheNavigation, courant: number, total: number): number {
+  if (total <= 0) return -1
+  if (touche === 'Home') return 0
+  if (touche === 'End') return total - 1
+  if (courant < 0) return touche === 'ArrowDown' ? 0 : total - 1
+  return (courant + (touche === 'ArrowDown' ? 1 : -1) + total) % total
 }

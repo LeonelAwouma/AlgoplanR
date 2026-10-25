@@ -349,6 +349,12 @@ function versEtat(e: {
   declencheur: string | null
   obsolete: boolean
   scenario_retenu_id: string | null
+  base_calcul?: {
+    type: 'scenario_retenu' | 'scenario_par_defaut' | 'aucun'
+    scenario_id: string | null
+    scenario_nom: string | null
+    provisoire: boolean
+  }
 }): EtatPlanification {
   return {
     version: e.version,
@@ -356,6 +362,12 @@ function versEtat(e: {
     declencheur: e.declencheur,
     obsolete: e.obsolete,
     scenarioRetenuId: e.scenario_retenu_id,
+    baseCalcul: e.base_calcul && {
+      type: e.base_calcul.type,
+      scenarioId: e.base_calcul.scenario_id,
+      scenarioNom: e.base_calcul.scenario_nom,
+      provisoire: e.base_calcul.provisoire,
+    },
   }
 }
 

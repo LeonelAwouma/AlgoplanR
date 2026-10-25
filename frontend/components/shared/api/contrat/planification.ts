@@ -370,6 +370,17 @@ export interface FiabiliteDonnees {
   parTerritoire: LigneFiabilite[]
 }
 
+/**
+ * Scénario sur lequel le serveur calcule la planification. Sans scénario retenu explicitement, il se rabat sur le
+ * scénario par défaut : la projection est alors provisoire et ne vaut pas décision validée.
+ */
+export interface BaseCalculPlanification {
+  type: 'scenario_retenu' | 'scenario_par_defaut' | 'aucun'
+  scenarioId: string | null
+  scenarioNom: string | null
+  provisoire: boolean
+}
+
 /** État du dernier calcul de la planification. */
 export interface EtatPlanification {
   version: number
@@ -378,6 +389,8 @@ export interface EtatPlanification {
   declencheur: string | null
   obsolete: boolean
   scenarioRetenuId: string | null
+  /** Absent des données factices. */
+  baseCalcul?: BaseCalculPlanification
 }
 
 /** Instantané conservé à chaque recalcul. */
