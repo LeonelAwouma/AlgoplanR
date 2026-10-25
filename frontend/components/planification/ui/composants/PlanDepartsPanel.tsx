@@ -31,6 +31,12 @@ const COLONNES: Colonne<DepartRetraitePrevu>[] = [
   },
   { cle: 'ecole', entete: 'École', rendu: d => d.nomEtab, tri: d => d.nomEtab },
   { cle: 'age', entete: 'Âge au départ', numerique: true, rendu: d => fmt(d.ageAuDepart), tri: d => d.ageAuDepart },
+  {
+    cle: 'motif',
+    entete: 'Motif',
+    rendu: d => (d.dejaEligible ? 'Âge légal déjà atteint (CORR_60)' : 'Atteint l’âge légal'),
+    tri: d => (d.dejaEligible ? 0 : 1),
+  },
 ]
 
 /** Onglet « Plan des départs ». */
@@ -49,8 +55,16 @@ export function PlanDepartsPanel({ jeu, requete }: { jeu: IdJeu; requete: Requet
           onClick={() =>
             void exporterTableauXLSX(
               'plan-des-departs.xlsx',
-              ['Année', 'Matricule', 'Enseignant', 'École', 'Date de naissance', 'Âge au départ'],
-              retraites.map(d => [d.annee, d.matricule, d.nom, d.nomEtab, d.dateNaissance, d.ageAuDepart]),
+              ['Année', 'Matricule', 'Enseignant', 'École', 'Date de naissance', 'Âge au départ', 'Motif'],
+              retraites.map(d => [
+                d.annee,
+                d.matricule,
+                d.nom,
+                d.nomEtab,
+                d.dateNaissance,
+                d.ageAuDepart,
+                d.dejaEligible ? 'Âge légal déjà atteint (CORR_60)' : 'Atteint l’âge légal',
+              ]),
             )
           }
         >

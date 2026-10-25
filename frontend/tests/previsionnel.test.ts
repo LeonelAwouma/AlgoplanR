@@ -21,12 +21,18 @@ import {
   lignesMinimumPedagogique,
 } from '../components/planification/application/export-previsionnel'
 import {
+  LIBELLE_NATURE,
   ORDRE_SCENARIOS,
+  controlesAuditRetraites,
   entetesExport,
+  libelleNatures,
   ligne,
+  lignesAuditRetraites,
+  lignesContexte,
   lignesExport,
   lignesFiabilite,
   lignesScenarios,
+  natureCase,
   pointsEnseignants,
   pointsRecrutements,
   pointsRem,
@@ -52,11 +58,12 @@ describe('Tableau prévisionnel complet', () => {
   it('garde la base puis cinq années, et cinq groupes A à E', () => {
     const p = prevision()
     assert.equal(p.annees.length, 6)
-    // L'année du jeu est la rentrée N+1 ; la base est l'année qui précède.
+    // La base est l'année du jeu ; N+1 est l'année scolaire suivante, puis chronologiquement jusqu'à N+5.
     assert.equal(p.annees[0], `Base (${p.anneeBase})`)
     const debut = Number(p.anneeScolairePlan?.slice(0, 4))
-    assert.equal(p.anneeBase, `${debut - 1}-${debut}`)
-    assert.equal(p.annees[1], `N+1 (${debut}-${debut + 1})`)
+    assert.equal(p.anneeBase, p.anneeScolairePlan)
+    assert.equal(p.contexte?.anneeScolaire, p.anneeBase)
+    p.annees.slice(1).forEach((a, k) => assert.equal(a, `N+${k + 1} (${debut + 1 + k}-${debut + 2 + k})`))
     assert.deepEqual(
       p.groupes.map(g => g.code),
       ['A', 'B', 'C', 'D', 'E'],
@@ -115,21 +122,24 @@ describe('Tableau prévisionnel complet', () => {
     assert.equal(lignesScenarios(p).length, 4)
   })
 
-  it('produit les six feuilles du classeur', () => {
+  it('produit les feuilles du classeur', () => {
     const p = prevision()
     const feuilles = feuillesPrevisionnel(p)
     assert.deepEqual(
       feuilles.map(f => f.nom),
       [
+        'Contexte',
         'Tableau complet',
+        'Nature des valeurs',
         'Scénarios',
+        'Audit des retraites',
         'Hypothèses',
         'Données non disponibles',
         'Minimum pédagogique',
         'Avertissements',
       ],
     )
-    const nd = feuilles[3]
+    const nd = feuille(p, 'Données non disponibles')
     assert.ok(nd.lignes.every(l => l[1] === 'Non disponible'))
     assert.ok(nd.lignes.some(l => String(l[0]).includes('SIGE')))
     assert.equal(lignesMinimumPedagogique(p)[0][1], p.ecoles)
@@ -152,7 +162,60 @@ describe('Tableau prévisionnel complet', () => {
     }
     const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
     assert.ok(xml.includes('Le nombre de classes multigrades n'))
-    assert.ok(feuillesPrevisionnel(p)[5].lignes.some(l => l[1] === MESSAGE_MULTIGRADES_NON_RENSEIGNES))
+    assert.ok(feuille(p, 'Avertissements').lignes.some(l => l[1] === MESSAGE_MULTIGRADES_NON_RENSEIGNES))
+  })
+})
+
+describe('Provenance, natures et audit des retraites', () => {
+  it('affiche le jeu, l’année, le périmètre réel et la date de calcul', async () => {
+    const p = prevision()
+    const c = p.contexte
+    assert.ok(c)
+    const lignes = new Map(lignesContexte(p))
+    assert.equal(lignes.get('Année scolaire des données (base)'), p.anneeBase)
+    assert.equal(lignes.get('Écoles du périmètre'), p.ecoles)
+    assert.ok(String(lignes.get('Origine du jeu')).includes('démonstration'))
+    assert.ok(feuille(p, 'Contexte').lignes.some(l => l[0] === 'Jeu de données' && l[1] === c.jeuNom))
+    const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
+    assert.ok(xml.includes('Provenance et périmètre'))
+    assert.ok(xml.includes(`données de l’année scolaire ${c.anneeScolaire}`))
+  })
+
+  it('ne qualifie jamais une valeur future d’observée, ni à l’écran ni dans les exports', () => {
+    const p = prevision()
+    const natures = feuille(p, 'Nature des valeurs')
+    const actes = new Set([
+      'Quota retenu (décision administrative)',
+      'Recrutements réalisés (nominations mises en œuvre)',
+    ])
+    for (const l of natures.lignes) {
+      if (actes.has(String(l[1]))) continue
+      assert.ok(!l.slice(3).includes('Observé'), String(l[1]))
+    }
+    const eleves = ligne(p, 'eleves')
+    assert.ok(eleves)
+    assert.equal(natureCase(eleves, 0), 'observe')
+    assert.equal(natureCase(eleves, 3), 'projete')
+    assert.equal(LIBELLE_NATURE[natureCase(eleves, 3)], 'Projeté')
+    assert.ok(libelleNatures(p, eleves).startsWith('Observé (Base) ; Projeté (N+1 à N+5)'))
+  })
+
+  it('reprend l’audit des retraites du serveur, sans recalcul', () => {
+    const p = prevision()
+    const a = p.auditRetraites
+    assert.ok(a)
+    const lignes = lignesAuditRetraites(p)
+    assert.deepEqual(
+      lignes.map(l => l[1]),
+      ligne(p, 'departs_retraite')?.valeurs.slice(1),
+    )
+    assert.deepEqual(
+      lignes.map(l => l[0]),
+      p.annees.slice(1),
+    )
+    assert.ok(controlesAuditRetraites(p).some(([c]) => c.includes('sans âge')))
+    assert.ok(feuille(p, 'Audit des retraites').lignes.length >= 5)
+    assert.ok(!a.methode.includes('1,08 % est') && a.methode.includes('Nominative'))
   })
 })
 
@@ -169,6 +232,13 @@ describe('Message du mode « Classes_Multigrades non renseigné »', () => {
     )
   })
 })
+
+/** Une feuille du classeur par son nom. */
+function feuille(p: PrevisionnelComplet, nom: string) {
+  const f = feuillesPrevisionnel(p).find(x => x.nom === nom)
+  assert.ok(f, nom)
+  return f
+}
 
 /** Extrait `word/document.xml` de l'archive .docx. */
 function documentXml(octets: Buffer): string {
@@ -203,23 +273,32 @@ describe('Valeurs non disponibles et fiabilité', () => {
   it('donne la raison de chaque valeur non disponible, regroupée par raison', () => {
     const p = avecRemIndisponible()
     const raisons = raisonsIndisponibles(p)
-    assert.equal(raisons.length, 1)
-    assert.ok(raisons[0].cellules[0].includes('N+2, N+3'))
+    // Chaque raison n'apparaît qu'une fois, avec toutes les cellules qu'elle explique.
+    assert.equal(new Set(raisons.map(r => r.raison)).size, raisons.length)
+    const i = raisons.findIndex(r => r.raison.includes('effectif d'))
+    assert.ok(i >= 0)
+    assert.ok(raisons[i].cellules[0].includes('N+2, N+3'))
     const l = ligne(p, 'rem_reel')
     assert.ok(l)
-    assert.equal(renvoi(raisons, l, 2), 1)
+    assert.equal(renvoi(raisons, l, 2), i + 1)
     assert.equal(renvoi(raisons, l, 1), null)
+    // Un quota sans décision est « non disponible », jamais 0 ; la base d'un flux est « sans objet », sans renvoi.
+    assert.ok(raisons.some(r => r.raison.startsWith('Aucune décision administrative')))
+    const retraites = ligne(p, 'departs_retraite')
+    assert.ok(retraites)
+    assert.equal(renvoi(raisons, retraites, 0), null)
+    assert.equal(natureCase(retraites, 0), 'sans_objet')
   })
 
   it('reporte les raisons dans le classeur et le document Word', async () => {
     const p = avecRemIndisponible()
-    const tableau = feuillesPrevisionnel(p)[0]
+    const tableau = feuille(p, 'Tableau complet')
     assert.equal(tableau.entetes.at(-1), 'Raison des valeurs non disponibles')
     const rem = tableau.lignes.find(x => x[1] === ligne(p, 'rem_reel')?.libelle)
     assert.ok(String(rem?.at(-1)).includes('effectif d'))
     const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
     assert.ok(xml.includes('Valeurs non disponibles'))
-    assert.ok(xml.includes('Non disponible (1)'))
+    assert.ok(/Non disponible \(\d\)/.test(xml))
   })
 
   it('compte à part le minimum provisoire et le besoin final incertain', () => {
@@ -235,7 +314,7 @@ describe('Valeurs non disponibles et fiabilité', () => {
   it('signale que les personnels de la cartographie ne sont pas tous chargés de classe', async () => {
     const p = prevision()
     assert.equal(p.avertissementPersonnels, AVERTISSEMENT_PERSONNELS)
-    assert.ok(feuillesPrevisionnel(p)[5].lignes.some(l => l[1] === AVERTISSEMENT_PERSONNELS))
+    assert.ok(feuille(p, 'Avertissements').lignes.some(l => l[1] === AVERTISSEMENT_PERSONNELS))
     const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
     assert.ok(xml.includes('Personnels enseignants'))
     const source = readFileSync(

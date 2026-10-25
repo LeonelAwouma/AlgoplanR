@@ -114,6 +114,9 @@ def hypotheses_par_defaut(cfg: Optional[dict] = None) -> Dict[str, Any]:
                               "sont imputés à la première année (CORR_60). Aucune exception n'est documentée."),
             "age_legal": age,
             "date_reference": "rentree",
+            # Année scolaire à laquelle les âges du fichier ont été mesurés. Vide : à la même date que les effectifs
+            # observés, retenus comme situation de début de N+1 (voir previsionnel.HYPOTHESE_TRANSITION).
+            "annee_ages": None,
             "exceptions": [],
         },
         "attrition": {
@@ -200,6 +203,14 @@ def valider_hypotheses(h: Any, base: Optional[Dict[str, Any]] = None) -> tuple[D
     if date_ref not in DATES_REFERENCE:
         erreurs.append(f"retraite.date_reference : {' ou '.join(DATES_REFERENCE)} attendu")
         date_ref = "rentree"
+    annee_ages = str(r.get("annee_ages") or "").strip() or None
+    if annee_ages is not None:
+        from ..donnees.annee_scolaire import normaliser_annee_scolaire
+        try:
+            annee_ages = normaliser_annee_scolaire(annee_ages)
+        except ValueError:
+            erreurs.append("retraite.annee_ages : année scolaire « AAAA-AAAA » attendue (ou vide)")
+            annee_ages = None
     exceptions = []
     for i, x in enumerate(r.get("exceptions") or []):
         if (not isinstance(x, dict) or x.get("critere") not in ("statut", "categorie")
@@ -210,7 +221,7 @@ def valider_hypotheses(h: Any, base: Optional[Dict[str, Any]] = None) -> tuple[D
         exceptions.append({"critere": x["critere"], "valeur": str(x["valeur"]).strip(),
                            "age_legal": int(float(x["age_legal"]))})
     out["retraite"] = {**_justification(r, "retraite", erreurs), "age_legal": int(age),
-                       "date_reference": date_ref, "exceptions": exceptions}
+                       "date_reference": date_ref, "annee_ages": annee_ages, "exceptions": exceptions}
 
     a = h.get("attrition") if isinstance(h.get("attrition"), dict) else {}
     if not a:

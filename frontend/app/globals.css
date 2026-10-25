@@ -4837,3 +4837,17 @@ button.kpi:hover {
   font-weight: 400;
   max-width: 48ch;
 }
+
+/* Nature des valeurs du tableau prévisionnel : une valeur projetée se distingue d'une valeur observée. */
+.tableau-planification td.nature-projete,
+.tableau-planification td.nature-estime,
+.tableau-planification td.nature-provisoire {
+  font-style: italic;
+}
+.tableau-planification td.nature-hypothese {
+  color: var(--ink-soft);
+}
+.tableau-planification td.colonne-nature {
+  min-width: 190px;
+  white-space: normal;
+}

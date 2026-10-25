@@ -78,7 +78,7 @@ export interface CorpsCreationJeu {
   prince?: string
   /** Date de référence des âges (ISO 8601), aujourd'hui par défaut. */
   dateReference?: string
-  /** Rentrée que prépare le jeu, « AAAA-AAAA » : l'année en cours par défaut. */
+  /** Année scolaire des données importées, « AAAA-AAAA » (base des projections) : l'année en cours par défaut. */
   anneeScolaire?: string
 }
 

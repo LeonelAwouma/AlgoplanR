@@ -10,12 +10,12 @@
   "provisoire": true
  },
  "annees": [
-  "Base (2025-2026)",
-  "N+1 (2026-2027)",
-  "N+2 (2027-2028)",
-  "N+3 (2028-2029)",
-  "N+4 (2029-2030)",
-  "N+5 (2030-2031)"
+  "Base (2026-2027)",
+  "N+1 (2027-2028)",
+  "N+2 (2028-2029)",
+  "N+3 (2029-2030)",
+  "N+4 (2030-2031)",
+  "N+5 (2031-2032)"
  ],
  "annee_scolaire_plan": "2026-2027",
  "groupes": [
@@ -35,9 +35,17 @@
       10077
      ],
      "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Base : effectifs importés ; années suivantes : projection N(t+1) = N(t) × (1 + croissance), arrondie à l'unité à l'affichage seulement."
+     "detail": "Base : effectifs importés (observés) ; années suivantes : projection N(t+1) = N(t) × (1 + croissance), arrondie à l'unité à l'affichage seulement."
     },
     {
      "cle": "croissance",
@@ -51,9 +59,25 @@
       2.7
      ],
      "nature": "hypothese",
+     "natures": [
+      "sans_objet",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese"
+     ],
      "decimal": true,
      "unite": "pourcentage",
-     "detail": "Hypothèse G_PRI_PCT (2,7 % par défaut), appliquée à chaque école dont l'effectif est connu."
+     "detail": "Hypothèse G_PRI_PCT (2,7 % par défaut), appliquée à chaque école dont l'effectif est connu.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "ecoles_eleves_inconnus",
@@ -67,6 +91,14 @@
       0
      ],
      "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
      "detail": "Aucun effectif n'est inventé pour ces écoles : elles ne comptent ni dans les élèves projetés ni dans le taux d'encadrement."
@@ -83,15 +115,23 @@
      "valeurs": [
       272,
       272,
-      248,
-      246,
-      246,
-      244
+      266,
+      264,
+      264,
+      262
      ],
      "nature": "observe",
+     "natures": [
+      "observe",
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Enseignants_Actuels (personnels rapprochés dans la cartographie, pas nécessairement tous chargés de classe) après les mouvements du scénario retenu ; dès N+2, recrutements de l'année précédente (quota retenu ou calculé) inclus."
+     "detail": "Base : Enseignants_Actuels (personnels rapprochés dans la cartographie, pas nécessairement tous chargés de classe). N+1 : stock observé retenu comme début de N+1, après les mouvements du scénario retenu (estimé). Dès N+2 : projeté, recrutements de l'année précédente supposés réalisés (quota retenu, sinon quota calculé)."
     },
     {
      "cle": "departs_retraite",
@@ -104,10 +144,26 @@
       10,
       9
      ],
-     "nature": "observe",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Comptés nominativement d'après l'âge (jamais par le taux de 1,08 %)."
+     "detail": "Projetés nominativement d'après les âges connus (jamais par le taux de 1,08 %) ; voir l'audit des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "departs_attrition",
@@ -118,12 +174,28 @@
       6,
       6,
       6,
-      5
+      6
      ],
-     "nature": "hypothese",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Taux d'autres départs (2.25 %) × stock de début : l'attrition totale (3,33 %) n'est pas ajoutée aux retraites."
+     "detail": "Projetés par hypothèse statistique : taux d'autres départs (2,25 %) × stock de début. Les retraites n'y sont pas recomptées.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "directeurs_decharges",
@@ -136,10 +208,26 @@
       1,
       1
      ],
-     "nature": "hypothese",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Prises de fonction de l'année sans classe (DIR_NOM_AN × DIR_H_PRI_PCT, rapportés au périmètre)."
+     "detail": "Prises de fonction de l'année sans classe (DIR_NOM_AN × DIR_H_PRI_PCT, rapportés au périmètre).",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "decharges_cumulees",
@@ -152,7 +240,15 @@
       4,
       5
      ],
-     "nature": "hypothese",
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
      "detail": "Un directeur déchargé reste dans le stock ; il n'est retranché qu'une fois des enseignants disponibles."
@@ -162,32 +258,56 @@
      "libelle": "Enseignants en fin d'année (stock administratif)",
      "valeurs": [
       null,
-      248,
-      246,
-      246,
-      244,
-      243
+      266,
+      264,
+      264,
+      262,
+      261
      ],
-     "nature": "estime",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "S(t+1) = S(t) − retraites − autres départs + recrutements."
+     "detail": "S(t+1) = S(t) − retraites − autres départs + recrutements supposés réalisés.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "disponibles_fin",
      "libelle": "Enseignants disponibles pour tenir une classe (fin d'année)",
      "valeurs": [
       272,
-      247,
-      244,
-      243,
-      240,
-      238
+      265,
+      262,
+      261,
+      258,
+      256
      ],
-     "nature": "estime",
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "U = S − décharges cumulées."
+     "detail": "U = S − décharges cumulées (base : U = S)."
     }
    ]
   },
@@ -207,9 +327,17 @@
       136
      ],
      "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "⌈élèves ÷ 74.4⌉ : estimation par ratio, distincte de la somme des besoins des écoles."
+     "detail": "⌈élèves ÷ 74,4⌉ : estimation par ratio, distincte de la somme des besoins des écoles."
     },
     {
      "cle": "somme_pe",
@@ -223,9 +351,17 @@
       137
      ],
      "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "P = max(1 ; ⌈(N − tolérance) ÷ 74.4⌉), école par école."
+     "detail": "P = max(1 ; ⌈(N − tolérance) ÷ 74,4⌉), école par école."
     },
     {
      "cle": "somme_me",
@@ -239,6 +375,14 @@
       216
      ],
      "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
      "detail": "m = max(plancher ; G) ; G de secours (6) quand Classes_Multigrades n'est pas renseigné."
@@ -255,6 +399,14 @@
       228
      ],
      "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
      "detail": "D = max(P ; m)."
@@ -271,6 +423,14 @@
       214
      ],
      "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
      "detail": "K = min(D ; BMAX)."
@@ -287,6 +447,14 @@
       37
      ],
      "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
      "detail": "b = max(0 ; K − enseignants restants après les retraites), école par école."
@@ -296,16 +464,32 @@
      "libelle": "Ressources mobilisables (vivier)",
      "valeurs": [
       null,
-      51,
+      46,
       0,
       0,
       0,
       0
      ],
      "nature": "estime",
+     "natures": [
+      "sans_objet",
+      "estime",
+      "estime",
+      "estime",
+      "estime",
+      "estime"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Excédents sûrs des écoles et personnes du vivier retenues (N+1)."
+     "detail": "N+1 : excédents sûrs des écoles après leurs retraites de N+1 (un retraité n'est pas aussi une ressource), et personnes du vivier retenues. Les années suivantes : aucune ressource nouvelle.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "part_provisoire",
@@ -319,6 +503,14 @@
       0.0
      ],
      "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": true,
      "unite": "pourcentage",
      "detail": "Toutes les écoles renseignent leurs groupes pédagogiques."
@@ -335,6 +527,14 @@
       10.0
      ],
      "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": true,
      "unite": "pourcentage",
      "detail": "Écoles dont le besoin ou l'excédent change selon l'organisation pédagogique plausible, ou dont l'effectif d'élèves est inconnu. Une école au minimum provisoire dont le besoin est fixé par les élèves ou les salles n'y figure pas."
@@ -347,7 +547,7 @@
    "lignes": [
     {
      "cle": "recrutement_min",
-     "libelle": "Recrutement S-min",
+     "libelle": "Recrutements projetés – S-min",
      "valeurs": [
       null,
       18,
@@ -356,14 +556,30 @@
       10,
       9
      ],
-     "nature": "estime",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": ""
+     "detail": "Remplace les seules retraites de l'année.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "recrutement_maintien",
-     "libelle": "Recrutement S-maintien",
+     "libelle": "Recrutements projetés – S-maintien",
      "valeurs": [
       null,
       25,
@@ -372,14 +588,30 @@
       17,
       16
      ],
-     "nature": "estime",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": ""
+     "detail": "Remplace les retraites, les autres départs et les décharges de directeurs : U reste constant.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "recrutement_besoin",
-     "libelle": "Recrutement S-besoin",
+     "libelle": "Recrutements projetés – S-besoin",
      "valeurs": [
       null,
       18,
@@ -388,62 +620,190 @@
       14,
       14
      ],
-     "nature": "estime",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": ""
+     "detail": "Besoin de recrutement calculé (avant plafond), jamais sous les retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "recrutement_plafond",
-     "libelle": "Recrutement Sous plafond",
+     "libelle": "Recrutements projetés – Sous plafond",
      "valeurs": [
       null,
-      0,
+      18,
       14,
       9,
       14,
-      13
+      14
      ],
-     "nature": "estime",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": ""
+     "detail": "Quota calculé (sous plafond, plancher compris), supposé recruté tant que les quotas sont supposés réalisés ; ce n'est pas un recrutement réalisé.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "quota_avant_plafond",
-     "libelle": "Recrutement avant plafond (besoin et rattrapage − vivier)",
+     "libelle": "Besoin de recrutement calculé (avant plafond)",
      "valeurs": [
       null,
       0,
       14,
       9,
       14,
-      13
+      14
      ],
-     "nature": "estime",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": ""
+     "detail": "Besoin de l'année − déficit initial + rattrapage étalé − ressources du vivier, jamais négatif.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "plafond",
+     "libelle": "Plafond de recrutement du périmètre",
+     "valeurs": [
+      null,
+      18,
+      18,
+      18,
+      18,
+      18
+     ],
+     "nature": "hypothese",
+     "natures": [
+      "sans_objet",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "PLAF_PRI (3000 au national) × stock du périmètre ÷ 44232.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "plancher_retraites",
+     "libelle": "Plancher : retraites de l'année (PLANCHER_RET)",
+     "valeurs": [
+      null,
+      18,
+      10,
+      3,
+      10,
+      9
+     ],
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Le quota calculé ne descend jamais sous les retraites de l'année, même au-delà du plafond.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "quota_calcule",
-     "libelle": "Quota calculé",
+     "libelle": "Quota calculé (sous plafond, plancher compris)",
      "valeurs": [
       null,
-      0,
+      18,
       14,
       9,
       14,
-      13
+      14
      ],
-     "nature": "estime",
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": ""
+     "detail": "Q = max(min(besoin calculé ; plafond) ; retraites). Proposition de calcul, pas une décision.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "quota_retenu",
-     "libelle": "Quota retenu",
+     "libelle": "Quota retenu (décision administrative)",
      "valeurs": [
       null,
       null,
@@ -452,10 +812,58 @@
       null,
       null
      ],
-     "nature": "observe",
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Décision administrative (page « Quotas ») ; vide tant qu'elle n'est pas prise."
+     "detail": "Décision enregistrée sur la page « Quotas » ; vide tant qu'elle n'est pas prise.",
+     "raisons": [
+      null,
+      "Aucune décision administrative enregistrée pour cette année.",
+      "Aucune décision administrative enregistrée pour cette année.",
+      "Aucune décision administrative enregistrée pour cette année.",
+      "Aucune décision administrative enregistrée pour cette année.",
+      "Aucune décision administrative enregistrée pour cette année."
+     ]
+    },
+    {
+     "cle": "nominations_realisees",
+     "libelle": "Recrutements réalisés (nominations mises en œuvre)",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Seules les nominations mises en œuvre et enregistrées comptent : un quota calculé ou retenu n'est jamais compté comme réalisé.",
+     "raisons": [
+      null,
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année."
+     ]
     }
    ]
   },
@@ -465,19 +873,27 @@
    "lignes": [
     {
      "cle": "rem_reel",
-     "libelle": "REM réel (élèves par enseignant disponible)",
+     "libelle": "REM en début d'année (élèves par enseignant disponible)",
      "valeurs": [
       32.4,
       33.3,
-      37.7,
-      39.2,
-      40.4,
-      42.0
+      35.1,
+      36.5,
+      37.6,
+      39.1
      ],
      "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Base : écoles à effectif connu ; années : trajectoire du tableau, au début de l'année.",
+     "detail": "Base : écoles à effectif connu (élèves et enseignants de ces seules écoles). Années : élèves de l'année ÷ enseignants disponibles au début de l'année, trajectoire du tableau.",
      "raisons": [
       null,
       null,
@@ -499,13 +915,21 @@
       74.4
      ],
      "nature": "hypothese",
+     "natures": [
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese"
+     ],
      "decimal": true,
      "unite": "nombre",
      "detail": ""
     },
     {
      "cle": "rem_min",
-     "libelle": "REM projeté – S-min",
+     "libelle": "REM projeté en fin d'année – S-min",
      "valeurs": [
       32.4,
       34.2,
@@ -514,10 +938,18 @@
       40.2,
       42.5
      ],
-     "nature": "estime",
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
      "raisons": [
       null,
       null,
@@ -529,7 +961,7 @@
     },
     {
      "cle": "rem_maintien",
-     "libelle": "REM projeté – S-maintien",
+     "libelle": "REM projeté en fin d'année – S-maintien",
      "valeurs": [
       32.4,
       33.3,
@@ -538,10 +970,18 @@
       36.1,
       37.0
      ],
-     "nature": "estime",
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
      "raisons": [
       null,
       null,
@@ -553,7 +993,7 @@
     },
     {
      "cle": "rem_besoin",
-     "libelle": "REM projeté – S-besoin",
+     "libelle": "REM projeté en fin d'année – S-besoin",
      "valeurs": [
       32.4,
       34.2,
@@ -562,10 +1002,18 @@
       38.0,
       39.4
      ],
-     "nature": "estime",
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
      "raisons": [
       null,
       null,
@@ -577,19 +1025,27 @@
     },
     {
      "cle": "rem_plafond",
-     "libelle": "REM projeté – Sous plafond",
+     "libelle": "REM projeté en fin d'année – Sous plafond",
      "valeurs": [
       32.4,
-      36.7,
-      38.1,
-      39.3,
-      40.9,
-      42.3
+      34.2,
+      35.5,
+      36.6,
+      38.0,
+      39.4
      ],
-     "nature": "estime",
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
      "raisons": [
       null,
       null,
@@ -601,16 +1057,24 @@
     },
     {
      "cle": "ecart_reference",
-     "libelle": "Écart au REM de référence (sous plafond)",
+     "libelle": "Écart au REM de référence (sous plafond, fin d'année)",
      "valeurs": [
       -42.0,
-      -37.7,
-      -36.3,
-      -35.1,
-      -33.5,
-      -32.1
+      -40.2,
+      -38.9,
+      -37.8,
+      -36.4,
+      -35.0
      ],
-     "nature": "estime",
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
      "decimal": true,
      "unite": "nombre",
      "detail": "REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant).",
@@ -763,50 +1227,125 @@
    "scenario": "plafond",
    "libelle": "Sous plafond",
    "recrutements": [
-    0,
+    18,
     14,
     9,
     14,
-    13
+    14
    ],
-   "recrutements_total": 50,
+   "recrutements_total": 69,
    "effectif_fin": [
-    248,
-    246,
-    246,
-    244,
-    243
+    266,
+    264,
+    264,
+    262,
+    261
    ],
    "disponibles_fin": [
-    247,
-    244,
-    243,
-    240,
-    238
+    265,
+    262,
+    261,
+    258,
+    256
    ],
    "rem": [
-    36.7,
-    38.1,
-    39.3,
-    40.9,
-    42.3
+    34.2,
+    35.5,
+    36.6,
+    38.0,
+    39.4
    ],
    "ecart_reference": [
-    -37.7,
-    -36.3,
-    -35.1,
-    -33.5,
-    -32.1
+    -40.2,
+    -38.9,
+    -37.8,
+    -36.4,
+    -35.0
    ],
-   "rem_final": 42.3,
-   "ecart_final": -32.1,
+   "rem_final": 39.4,
+   "ecart_final": -35.0,
    "besoin_restant_final": 0,
    "besoin_restant_raison": null
   }
  ],
  "rem_reference": 74.4,
  "rem_indisponible": null,
- "annee_base": "2025-2026",
+ "annee_base": "2026-2027",
+ "hypothese_transition": "Le stock d'enseignants et les effectifs d'élèves observés à la base sont retenus comme situation de début de N+1 : les mouvements entre la date des données et la rentrée de N+1 ne sont pas connus et ne sont pas inventés.",
+ "contexte": {
+  "jeu_nom": "Jeu de démonstration",
+  "jeu_source": "demonstration",
+  "jeu_portee": "national",
+  "jeu_region": null,
+  "annee_scolaire": "2026-2027",
+  "fichiers_source": {},
+  "perimetre": "Cameroun",
+  "niveau": "national",
+  "perimetre_filtre": false,
+  "ecoles_perimetre": 40,
+  "ecoles_jeu": 40,
+  "personnels_stock_declare": 272,
+  "personnels_nominatifs": 300,
+  "ecoles_donnees_incompletes": 0,
+  "ecoles_eleves_inconnus": 0,
+  "ecoles_minimum_provisoire": 0,
+  "ecoles_salles_flux_inconnu": 0,
+  "version_planification": 1,
+  "calcule_le": "2026-10-25T23:17:19.155113Z",
+  "edite_le": "2026-10-25T23:17:19.161502Z"
+ },
+ "audit_retraites": {
+  "lignes": [
+   {
+    "annee": "N+1",
+    "departs": 18,
+    "deja_eligibles": 18,
+    "atteignant_age_legal": 0,
+    "taux_stock_declare": 6.6,
+    "taux_personnels_nominatifs": 6.0
+   },
+   {
+    "annee": "N+2",
+    "departs": 10,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 10,
+    "taux_stock_declare": 3.7,
+    "taux_personnels_nominatifs": 3.3
+   },
+   {
+    "annee": "N+3",
+    "departs": 3,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 3,
+    "taux_stock_declare": 1.1,
+    "taux_personnels_nominatifs": 1.0
+   },
+   {
+    "annee": "N+4",
+    "departs": 10,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 10,
+    "taux_stock_declare": 3.7,
+    "taux_personnels_nominatifs": 3.3
+   },
+   {
+    "annee": "N+5",
+    "departs": 9,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 9,
+    "taux_stock_declare": 3.3,
+    "taux_personnels_nominatifs": 3.0
+   }
+  ],
+  "deja_eligibles_debut": 18,
+  "sans_age": 0,
+  "doublons": 0,
+  "personnels_nominatifs": 300,
+  "stock_declare": 272,
+  "methode": "Nominative : départ compté l'année scolaire où l'agent a 60 ans révolus à la rentrée : un agent de 59 ans au début de N+1 part en N+2. Les 18 agent(s) ayant déjà cet âge au début de N+1 sont imputés à N+1 (CORR_60). Âges supposés mesurés au début de N+1 (même date que le stock observé). Un agent sans âge exploitable n'est pas compté ; un matricule en double n'est compté qu'une fois. Le taux de 1,08 % du rapport n'est jamais utilisé.",
+  "decalage_ages": 0,
+  "annee_ages": null
+ },
  "avertissement_personnels": "Les effectifs enseignants sont ceux des personnels rapprochés dans la cartographie (Enseignants_Actuels). Ces personnels ne sont pas nécessairement tous des maîtres chargés de classe : leur statut n'est pas fourni par les fichiers importés.",
  "ecoles": 40,
  "ecoles_minimum_provisoire": 0,
@@ -856,7 +1395,7 @@
   {
    "code": "rem_reference",
    "libelle": "REM de référence (rapport MINEDUB d'octobre 2026)",
-   "valeur": "74.4 élèves par enseignant",
+   "valeur": "74,4 élèves par enseignant",
    "a_valider": false
   },
   {
@@ -892,19 +1431,19 @@
   {
    "code": "croissance",
    "libelle": "Croissance annuelle des élèves",
-   "valeur": "2.7 %",
+   "valeur": "2,7 %",
    "a_valider": false
   },
   {
    "code": "attrition",
    "libelle": "Attrition totale / dont retraites / autres départs",
-   "valeur": "3.33 % / 1.08 % / 2.25 %",
+   "valeur": "3,33 % / 1,08 % / 2,25 %",
    "a_valider": false
   },
   {
    "code": "directeurs",
    "libelle": "Directeurs déchargés de classe",
-   "valeur": "856 prises de fonction par an, dont 15.4 % sans classe",
+   "valeur": "856 prises de fonction par an, dont 15,4 % sans classe",
    "a_valider": true
   },
   {
@@ -939,8 +1478,26 @@
   },
   {
    "code": "annee_base",
-   "libelle": "Année des effectifs de base",
-   "valeur": "2025-2026 (année qui précède la rentrée 2026-2027 du jeu)",
+   "libelle": "Année de base (année scolaire des données du jeu)",
+   "valeur": "2026-2027 ; N+1 = année suivante",
+   "a_valider": true
+  },
+  {
+   "code": "transition",
+   "libelle": "Passage de la base à N+1",
+   "valeur": "Le stock d'enseignants et les effectifs d'élèves observés à la base sont retenus comme situation de début de N+1 : les mouvements entre la date des données et la rentrée de N+1 ne sont pas connus et ne sont pas inventés.",
+   "a_valider": true
+  },
+  {
+   "code": "annee_ages",
+   "libelle": "Année de mesure des âges (retraites)",
+   "valeur": "non précisée : âges supposés mesurés au début de N+1",
+   "a_valider": true
+  },
+  {
+   "code": "plancher_retraites",
+   "libelle": "Plancher du quota : retraites de l'année (PLANCHER_RET)",
+   "valeur": "actif : Q = max(min(besoin calculé ; plafond) ; retraites)",
    "a_valider": true
   }
  ]

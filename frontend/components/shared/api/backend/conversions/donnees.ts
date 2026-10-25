@@ -27,7 +27,7 @@ export interface JeuDjango {
   nom: string
   source: 'import' | 'demonstration' | string
   cree_le: string
-  /** Rentrée que prépare le jeu (« 2026-2027 »), saisie à sa création. */
+  /** Année scolaire des données importées (« 2024-2025 »), saisie à sa création : base des projections. */
   annee_scolaire?: string
   nb_etablissements: number
   nb_enseignants: number

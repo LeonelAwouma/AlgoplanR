@@ -45,6 +45,11 @@ export interface Hypotheses {
     ageLegal: number
     /** Date à laquelle l'âge est apprécié chaque année. */
     dateReference: 'rentree' | 'fin_annee_civile'
+    /**
+     * Année scolaire à laquelle les âges du fichier ont été mesurés (« 2026-2027 »). Vide : à la même date que les
+     * effectifs, retenus comme situation de début de N+1. Sinon les âges sont ramenés au début de N+1.
+     */
+    anneeAges?: string | null
     exceptions: ExceptionRetraite[]
   }
   attrition: Justification & {
@@ -203,6 +208,8 @@ export interface DepartRetraitePrevu {
   nomEtab: string
   dateNaissance: string | null
   ageAuDepart: number
+  /** Âge légal déjà atteint au début de N+1 : départ imputé à N+1 (CORR_60). */
+  dejaEligible?: boolean
 }
 
 /** Plan des départs : retraites nominatives et attrition estimée par territoire. */
@@ -297,7 +304,12 @@ export interface RapportPrevisionnel {
 // --- Tableau prévisionnel complet (Planification – Projection sur 5 ans) ---------------------------------
 
 /** Nature d'une valeur : observée dans les données, estimée par une formule, hypothèse, ou provisoire. */
-export type NatureValeur = 'observe' | 'estime' | 'hypothese' | 'provisoire'
+/**
+ * Qualification statistique d'une valeur : observée (source de l'année de base ou acte enregistré), projetée (calculée
+ * pour une année future), estimée, hypothèse (paramètre retenu), provisoire, non disponible (donnée manquante, avec sa raison) ou sans objet (base d'un flux).
+ */
+export type NatureValeur =
+  'observe' | 'projete' | 'estime' | 'hypothese' | 'provisoire' | 'non_disponible' | 'sans_objet'
 
 /** Ligne du tableau complet : base puis une valeur par année (`null` : sans objet ou non disponible). */
 export interface LignePrevisionnel {
@@ -305,6 +317,8 @@ export interface LignePrevisionnel {
   libelle: string
   valeurs: (number | null)[]
   nature: NatureValeur
+  /** Nature de chaque case (même longueur que `valeurs`) : une valeur future n'est jamais « observée ». */
+  natures?: NatureValeur[]
   decimal: boolean
   unite: 'nombre' | 'pourcentage'
   /** Définition ou mode de calcul, affiché en vue Analyste. */
@@ -348,6 +362,52 @@ export interface HypotheseMethodologique {
   aValider: boolean
 }
 
+/** Provenance d'un tableau : jeu, année, périmètre réel, complétude et date de calcul. */
+export interface ContextePrevisionnel {
+  jeuNom: string
+  jeuSource: string
+  jeuPortee: string
+  jeuRegion: string | null
+  anneeScolaire: string
+  fichiersSource: Record<string, string>
+  perimetre: string
+  niveau: NiveauTerritorial
+  perimetreFiltre: boolean
+  ecolesPerimetre: number
+  ecolesJeu: number
+  /** Σ Enseignants_Actuels : personnels rattachés administrativement (pas tous chargés de classe). */
+  personnelsStockDeclare: number
+  /** Matricules distincts du fichier des enseignants rattachés aux écoles du périmètre. */
+  personnelsNominatifs: number
+  ecolesDonneesIncompletes: number
+  ecolesElevesInconnus: number
+  ecolesMinimumProvisoire: number
+  ecolesSallesFluxInconnu: number
+  versionPlanification: number | null
+  calculeLe: string | null
+  editeLe: string
+}
+
+/** Audit des départs à la retraite : comptes par année et méthode nominative. */
+export interface AuditRetraites {
+  lignes: {
+    annee: string
+    departs: number
+    dejaEligibles: number
+    atteignantAgeLegal: number
+    tauxStockDeclare: number | null
+    tauxPersonnelsNominatifs: number | null
+  }[]
+  dejaEligiblesDebut: number
+  sansAge: number
+  doublons: number
+  personnelsNominatifs: number
+  stockDeclare: number
+  methode: string
+  decalageAges: number
+  anneeAges: string | null
+}
+
 /** Tableau prévisionnel complet du périmètre (`GET jeux/{jeu}/planification/previsionnel/`). */
 export interface PrevisionnelComplet {
   perimetre: string
@@ -355,11 +415,17 @@ export interface PrevisionnelComplet {
   sousSysteme: SousSysteme | null
   scenarioId: string
   baseCalcul: BaseCalculPlanification
-  /** « Base (2025-2026) » puis « N+1 (2026-2027) »… : l'année du jeu est la rentrée N+1, la base l'année qui précède. */
+  /** « Base (2024-2025) » puis « N+1 (2025-2026) »… : la base est l'année du jeu, N+1 l'année scolaire suivante. */
   annees: string[]
   anneeScolairePlan: string | null
-  /** Année des effectifs de base (celle qui précède la rentrée du jeu), `null` si l'année du jeu est inconnue. */
+  /** Année de base : l'année scolaire des données du jeu, `null` si elle est inconnue. */
   anneeBase?: string | null
+  /** Passage de la base à N+1 : le stock observé est retenu comme situation de début de N+1. */
+  hypotheseTransition?: string
+  /** Provenance et périmètre réel du tableau. */
+  contexte?: ContextePrevisionnel
+  /** Départs à la retraite du périmètre, année par année, et méthode. */
+  auditRetraites?: AuditRetraites
   /** Les personnels de la cartographie ne sont pas nécessairement tous des maîtres chargés de classe. */
   avertissementPersonnels?: string
   groupes: { code: 'A' | 'B' | 'C' | 'D' | 'E'; titre: string; lignes: LignePrevisionnel[] }[]

@@ -24,8 +24,9 @@ from domaine.donnees.modeles import Enseignant
 from domaine.planification import parametres as par
 from domaine.planification import previsionnel as prev
 from domaine.planification import rapport as rap
-from domaine.planification.projection import (SCENARIOS, DepartRetraite, ProjectionEcole, calculer_annees,
-                                              fiabilite_indicateurs, ligne_fiabilite, projeter_ecoles)
+from domaine.planification.projection import (SCENARIOS, DepartRetraite, ProjectionEcole, age_exploitable,
+                                              calculer_annees, decalage_ages, fiabilite_indicateurs, ligne_fiabilite,
+                                              matricules_uniques, projeter_ecoles)
 from domaine.planification.referentiel_drh import region_drh
 from domaine.planification.suivi import appliquer_suivi, dans, indicateurs_suivi
 
@@ -215,7 +216,8 @@ def contexte(jeu, scenario_id: Optional[str] = None, *, avec_etat: bool = True) 
         # le départ et l'arrivée de chaque agent. Partir des bases après Prince les compterait deux fois.
         avant = prep.avant()
         ecoles, departs = projeter_ecoles(avant.ecoles, avant.enseignants.values(), prep.cfg, hyp,
-                                          affectations=res["affectations"])
+                                          affectations=res["affectations"],
+                                          decalage=decalage_ages(hyp, getattr(jeu, "annee_scolaire", "")))
         _PROJECTIONS[cle] = (ecoles, departs)
         while len(_PROJECTIONS) > _MAX:
             _PROJECTIONS.popitem(last=False)
@@ -360,7 +362,7 @@ def plan_departs(ctx: Contexte, p: dict) -> dict:
                                   "departs": a["departs_attrition"]})
     return {"retraites": [{"annee": par.ANNEES_PLAN[d.annee], "matricule": d.matricule, "nom": d.nom,
                            "id_ecole": d.id_ecole, "nom_ecole": d.nom_ecole, "date_naissance": None,
-                           "age_au_depart": d.age_au_depart} for d in retraites],
+                           "age_au_depart": d.age_au_depart, "deja_eligible": d.deja_eligible} for d in retraites],
             "attrition": attrition}
 
 
@@ -389,7 +391,10 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
     ecoles = ecoles_de(ctx, p)
     ids = {e.id for e in ecoles}
     legal = ctx.hyp["retraite"]["age_legal"]
-    age_atteint = sum(1 for t in ctx.enseignants if t.ecole_attache in ids and t.age is not None and t.age >= legal)
+    decalage = decalage_ages(ctx.hyp, getattr(ctx.jeu, "annee_scolaire", ""))
+    # Même compte que l'audit des retraites : matricules uniques, âge exploitable ramené au début de N+1.
+    uniques, _ = matricules_uniques([t for t in ctx.enseignants if t.ecole_attache in ids])
+    age_atteint = sum(1 for t in uniques if age_exploitable(t) is not None and age_exploitable(t) - decalage >= legal)
     ressources = {r: _supplementaires(ctx, {**p, "region": r}) for r in {e.region for e in ecoles}}
     out = rap.construire(ecoles, ctx.enseignants, ctx.hyp, _horizon_rapport(horizon), ressources=ressources,
                          seuil_cohorte=_seuil_cohorte(seuil_cohorte),
@@ -400,16 +405,45 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
 def previsionnel(ctx: Contexte, p: dict) -> dict:
     """Tableau prévisionnel complet (base, N+1 à N+5) : les quatre scénarios sont calculés sur le même périmètre que le
     tableau principal, dont la trajectoire sous plafond (quotas retenus inclus) fournit les groupes A à C."""
+    from django.utils import timezone
+
     from contextes.parametrage.services import config_jeu
     ecoles = ecoles_de(ctx, p)
     supp = _supplementaires(ctx, p)
+    annee = getattr(ctx.jeu, "annee_scolaire", "")
+    besoin = config_jeu(ctx.jeu)["besoin"]
     traj = {s: calculer_annees(ecoles, ctx.hyp, ressources_supplementaires=supp, scenario=s) for s in SCENARIOS}
-    out = prev.construire(ecoles, ctx.enseignants, traj, annees(ctx, p, ecoles), ctx.hyp,
-                          annee_scolaire=getattr(ctx.jeu, "annee_scolaire", ""))
-    out["hypotheses"] = prev.hypotheses_methodologiques(ctx.hyp, config_jeu(ctx.jeu)["besoin"],
-                                                        getattr(ctx.jeu, "annee_scolaire", ""))
+    out = prev.construire(ecoles, ctx.enseignants, traj, annees(ctx, p, ecoles), ctx.hyp, annee_scolaire=annee,
+                          norme=besoin["norme_eleves_par_maitre"], contexte=contexte_jeu(ctx, p, ecoles),
+                          decalage=decalage_ages(ctx.hyp, annee), departs=[d for d in ctx.departs if dans(d.lieu, p)])
+    # Date du calcul de la projection (état enregistré) et date d'édition du tableau.
+    out["contexte"]["calcule_le"] = ctx.etat.calcule_le if ctx.etat else timezone.now()
+    out["contexte"]["edite_le"] = timezone.now()
+    out["hypotheses"] = prev.hypotheses_methodologiques(ctx.hyp, besoin, annee)
     return {"perimetre": libelle(p), "niveau": niveau_de(p), "sous_systeme": p.get("sous_systeme") or None,
             "scenario_id": str(ctx.scenario.pk), "base_calcul": base_de_calcul(ctx.jeu), **out}
+
+
+def contexte_jeu(ctx: Contexte, p: dict, ecoles: List[ProjectionEcole]) -> dict:
+    """Provenance d'un tableau : jeu, année, périmètre réel et complétude, pour qu'un titre « Cameroun » ne fasse
+    jamais croire à une couverture nationale qu'il n'a pas."""
+    jeu = ctx.jeu
+    ids = {e.id for e in ecoles}
+    incompletes = sum(1 for e in ecoles if not e.eleves_connus or e.minimum_provisoire or e.bmax_incertain)
+    return {
+        "jeu_nom": jeu.nom, "jeu_source": jeu.source, "jeu_portee": jeu.portee, "jeu_region": jeu.region,
+        "annee_scolaire": jeu.annee_scolaire,
+        "fichiers_source": {f.type: f.nom_fichier for f in jeu.fichiers.order_by("cree_le")},
+        "perimetre": libelle(p), "niveau": niveau_de(p), "perimetre_filtre": bool(p),
+        "ecoles_perimetre": len(ecoles), "ecoles_jeu": len(ctx.ecoles),
+        "personnels_stock_declare": sum(e.effectif_initial for e in ecoles),
+        "personnels_nominatifs": len({t.matricule for t in ctx.enseignants if t.ecole_attache in ids}),
+        "ecoles_donnees_incompletes": incompletes,
+        "ecoles_eleves_inconnus": sum(1 for e in ecoles if not e.eleves_connus),
+        "ecoles_minimum_provisoire": sum(1 for e in ecoles if e.minimum_provisoire),
+        "ecoles_salles_flux_inconnu": sum(1 for e in ecoles if e.bmax_incertain),
+        "version_planification": ctx.etat.version if ctx.etat else None,
+    }
 
 
 def alea(ctx: Contexte, p: dict) -> dict:

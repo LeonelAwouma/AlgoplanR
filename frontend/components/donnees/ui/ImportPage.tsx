@@ -83,7 +83,7 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
   const [blocage, setBlocage] = useState<string | null>(null)
   const [echec, setEchec] = useState<string | null>(null)
   const [qualite, setQualite] = useState<DataQualityReport | null>(null)
-  // Rentrée que prépare le jeu ; vide = l'année en cours, fixée par le serveur.
+  // Année scolaire des données importées ; vide = l'année en cours, fixée par le serveur.
   const [anneeScolaire, setAnneeScolaire] = useState('')
   const anneeInvalide = anneeScolaire.trim() !== '' && !anneeScolaireValide(anneeScolaire)
   /** Réponse au menu « fichier des faits du prince » ; `null` tant que le DRH n'a pas répondu. */
@@ -342,7 +342,7 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
 
       {!occupe && (
         <div className="field" style={{ maxWidth: 260 }}>
-          <label htmlFor="import-annee">Année scolaire du jeu</label>
+          <label htmlFor="import-annee">Année scolaire des données importées</label>
           <input
             id="import-annee"
             type="text"
@@ -355,7 +355,7 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
           <span className="hint">
             {anneeInvalide
               ? 'Saisissez deux années consécutives, par exemple 2026-2027.'
-              : 'La rentrée que prépare ce jeu ; l’année en cours si vous laissez vide. Elle ne se modifie plus ensuite.'}
+              : 'L’année scolaire à laquelle se rapportent les fichiers (base des projections ; N+1 est l’année suivante). L’année en cours si vous laissez vide. Elle ne se modifie plus ensuite.'}
           </span>
         </div>
       )}

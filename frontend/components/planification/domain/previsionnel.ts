@@ -16,9 +16,39 @@ import type {
 /** Nature d'une valeur, en mots. */
 export const LIBELLE_NATURE: Record<NatureValeur, string> = {
   observe: 'Observé',
+  projete: 'Projeté',
   estime: 'Estimé',
   hypothese: 'Hypothèse',
   provisoire: 'Provisoire',
+  non_disponible: 'Non disponible',
+  sans_objet: 'Sans objet',
+}
+
+/** Nature d'une case (0 = base) : celle du serveur, à défaut celle de la ligne. */
+export function natureCase(l: LignePrevisionnel, colonne: number): NatureValeur {
+  return (
+    l.natures?.[colonne] ??
+    (l.valeurs[colonne] == null ? (l.raisons?.[colonne] ? 'non_disponible' : 'sans_objet') : l.nature)
+  )
+}
+
+/** Natures d'une ligne en mots, regroupées : « Observé (base) ; Projeté (N+2 à N+5) »… */
+export function libelleNatures(p: PrevisionnelComplet, l: LignePrevisionnel): string {
+  const groupes: { nature: NatureValeur; colonnes: string[] }[] = []
+  l.valeurs.forEach((_, i) => {
+    const n = natureCase(l, i)
+    const colonne = (p.annees[i] ?? '').replace(/ \(.*\)$/, '')
+    const dernier = groupes.at(-1)
+    if (dernier?.nature === n) dernier.colonnes.push(colonne)
+    else groupes.push({ nature: n, colonnes: [colonne] })
+  })
+  if (groupes.length === 1) return LIBELLE_NATURE[groupes[0].nature]
+  return groupes
+    .map(g => {
+      const c = g.colonnes.length > 1 ? `${g.colonnes[0]} à ${g.colonnes.at(-1)}` : g.colonnes[0]
+      return `${LIBELLE_NATURE[g.nature]} (${c})`
+    })
+    .join(' ; ')
 }
 
 /** Ordre de présentation des scénarios (rapport MINEDUB). */
@@ -117,7 +147,7 @@ export function syntheseDecideur(p: PrevisionnelComplet): SyntheseDecideur {
 /** Lignes à plat du tableau complet, dans l'ordre affiché : la base des exports Excel et Word. */
 export function lignesExport(p: PrevisionnelComplet): (string | number | null)[][] {
   return p.groupes.flatMap(g =>
-    g.lignes.map(l => [`${g.code}. ${g.titre}`, l.libelle, ...l.valeurs, LIBELLE_NATURE[l.nature]]),
+    g.lignes.map(l => [`${g.code}. ${g.titre}`, l.libelle, ...l.valeurs, libelleNatures(p, l)]),
   )
 }
 
@@ -192,5 +222,97 @@ export function lignesFiabilite(p: PrevisionnelComplet): [string, number][] {
     ['Écoles au besoin final provisoire', f.besoinProvisoire],
     ['Écoles au besoin final estimé (regroupement multigrade supposé)', f.besoinEstime],
     ['Écoles au besoin final confirmé', f.besoinConfirme],
+  ]
+}
+
+/** Date et heure en français (« 25/10/2026 22:40 »), vide si absente. */
+const dateFr = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : ''
+
+/**
+ * Provenance du tableau, en lignes « Rubrique / Valeur » : jeu, année, périmètre réel, écoles, personnels, données
+ * incomplètes et date de calcul. Un titre « Cameroun » ne fait jamais croire à une couverture qu'il n'a pas.
+ */
+export function lignesContexte(p: PrevisionnelComplet): [string, string | number][] {
+  const c = p.contexte
+  if (!c) return []
+  const couverture =
+    c.ecolesPerimetre === c.ecolesJeu
+      ? `toutes les écoles du jeu (${c.ecolesJeu.toLocaleString('fr-FR')})`
+      : `${c.ecolesPerimetre.toLocaleString('fr-FR')} écoles sur les ${c.ecolesJeu.toLocaleString('fr-FR')} du jeu`
+  return [
+    ['Jeu de données', c.jeuNom],
+    ['Origine du jeu', LIBELLE_SOURCE[c.jeuSource] ?? c.jeuSource],
+    ['Année scolaire des données (base)', c.anneeScolaire],
+    ['Périmètre', `${c.perimetre} : ${couverture}`],
+    ['Écoles du périmètre', c.ecolesPerimetre],
+    ['Personnels rattachés administrativement (Enseignants_Actuels)', c.personnelsStockDeclare],
+    ['Personnels du fichier nominatif (matricules distincts)', c.personnelsNominatifs],
+    ['Écoles aux données incomplètes', c.ecolesDonneesIncompletes],
+    ['dont effectif d’élèves inconnu', c.ecolesElevesInconnus],
+    ['dont minimum pédagogique provisoire', c.ecolesMinimumProvisoire],
+    ['dont salles simple / double flux non renseignées', c.ecolesSallesFluxInconnu],
+    ['Projection calculée le', dateFr(c.calculeLe)],
+    ['Tableau édité le', dateFr(c.editeLe)],
+  ]
+}
+
+const LIBELLE_SOURCE: Record<string, string> = {
+  import: 'Fichiers importés',
+  demonstration: 'Données de démonstration (fictives)',
+  consolidation: 'Consolidation de jeux régionaux',
+}
+
+/** Une phrase de provenance pour les en-têtes (écran, Word). */
+export function phraseContexte(p: PrevisionnelComplet): string {
+  const c = p.contexte
+  if (!c) return ''
+  const source = c.jeuSource === 'demonstration' ? ' (données de démonstration fictives)' : ''
+  return (
+    `Jeu « ${c.jeuNom} »${source}, données de l’année scolaire ${c.anneeScolaire}. ` +
+    `Périmètre réel : ${c.ecolesPerimetre.toLocaleString('fr-FR')} écoles` +
+    (c.ecolesPerimetre === c.ecolesJeu ? '' : ` sur ${c.ecolesJeu.toLocaleString('fr-FR')}`) +
+    `, ${c.personnelsStockDeclare.toLocaleString('fr-FR')} personnels rattachés administrativement` +
+    ` (${c.personnelsNominatifs.toLocaleString('fr-FR')} dans le fichier nominatif), ` +
+    `${c.ecolesDonneesIncompletes.toLocaleString('fr-FR')} école(s) aux données incomplètes.` +
+    (c.calculeLe ? ` Calculé le ${dateFr(c.calculeLe)}.` : '')
+  )
+}
+
+export const ENTETES_AUDIT_RETRAITES = [
+  'Année',
+  'Départs à la retraite',
+  'Déjà à l’âge légal au début de N+1',
+  'Atteignant l’âge légal dans l’année',
+  'Part du stock déclaré (%)',
+  'Part du fichier nominatif (%)',
+]
+
+/** Lignes de l'audit des retraites, avec le libellé d'année du tableau (« N+1 (2025-2026) »). */
+export function lignesAuditRetraites(p: PrevisionnelComplet): (string | number | null)[][] {
+  const a = p.auditRetraites
+  if (!a) return []
+  return a.lignes.map((x, i) => [
+    p.annees[i + 1] ?? x.annee,
+    x.departs,
+    x.dejaEligibles,
+    x.atteignantAgeLegal,
+    x.tauxStockDeclare,
+    x.tauxPersonnelsNominatifs,
+  ])
+}
+
+/** Comptes de contrôle de l'audit des retraites (âges inexploitables, doublons, méthode). */
+export function controlesAuditRetraites(p: PrevisionnelComplet): [string, string | number][] {
+  const a = p.auditRetraites
+  if (!a) return []
+  return [
+    ['Personnels du fichier nominatif (matricules distincts)', a.personnelsNominatifs],
+    ['Stock déclaré (Enseignants_Actuels)', a.stockDeclare],
+    ['Agents sans âge exploitable (non comptés)', a.sansAge],
+    ['Matricules en double écartés', a.doublons],
+    ['Agents ayant déjà l’âge légal au début de N+1', a.dejaEligiblesDebut],
+    ['Année de mesure des âges', a.anneeAges ?? 'non précisée (même date que les effectifs)'],
+    ['Méthode', a.methode],
   ]
 }

@@ -19,6 +19,6 @@ class CreationJeuSerializer(serializers.Serializer):
     fichier_etablissements = serializers.UUIDField()
     fichier_enseignants = serializers.UUIDField()
     annee_scolaire = serializers.CharField(
-        required=False, allow_blank=True, help_text="Rentrée que prépare le jeu, « AAAA-AAAA » (année en cours si omise)")
+        required=False, allow_blank=True, help_text="Année scolaire des données importées, « AAAA-AAAA » (année en cours si omise)")
     fichier_prince = serializers.UUIDField(
         required=False, help_text="Faits du Prince (DRH) : appliqués avant l'algorithme, au premier calcul")

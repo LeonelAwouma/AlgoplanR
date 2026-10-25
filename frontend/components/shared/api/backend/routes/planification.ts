@@ -129,6 +129,7 @@ interface HypothesesDjango {
     justification: string
     age_legal: number
     date_reference: Hypotheses['retraite']['dateReference']
+    annee_ages?: string | null
     exceptions: { critere: 'statut' | 'categorie'; valeur: string; age_legal: number }[]
   }
   attrition: {
@@ -256,6 +257,7 @@ export function versHypotheses(h: HypothesesDjango): Hypotheses {
       justification: h.retraite.justification,
       ageLegal: h.retraite.age_legal,
       dateReference: h.retraite.date_reference,
+      anneeAges: h.retraite.annee_ages ?? null,
       exceptions: h.retraite.exceptions.map(e => ({ critere: e.critere, valeur: e.valeur, ageLegal: e.age_legal })),
     },
     attrition: {
@@ -303,6 +305,7 @@ export function versCorpsHypotheses(c: CorpsHypotheses): Record<string, unknown>
       justification: c.retraite.justification,
       age_legal: c.retraite.ageLegal,
       date_reference: c.retraite.dateReference,
+      annee_ages: c.retraite.anneeAges?.trim() || null,
       exceptions: c.retraite.exceptions.map(e => ({ critere: e.critere, valeur: e.valeur, age_legal: e.ageLegal })),
     },
     attrition: {
@@ -493,6 +496,7 @@ export const conversionsPlanification: Record<string, Conversion> = {
         nom_ecole: string
         date_naissance: string | null
         age_au_depart: number
+        deja_eligible?: boolean
       }[]
       attrition: { annee: AnneePlan; territoire: string; sous_systeme: CleSousSysteme; departs: number }[]
     }>(acces, `${P(p.jeu)}departs/`, r.query)
@@ -505,6 +509,7 @@ export const conversionsPlanification: Record<string, Conversion> = {
         nomEtab: x.nom_ecole,
         dateNaissance: x.date_naissance,
         ageAuDepart: x.age_au_depart,
+        dejaEligible: x.deja_eligible ?? false,
       })),
       attrition: d.attrition.map(a => ({
         annee: a.annee,

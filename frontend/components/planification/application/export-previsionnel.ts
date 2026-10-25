@@ -26,12 +26,19 @@ import { MENTION_SIMULATION } from '../../shared/kernel'
 import { telechargerFichier } from '../../shared/exports/export-csv'
 import { exporterXLSX, type FeuilleXlsx } from '../../shared/exports/export-xlsx'
 import {
+  ENTETES_AUDIT_RETRAITES,
   ENTETES_SCENARIOS,
   LIBELLE_NATURE,
+  controlesAuditRetraites,
   entetesExport,
+  libelleNatures,
+  lignesAuditRetraites,
+  lignesContexte,
   lignesExport,
   lignesFiabilite,
   lignesScenarios,
+  natureCase,
+  phraseContexte,
   raisonsIndisponibles,
   renvoi,
 } from '../domain/previsionnel'
@@ -62,18 +69,50 @@ export function lignesMinimumPedagogique(p: PrevisionnelComplet): (string | numb
   ]
 }
 
-/** Les feuilles du classeur : tableau complet, scénarios, hypothèses, données non disponibles, minimum pédagogique. */
+/**
+ * Les feuilles du classeur : contexte, tableau complet, natures des valeurs, scénarios, audit des retraites,
+ * hypothèses, données non disponibles, minimum pédagogique, avertissements.
+ */
 export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
   const lignes = p.groupes.flatMap(g => g.lignes)
   // Une case vide du classeur n'est jamais muette : la raison de l'absence est dans la dernière colonne.
   const raisonsLigne = lignes.map(l => [...new Set((l.raisons ?? []).filter((r): r is string => !!r))].join(' ; '))
   return [
     {
+      nom: 'Contexte',
+      entetes: ['Rubrique', 'Valeur'],
+      lignes: [
+        ...lignesContexte(p),
+        ['Passage de la base à N+1', p.hypotheseTransition ?? ''],
+        ['Avertissement', MENTION_SIMULATION],
+      ],
+      // Format explicite : les nombres restent des nombres, les textes des textes.
+      formats: ['texte', 'entier'],
+    },
+    {
       nom: 'Tableau complet',
       entetes: [...entetesExport(p), 'Définition', 'Raison des valeurs non disponibles'],
       lignes: lignesExport(p).map((l, i) => [...l, lignes[i]?.detail ?? '', raisonsLigne[i] ?? '']),
     },
+    {
+      // Qualification de chaque case : une valeur future n'est jamais « observée ».
+      nom: 'Nature des valeurs',
+      entetes: ['Groupe', 'Indicateur', ...p.annees],
+      lignes: p.groupes.flatMap(g =>
+        g.lignes.map(l => [
+          `${g.code}. ${g.titre}`,
+          l.libelle,
+          ...l.valeurs.map((_, i) => LIBELLE_NATURE[natureCase(l, i)]),
+        ]),
+      ),
+    },
     { nom: 'Scénarios', entetes: ENTETES_SCENARIOS, lignes: lignesScenarios(p) },
+    {
+      nom: 'Audit des retraites',
+      entetes: ENTETES_AUDIT_RETRAITES,
+      lignes: [...lignesAuditRetraites(p), [], ...controlesAuditRetraites(p)],
+      formats: ['texte', 'entier', 'entier', 'entier', 'decimal', 'decimal'],
+    },
     {
       nom: 'Hypothèses',
       entetes: ['Hypothèse', 'Valeur retenue', 'À valider administrativement'],
@@ -155,9 +194,18 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
             children: [new TextRun({ text: MENTION_SIMULATION, italics: true })],
             spacing: { after: 200 },
           }),
+          ...(p.contexte
+            ? [
+                new Paragraph({
+                  spacing: { after: 120 },
+                  children: [new TextRun({ text: phraseContexte(p), bold: true })],
+                }),
+              ]
+            : []),
           new Paragraph({
             text: `REM de référence : ${texte(p.remReference)} élèves par enseignant. ${p.ecoles.toLocaleString('fr-FR')} écoles dans le périmètre.`,
           }),
+          ...(p.hypotheseTransition ? [new Paragraph({ spacing: { before: 120 }, text: p.hypotheseTransition })] : []),
           ...(p.messageMinimumProvisoire
             ? [
                 new Paragraph({
@@ -194,7 +242,7 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
                   // Sans raison, une case vide est « sans objet » (la base n'a pas de départs), jamais « 0 ».
                   return n ? `${NON_DISPONIBLE} (${n})` : (v ?? '—')
                 }),
-                LIBELLE_NATURE[l.nature],
+                libelleNatures(p, l),
               ]),
             ),
           ]),
@@ -215,6 +263,15 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
             : []),
           titre('Comparaison des scénarios'),
           tableau(ENTETES_SCENARIOS, lignesScenarios(p)),
+          ...(p.auditRetraites
+            ? [
+                titre('Audit des départs à la retraite'),
+                tableau(ENTETES_AUDIT_RETRAITES, lignesAuditRetraites(p)),
+                new Paragraph({ text: '' }),
+                tableau(['Contrôle', 'Valeur'], controlesAuditRetraites(p)),
+              ]
+            : []),
+          ...(p.contexte ? [titre('Provenance et périmètre'), tableau(['Rubrique', 'Valeur'], lignesContexte(p))] : []),
           titre('Minimum pédagogique et fiabilité du besoin'),
           tableau(['Indicateur', 'Valeur'], lignesMinimumPedagogique(p)),
           titre('Données non disponibles'),

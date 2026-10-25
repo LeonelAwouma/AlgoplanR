@@ -2,8 +2,10 @@
 
 Règles (référence : moteur-reference/scripts/serveur/planification.ts, formules DRH de codeSource) :
   - situation de départ : l'effectif de chaque école (Enseignants_Actuels) après les mouvements du scénario retenu ;
-  - retraites : un enseignant part l'année où il atteint l'âge légal, compté une seule fois, dans l'école qu'il
-    occupe après le plan ; ceux qui l'ont déjà atteint sont imputés à N+1 si CORR_60, ignorés sinon ;
+  - retraites : un enseignant part l'année où il atteint l'âge légal, compté une seule fois (un matricule en double
+    n'est compté qu'une fois), dans l'école qu'il occupe après le plan ; ceux qui l'ont déjà atteint au début de N+1
+    sont imputés à N+1 si CORR_60, ignorés sinon. Un âge absent n'est jamais remplacé : l'agent n'est pas compté.
+    Les âges sont ramenés au début de N+1 quand ils ont été mesurés une autre année (`retraite.annee_ages`) ;
   - croissance des élèves (G_PRI_PCT) : l'effectif d'élèves de chaque école croît chaque année, et la cible K de
     l'école (règle du référentiel MINEDUB) est recalculée sur cet effectif ;
   - besoin d'une école : max(0 ; K − effectif restant) ; attrition hors retraite τ × effectif ÷ 100 arrondie à l'entier
@@ -17,9 +19,14 @@ Règles (référence : moteur-reference/scripts/serveur/planification.ts, formul
     la somme des besoins pédagogiques calculés école par école (P, m, D, K) ;
   - quotas des années précédentes supposés recrutés (hypothèse par défaut) : ils s'ajoutent à l'effectif suivant
     et le besoin d'une année est son besoin nouveau ; sinon le besoin se cumule d'année en année ;
+  - ressources du vivier (N+1) : excédents sûrs des écoles mesurés dans le même état que les besoins de N+1 (après
+    les retraites de N+1) : un retraité d'une école excédentaire n'est pas compté à la fois comme départ et comme
+    ressource ;
   - quota calculé (scénario « sous plafond » de codeSource) : besoin de l'année, déficit initial rattrapé sur
-    ETAL_N ans, moins les ressources du vivier ; plafonné à PLAF_PRI rapporté à l'effectif du périmètre, sans
-    descendre sous les retraites de l'année si PLANCHER_RET.
+    ETAL_N ans, moins les ressources du vivier ; plafonné à PLAF_PRI rapporté à l'effectif du périmètre. Si
+    PLANCHER_RET, le quota ne descend jamais sous les retraites de l'année (Q ≥ R), même au-delà du plafond :
+    Q = max(min(brut ; plafond) ; R). Le quota calculé n'est qu'une proposition : il ne devient un recrutement que
+    par hypothèse de projection (`quotas.annees_precedentes_realisees`), jamais un recrutement réalisé.
 """
 from __future__ import annotations
 
@@ -84,6 +91,8 @@ class ProjectionEcole:
     effectifs: List[int] = field(default_factory=list)
     besoins: List[int] = field(default_factory=list)
     excedents: List[int] = field(default_factory=list)
+    #: Excédent sûr de chaque année (après les retraites de l'année, élèves projetés).
+    excedents_surs: List[int] = field(default_factory=list)
     #: Excédent initial mobilisable sans validation (hors part qui dépend d'un minimum pédagogique non observé).
     excedent_sur_initial: int = 0
     #: Minimum pédagogique fondé sur l'hypothèse de secours (Classes_Multigrades non renseigné ou illisible).
@@ -117,31 +126,66 @@ class DepartRetraite:
     nom_ecole: str
     age_au_depart: int
     lieu: Dict[str, str]
+    #: Âge légal déjà atteint au début de N+1 : départ imputé à N+1 par CORR_60.
+    deja_eligible: bool = False
 
 
-def annee_depart(age: Optional[float], hyp: dict) -> Optional[int]:
+def decalage_ages(hyp: dict, annee_scolaire_jeu: str = "") -> int:
+    """Années à retrancher aux âges du fichier pour les ramener au début de N+1.
+
+    N+1 suit l'année du jeu (la base). Sans `retraite.annee_ages`, les âges sont supposés mesurés à la même date que
+    les effectifs observés, retenus comme situation de début de N+1 : aucun décalage. Des âges calculés par exemple
+    à la rentrée 2026 pour une base 2024-2025 (N+1 = 2025-2026) sont trop vieux d'un an : décalage 1.
+    """
+    from ..donnees.annee_scolaire import _FORME
+    ages = _FORME.match(str(hyp["retraite"].get("annee_ages") or "").strip())
+    jeu = _FORME.match(str(annee_scolaire_jeu or "").strip())
+    if not ages or not jeu:
+        return 0
+    return int(ages.group(1)) - (int(jeu.group(1)) + 1)
+
+
+def annee_depart(age: Optional[float], hyp: dict, decalage: int = 0) -> Optional[int]:
     """Indice de l'année de départ à la retraite (0 = N+1), `None` si l'agent ne part pas dans les cinq ans.
 
-    L'âge du fichier est celui de la rentrée de N+1. Apprécié en fin d'année civile, il gagne une année.
+    L'âge est ramené au début de N+1 (`decalage`, voir `decalage_ages`). Apprécié en fin d'année civile, il gagne
+    une année. Un âge absent n'est jamais remplacé : `None`.
     """
     if age is None:
         return None
+    age = age - decalage
     r = hyp["retraite"]
     legal = r["age_legal"]
     if age >= legal:
         return 0 if hyp["drh"].get("CORR_60", True) else None
-    decalage = 1 if r.get("date_reference") == "fin_annee_civile" else 0
+    fin_annee = 1 if r.get("date_reference") == "fin_annee_civile" else 0
     for k in range(len(ANNEES_PLAN)):
-        if age + k + decalage >= legal:
+        if age + k + fin_annee >= legal:
             return k
     return None
 
 
+def age_exploitable(t: Enseignant) -> Optional[float]:
+    """Âge utilisable pour les retraites : jamais l'âge supposé d'un fichier sans colonne Age (`age_connu`)."""
+    return t.age if getattr(t, "age_connu", True) else None
+
+
+def matricules_uniques(enseignants: List[Enseignant]) -> Tuple[List[Enseignant], int]:
+    """Enseignants dédoublonnés par matricule (le premier est gardé) et nombre de doublons écartés."""
+    vus, out = set(), []
+    for t in enseignants:
+        if t.matricule not in vus:
+            vus.add(t.matricule)
+            out.append(t)
+    return out, len(enseignants) - len(out)
+
+
 def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], cfg: dict, hyp: dict, *,
-                    affectations: Iterable[dict] = ()) -> Tuple[List[ProjectionEcole], List[DepartRetraite]]:
+                    affectations: Iterable[dict] = (), decalage: int = 0
+                    ) -> Tuple[List[ProjectionEcole], List[DepartRetraite]]:
     """Projection de chaque école (hors structures administratives) et départs nominatifs à la retraite."""
     ecoles = [e for e in ecoles if not est_structure(e)]
-    enseignants = list(enseignants)
+    enseignants, _ = matricules_uniques(list(enseignants))
     par_id = {e.id: e for e in ecoles}
     attache = {t.matricule: t.ecole_attache for t in enseignants}
     position: Dict[str, str] = {}
@@ -160,7 +204,7 @@ def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], 
     retraites: Dict[str, List[int]] = {}
     departs: List[DepartRetraite] = []
     for t in enseignants:
-        k = annee_depart(t.age, hyp)
+        k = annee_depart(age_exploitable(t), hyp, decalage)
         if k is None:
             continue
         id_ecole = position.get(t.matricule, t.ecole_attache)
@@ -168,11 +212,12 @@ def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], 
         if ecole is None:
             continue
         retraites.setdefault(id_ecole, [0] * n)[k] += 1
-        decalage = 1 if hyp["retraite"].get("date_reference") == "fin_annee_civile" else 0
         departs.append(DepartRetraite(
             annee=k, matricule=t.matricule, nom=f"{t.nom} {t.prenom}".strip() or t.matricule, id_ecole=id_ecole,
-            nom_ecole=ecole.nom or ecole.id, age_au_depart=int(math.floor(max(t.age, 0) + k + decalage)),
-            lieu=lieu_de(ecole)))
+            nom_ecole=ecole.nom or ecole.id,
+            age_au_depart=int(math.floor(max(t.age - decalage, 0) + k + (1 if hyp["retraite"].get("date_reference")
+                                                                            == "fin_annee_civile" else 0))),
+            lieu=lieu_de(ecole), deja_eligible=(age_exploitable(t) - decalage) >= hyp["retraite"]["age_legal"]))
 
     g = float(hyp["drh"].get("G_PRI_PCT", 0)) / 100.0
     resultat: List[ProjectionEcole] = []
@@ -202,6 +247,7 @@ def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], 
             p.effectifs.append(restant)
             p.besoins.append(int(ind.be))
             p.excedents.append(int(ind.xe))
+            p.excedents_surs.append(int(ind.xe_sur))
             p.pe.append(ind.Pe)
             p.me.append(ind.me)
             p.de.append(ind.De)
@@ -262,9 +308,10 @@ def taux_attrition(ecoles: List[ProjectionEcole], hyp: dict) -> float:
 
 def raison_encadrement_indisponible(nb_inconnues: int) -> str:
     """Pourquoi le taux d'encadrement projeté n'est pas calculable : des écoles à effectif d'élèves inconnu."""
-    return (f"{nb_inconnues} école(s) à effectif d'élèves inconnu : les départs et les recrutements projetés ne "
-            "peuvent pas être attribués aux seules écoles à effectif connu (population commune) sans répartir "
-            "artificiellement les recrutements entre écoles.")
+    return (f"Le taux d'encadrement ne peut pas être calculé pour l'ensemble des écoles, car {nb_inconnues} école(s) "
+            "ont un effectif d'élèves inconnu. Les départs et les recrutements projetés concernent tout le périmètre : "
+            "ils ne peuvent pas être attribués aux seules écoles à effectif connu sans répartir artificiellement les "
+            "recrutements entre écoles.")
 
 
 #: Scénarios de recrutement du rapport DRH : la règle fixe les recrues qui s'ajoutent au stock de l'année suivante.
@@ -313,7 +360,9 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
         besoin_cumule = somme(lambda e: e.besoins[k]) + attrition_cumulee + decharges_fin
         besoin = max(0, besoin_cumule - besoin_precedent) if supposes else besoin_cumule
         besoin_precedent = besoin_cumule
-        vivier = (somme(lambda e: e.excedent_sur_initial) + ressources_supplementaires) if k == 0 else 0
+        # Même état que les besoins de N+1 (après ses retraites) : un retraité n'est pas aussi une ressource.
+        vivier = (somme(lambda e: e.excedents_surs[0] if e.excedents_surs else e.excedent_sur_initial)
+                  + ressources_supplementaires) if k == 0 else 0
         part_cumulee = arrondi(deficit * min(k + 1, etalement) / etalement)
         if supposes:
             rattrapage, inclus = part_cumulee - rattrapage_precedent, (deficit if k == 0 else 0)
@@ -321,12 +370,9 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
             rattrapage, inclus = part_cumulee, deficit
         rattrapage_precedent = part_cumulee
         brut = max(0, besoin - inclus + rattrapage - vivier)
-        if plafond is None:
-            quota = brut
-        elif drh["PLANCHER_RET"]:
-            quota = min(brut, max(plafond, retraites))
-        else:
-            quota = min(brut, plafond)
+        sous_plafond = brut if plafond is None else min(brut, plafond)
+        # PLANCHER_RET : le quota remplace au moins les retraites de l'année, même au-delà du plafond (Q ≥ R).
+        quota = max(sous_plafond, retraites) if drh["PLANCHER_RET"] else sous_plafond
         eleves = somme(lambda e: e.eleves[k] if e.eleves_connus else 0.0)
         disponibles = max(0, effectif - decharges)          # U(t) au début de l'année
         if nb_inconnues == 0:
@@ -346,6 +392,8 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
             "taux_attrition": round(taux, 4), "origine_taux": origine, "directeurs_decharges": directeurs,
             "decharges_avant": decharges, "decharges_cumulees": decharges_fin, "disponibles_debut": disponibles,
             "rattrapage": rattrapage, "plafond": plafond, "quota_avant_plafond": brut,
+            "plancher_retraites": retraites if drh["PLANCHER_RET"] else None,
+            "plancher_applique": bool(drh["PLANCHER_RET"]) and quota > sous_plafond,
             # Taux d'encadrement projeté (population commune, voir plus haut) : arrondi à la restitution seulement ;
             # `rem_brut` et `eleves_brut` gardent la précision pour la suite des calculs. `None` + raison quand il
             # n'est pas calculable sur la population commune.
@@ -382,7 +430,7 @@ def ligne_fiabilite(territoire: str, ecoles: List[ProjectionEcole], enseignants:
     part = lambda n, total: 0.0 if total == 0 else round(n / total, 2)  # noqa: E731
     return {
         "territoire": territoire, "ecoles": len(ecoles), "enseignants": len(rattaches),
-        "taux_date_naissance": part(sum(1 for t in rattaches if t.age is not None), len(rattaches)),
+        "taux_date_naissance": part(sum(1 for t in rattaches if age_exploitable(t) is not None), len(rattaches)),
         "taux_sous_systeme": part(sum(1 for t in rattaches if code_sous_systeme(t.sous_systeme) != "non_renseigne"),
                                   len(rattaches)),
         "taux_effectifs_eleves": part(sum(1 for e in ecoles if e.eleves_connus), len(ecoles)),

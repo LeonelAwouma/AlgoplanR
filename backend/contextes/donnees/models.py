@@ -15,7 +15,8 @@ class JeuDeDonnees(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nom = models.CharField(max_length=200)
     source = models.CharField(max_length=20, default="import")  # import | demonstration | consolidation
-    # Rentrée que prépare le jeu (« 2026-2027 »), saisie à la création : elle date les projections et les rapports.
+    # Année scolaire des données importées (« 2024-2025 »), saisie à la création : c'est la base des projections
+    # (N+1 est l'année suivante) et elle date les rapports.
     annee_scolaire = models.CharField(max_length=9, default=annee_scolaire_courante)
     cree_le = models.DateTimeField(auto_now_add=True)
     portee = models.CharField(max_length=20, blank=True, default="", db_index=True)  # regional | national | national_herite
