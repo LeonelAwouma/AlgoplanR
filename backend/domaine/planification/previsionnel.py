@@ -64,6 +64,11 @@ def _ligne(cle: str, libelle: str, base, valeurs: List, *, nature: str = OBSERVE
     return out
 
 
+def _fr(x) -> str:
+    """Nombre en écriture française (virgule décimale) pour les textes affichés : 74,4 ; 2,25."""
+    return f"{float(x):g}".replace(".", ",")
+
+
 def _ecart(rem: Optional[float], ref: float) -> Optional[float]:
     return None if rem is None else round(rem - ref, CHIFFRES_ENCADREMENT)
 
@@ -168,7 +173,7 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
                nature=OBSERVE, detail="Comptés nominativement d'après l'âge (jamais par le taux de 1,08 %)."),
         _ligne("departs_attrition", "Autres départs par attrition (hors retraite)", None,
                [l["departs_attrition"] for l in suivi], nature=HYPOTHESE,
-               detail=f"Taux d'autres départs ({suivi[0]['taux_attrition'] if suivi else drh['A_AUT_PRI_PCT']} %) "
+               detail=f"Taux d'autres départs ({_fr(suivi[0]['taux_attrition'] if suivi else drh['A_AUT_PRI_PCT'])} %) "
                       "× stock de début : l'attrition totale (3,33 %) n'est pas ajoutée aux retraites."),
         _ligne("directeurs_decharges", "Directeurs déchargés de classe (nouveaux)", None,
                [l["directeurs_decharges"] for l in suivi], nature=HYPOTHESE,
@@ -185,10 +190,10 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
     c = [
         _ligne("besoin_rem", "Enseignants nécessaires selon le REM de référence", besoin_rem(base_eleves, ref),
                [l["besoin_rem"] for l in suivi], nature=ESTIME,
-               detail=f"⌈élèves ÷ {ref:g}⌉ : estimation par ratio, distincte de la somme des besoins des écoles."),
+               detail=f"⌈élèves ÷ {_fr(ref)}⌉ : estimation par ratio, distincte de la somme des besoins des écoles."),
         _ligne("somme_pe", "Besoin pédagogique lié aux élèves (Σ P)", sum(e.pe_initial for e in ecoles),
                [l["somme_pe"] for l in suivi], nature=ESTIME,
-               detail=f"P = max(1 ; ⌈(N − tolérance) ÷ {ref:g}⌉), école par école."),
+               detail=f"P = max(1 ; ⌈(N − tolérance) ÷ {_fr(ref)}⌉), école par école."),
         _ligne("somme_me", "Minimum pédagogique (Σ m)", sum(e.me_initial for e in ecoles),
                [l["somme_me"] for l in suivi], nature=nature_besoin,
                detail="m = max(plancher ; G) ; G de secours (6) quand Classes_Multigrades n'est pas renseigné."),
@@ -278,23 +283,23 @@ def hypotheses_methodologiques(hyp: dict, besoin: Optional[dict] = None, annee_s
     b = {**DEFAULT_CONFIG["besoin"], **(besoin or {})}
     return [
         {"code": "rem_reference", "libelle": "REM de référence (rapport MINEDUB d'octobre 2026)",
-         "valeur": f"{d['REM_REF_PRI']:g} élèves par enseignant", "a_valider": False},
+         "valeur": f"{_fr(d['REM_REF_PRI'])} élèves par enseignant", "a_valider": False},
         {"code": "norme_historique", "libelle": "Norme historique d'AlgoPlanR (avant octobre 2026)",
          "valeur": f"{NORME_HISTORIQUE} élèves par maître", "a_valider": False},
         {"code": "tolerance", "libelle": "Tolérance pédagogique AlgoPlanR",
-         "valeur": f"{b['effectif_premiere_section']:g} élèves", "a_valider": False},
+         "valeur": f"{_fr(b['effectif_premiere_section'])} élèves", "a_valider": False},
         {"code": "plancher", "libelle": "Plancher du minimum pédagogique",
          "valeur": f"{b['plancher_pedagogique']} enseignants", "a_valider": True},
         {"code": "groupes_secours", "libelle": "Groupes de secours si Classes_Multigrades est absent",
          "valeur": f"{b['groupes_secours']} groupes (école complète de six années supposée)", "a_valider": True},
         {"code": "regroupement", "libelle": "Années réunies par classe multigrade (estimation G = 6 − M)",
          "valeur": f"{b['niveaux_par_maitre_multigrade']} années, sans chevauchement", "a_valider": True},
-        {"code": "croissance", "libelle": "Croissance annuelle des élèves", "valeur": f"{d['G_PRI_PCT']:g} %",
+        {"code": "croissance", "libelle": "Croissance annuelle des élèves", "valeur": f"{_fr(d['G_PRI_PCT'])} %",
          "a_valider": False},
         {"code": "attrition", "libelle": "Attrition totale / dont retraites / autres départs",
-         "valeur": f"{d['A_TOT_PRI_PCT']:g} % / {d['R_PRI_PCT']:g} % / {d['A_AUT_PRI_PCT']:g} %", "a_valider": False},
+         "valeur": f"{_fr(d['A_TOT_PRI_PCT'])} % / {_fr(d['R_PRI_PCT'])} % / {_fr(d['A_AUT_PRI_PCT'])} %", "a_valider": False},
         {"code": "directeurs", "libelle": "Directeurs déchargés de classe",
-         "valeur": f"{d['DIR_NOM_AN']} prises de fonction par an, dont {d['DIR_H_PRI_PCT']:g} % sans classe",
+         "valeur": f"{d['DIR_NOM_AN']} prises de fonction par an, dont {_fr(d['DIR_H_PRI_PCT'])} % sans classe",
          "a_valider": True},
         {"code": "plafond", "libelle": "Plafond annuel de recrutement (primaire national)",
          "valeur": f"{d['PLAF_PRI']} ; rattrapage sur {d['ETAL_N']} an(s)", "a_valider": False},

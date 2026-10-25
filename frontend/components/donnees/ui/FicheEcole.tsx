@@ -134,7 +134,10 @@ export function FicheEcole({ ecole, onRetour }: ProprietesFicheEcole) {
           </div>
           <div>
             <dt>Excédent mobilisable</dt>
-            <dd>{fmt(d.excedentTheorique)}</dd>
+            <dd>
+              {fmt(d.calcul.excedentSur ?? d.excedentTheorique)}
+              {!!d.calcul.excedentAVerifier && ` (+ ${fmt(d.calcul.excedentAVerifier)} à vérifier)`}
+            </dd>
           </div>
         </dl>
 

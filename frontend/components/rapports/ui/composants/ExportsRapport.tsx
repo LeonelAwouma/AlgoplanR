@@ -75,7 +75,7 @@ function exporterEcoles(ecoles: SchoolDiagnostic[], annee: string) {
       d.enseignantsMinimumAConserver,
       d.besoinTheorique,
       d.postesDeclares,
-      d.excedentTheorique,
+      d.calcul.excedentSur ?? d.excedentTheorique,
       d.school.effectifTotalEleves,
       d.elevesParEnseignantEtat,
     ]),

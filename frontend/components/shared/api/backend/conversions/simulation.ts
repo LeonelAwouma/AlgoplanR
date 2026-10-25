@@ -413,7 +413,11 @@ export function versPool(vivier: EnseignantDjango[], ecoles: Map<string, SchoolD
     return {
       teacher: versTeacher(t, i + 1),
       bareme: nombre(t.bareme),
-      ecoleOrigine: { id: ecole, nom: d?.school.nom ?? ecole, excedentMobilisable: d?.excedentTheorique ?? 0 },
+      ecoleOrigine: {
+        id: ecole,
+        nom: d?.school.nom ?? ecole,
+        excedentMobilisable: d?.calcul.excedentSur ?? d?.excedentTheorique ?? 0,
+      },
       rangDansEcole: rang,
       protege: false,
       affecte: Boolean(t.affecte),

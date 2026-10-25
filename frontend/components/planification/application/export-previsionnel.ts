@@ -87,10 +87,16 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
     {
       nom: 'Minimum pédagogique',
       entetes: ['Indicateur', 'Valeur'],
+      lignes: lignesMinimumPedagogique(p),
+      formats: ['texte', 'entier'],
+    },
+    {
+      nom: 'Avertissements',
+      entetes: ['Sujet', 'Avertissement'],
       lignes: [
-        ...lignesMinimumPedagogique(p),
-        ...(p.messageMinimumProvisoire ? [['Avertissement', p.messageMinimumProvisoire]] : []),
+        ...(p.messageMinimumProvisoire ? [['Classes multigrades', p.messageMinimumProvisoire]] : []),
         ...(p.avertissementPersonnels ? [['Personnels enseignants', p.avertissementPersonnels]] : []),
+        ...raisonsIndisponibles(p).map(r => [`Non disponible : ${r.cellules.join(' ; ')}`, r.raison]),
       ],
     },
   ]
@@ -185,7 +191,8 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
                 l.libelle,
                 ...l.valeurs.map((v, i) => {
                   const n = renvoi(raisons, l, i)
-                  return n ? `${NON_DISPONIBLE} (${n})` : v
+                  // Sans raison, une case vide est « sans objet » (la base n'a pas de départs), jamais « 0 ».
+                  return n ? `${NON_DISPONIBLE} (${n})` : (v ?? '—')
                 }),
                 LIBELLE_NATURE[l.nature],
               ]),

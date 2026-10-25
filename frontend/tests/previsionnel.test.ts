@@ -115,12 +115,19 @@ describe('Tableau prévisionnel complet', () => {
     assert.equal(lignesScenarios(p).length, 4)
   })
 
-  it('produit les cinq feuilles du classeur', () => {
+  it('produit les six feuilles du classeur', () => {
     const p = prevision()
     const feuilles = feuillesPrevisionnel(p)
     assert.deepEqual(
       feuilles.map(f => f.nom),
-      ['Tableau complet', 'Scénarios', 'Hypothèses', 'Données non disponibles', 'Minimum pédagogique'],
+      [
+        'Tableau complet',
+        'Scénarios',
+        'Hypothèses',
+        'Données non disponibles',
+        'Minimum pédagogique',
+        'Avertissements',
+      ],
     )
     const nd = feuilles[3]
     assert.ok(nd.lignes.every(l => l[1] === 'Non disponible'))
@@ -134,7 +141,7 @@ describe('Tableau prévisionnel complet', () => {
     const xml = documentXml(octets)
     for (const g of p.groupes) assert.ok(xml.includes(`${g.code}. ${g.titre.split(/['’]/)[0]}`), g.titre)
     assert.ok(xml.includes('Comparaison des scénarios'))
-    assert.ok(xml.includes('Non disponible'))
+    assert.ok(xml.includes('Données non disponibles'))
   })
 
   it('affiche le message du mode « non renseigné » quand des écoles sont provisoires', async () => {
@@ -145,7 +152,7 @@ describe('Tableau prévisionnel complet', () => {
     }
     const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
     assert.ok(xml.includes('Le nombre de classes multigrades n'))
-    assert.ok(feuillesPrevisionnel(p)[4].lignes.some(l => l[1] === MESSAGE_MULTIGRADES_NON_RENSEIGNES))
+    assert.ok(feuillesPrevisionnel(p)[5].lignes.some(l => l[1] === MESSAGE_MULTIGRADES_NON_RENSEIGNES))
   })
 })
 
@@ -228,7 +235,7 @@ describe('Valeurs non disponibles et fiabilité', () => {
   it('signale que les personnels de la cartographie ne sont pas tous chargés de classe', async () => {
     const p = prevision()
     assert.equal(p.avertissementPersonnels, AVERTISSEMENT_PERSONNELS)
-    assert.ok(feuillesPrevisionnel(p)[4].lignes.some(l => l[1] === AVERTISSEMENT_PERSONNELS))
+    assert.ok(feuillesPrevisionnel(p)[5].lignes.some(l => l[1] === AVERTISSEMENT_PERSONNELS))
     const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
     assert.ok(xml.includes('Personnels enseignants'))
     const source = readFileSync(

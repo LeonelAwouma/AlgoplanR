@@ -77,7 +77,9 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
   const totaux = totauxProjection(lignes)
   const ruptures = rupturesDeChainage(lignes)
   const taux = tauxAttritionApplique(lignes)
-  const avecRem = lignes.some(l => l.rem !== null)
+  // La courbe n'est tracée que si le taux est connu chaque année : une année non disponible n'est jamais dessinée à 0.
+  const avecRem = lignes.length > 0 && lignes.every(l => l.rem !== null)
+  const raisonRem = lignes.find(l => l.rem === null && l.remRaison)?.remRaison ?? null
   const donneesGraphique = lignes
     .filter(l => l.effectifFin !== null)
     .map(l => ({
@@ -243,6 +245,9 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
             donnees={donneesGraphique}
             vide="Aucun effectif projeté sur ce périmètre."
           />
+        )}
+        {!avecRem && raisonRem && (
+          <p className="hint">Taux d’encadrement projeté non disponible pour certaines années : {raisonRem}</p>
         )}
       </Panel>
     </div>

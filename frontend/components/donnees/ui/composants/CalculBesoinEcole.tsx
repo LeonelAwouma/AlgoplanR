@@ -68,7 +68,7 @@ export interface ProprietesCalculBesoinEcole {
 /** Panneau « Situation » de la fiche école. */
 export function CalculBesoinEcole({ diagnostic: d, elevesParMaitre }: ProprietesCalculBesoinEcole) {
   const { calcul, priorite } = d
-  const norme = elevesParMaitre ?? '…'
+  const norme = elevesParMaitre == null ? '…' : elevesParMaitre.toLocaleString('fr-FR')
 
   return (
     <Panel kicker="Diagnostic" title="Situation">
