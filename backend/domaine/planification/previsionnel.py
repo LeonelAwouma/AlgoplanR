@@ -21,15 +21,23 @@ from ..donnees.annee_scolaire import _FORME
 from ..donnees.modeles import Enseignant
 from .parametres import ANNEES_PLAN
 from .projection import SCENARIOS, ProjectionEcole
-from .rapport import LIBELLES_SCENARIOS, eleves_base, rem_base, rems
+from .rapport import LIBELLES_SCENARIOS, eleves_base, raison_rems, rem_base, rems
 
 OBSERVE, ESTIME, HYPOTHESE, PROVISOIRE, NON_DISPONIBLE = "observe", "estime", "hypothese", "provisoire", "non_disponible"
 
 
-def libelles_annees(annee_scolaire: str, horizon: int) -> List[str]:
-    """« Base », puis « N+1 (2026-2027) »… à partir de l'année scolaire du jeu (rentrée du plan), sans la coder."""
+def annee_base(annee_scolaire: str) -> Optional[str]:
+    """Année des effectifs de base : celle qui précède la rentrée que prépare le jeu (N+1), ou None si inconnue."""
     m = _FORME.match(str(annee_scolaire or "").strip())
-    out = ["Base"]
+    return f"{int(m.group(1)) - 1}-{int(m.group(1))}" if m else None
+
+
+def libelles_annees(annee_scolaire: str, horizon: int) -> List[str]:
+    """« Base (2025-2026) », puis « N+1 (2026-2027) »… : l'année scolaire du jeu est la rentrée qu'il prépare (N+1),
+    la base est la situation importée, celle de l'année qui précède. Aucune année n'est codée en dur."""
+    m = _FORME.match(str(annee_scolaire or "").strip())
+    base = annee_base(annee_scolaire)
+    out = [f"Base ({base})" if base else "Base"]
     for k in range(horizon):
         if m:
             debut = int(m.group(1)) + k
@@ -39,10 +47,21 @@ def libelles_annees(annee_scolaire: str, horizon: int) -> List[str]:
     return out
 
 
+#: Avertissement sur Enseignants_Actuels : affiché par l'interface et les exports (même texte, vérifié par les tests).
+AVERTISSEMENT_PERSONNELS = ("Les effectifs enseignants sont ceux des personnels rapprochés dans la cartographie "
+                            "(Enseignants_Actuels). Ces personnels ne sont pas nécessairement tous des maîtres "
+                            "chargés de classe : leur statut n'est pas fourni par les fichiers importés.")
+
+
 def _ligne(cle: str, libelle: str, base, valeurs: List, *, nature: str = OBSERVE, decimal: bool = False,
-           unite: str = "nombre", detail: str = "") -> dict:
-    return {"cle": cle, "libelle": libelle, "valeurs": [base] + list(valeurs), "nature": nature, "decimal": decimal,
-            "unite": unite, "detail": detail}
+           unite: str = "nombre", detail: str = "", raisons: Optional[List[Optional[str]]] = None) -> dict:
+    """Une ligne : base puis une valeur par année. `raisons` (même longueur) dit pourquoi une valeur est absente."""
+    vals = [base] + list(valeurs)
+    out = {"cle": cle, "libelle": libelle, "valeurs": vals, "nature": nature, "decimal": decimal, "unite": unite,
+           "detail": detail}
+    if raisons is not None:
+        out["raisons"] = [r if v is None else None for v, r in zip(vals, raisons)]
+    return out
 
 
 def _ecart(rem: Optional[float], ref: float) -> Optional[float]:
@@ -115,10 +134,16 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
     nb = len(ecoles)
     inconnues = sum(1 for e in ecoles if not e.eleves_connus)
     provisoires = sum(1 for e in ecoles if e.minimum_provisoire)
+    # Minimum provisoire ≠ besoin final incertain : un minimum de secours est sans effet quand l'effectif d'élèves ou
+    # les salles fixent le besoin de l'école.
+    besoin_provisoire = sum(1 for e in ecoles if e.statut_besoin == "provisoire")
+    besoin_estime = sum(1 for e in ecoles if e.statut_besoin == "estime")
+    sans_effet = sum(1 for e in ecoles if e.minimum_provisoire and e.statut_besoin == "confirme")
     base_eleves = eleves_base(ecoles)
     stock = sum(e.effectif_initial for e in ecoles)
-    nature_besoin = PROVISOIRE if provisoires else ESTIME
+    nature_besoin = PROVISOIRE if besoin_provisoire else ESTIME
     rem0 = rem_base(ecoles)
+    raison_base = None if rem0 is not None else "Aucune école du périmètre n'a d'effectif d'élèves connu."
 
     a = [
         _ligne("eleves", "Effectifs d'élèves (écoles à effectif connu)", round(base_eleves),
@@ -134,9 +159,10 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
                       "ni dans le taux d'encadrement."),
     ]
     b = [
-        _ligne("effectif_debut", "Enseignants en poste en début d'année (stock administratif)", stock,
+        _ligne("effectif_debut", "Personnels enseignants en début d'année (stock administratif)", stock,
                [l["effectif_debut"] for l in suivi], nature=OBSERVE,
-               detail="Enseignants_Actuels après les mouvements du scénario retenu ; dès N+2, recrutements de "
+               detail="Enseignants_Actuels (personnels rapprochés dans la cartographie, pas nécessairement tous "
+                      "chargés de classe) après les mouvements du scénario retenu ; dès N+2, recrutements de "
                       "l'année précédente (quota retenu ou calculé) inclus."),
         _ligne("departs_retraite", "Départs à la retraite", None, [l["departs_retraite"] for l in suivi],
                nature=OBSERVE, detail="Comptés nominativement d'après l'âge (jamais par le taux de 1,08 %)."),
@@ -179,6 +205,12 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
                [_pct(provisoires, nb)] * horizon, nature=OBSERVE, decimal=True, unite="pourcentage",
                detail=MESSAGE_MULTIGRADES_NON_RENSEIGNES if provisoires else "Toutes les écoles renseignent leurs "
                                                                             "groupes pédagogiques."),
+        _ligne("part_besoin_incertain", "Part des écoles au besoin final incertain (provisoire ou estimé)",
+               _pct(besoin_provisoire + besoin_estime, nb), [_pct(besoin_provisoire + besoin_estime, nb)] * horizon,
+               nature=OBSERVE, decimal=True, unite="pourcentage",
+               detail="Écoles dont le besoin ou l'excédent change selon l'organisation pédagogique plausible, ou dont "
+                      "l'effectif d'élèves est inconnu. Une école au minimum provisoire dont le besoin est fixé par "
+                      "les élèves ou les salles n'y figure pas."),
     ]
     d = [_ligne(f"recrutement_{s}", f"Recrutement {LIBELLES_SCENARIOS[s]}", None,
                 [l["recrutement"] for l in traj[s][:horizon]], nature=ESTIME) for s in SCENARIOS]
@@ -193,15 +225,20 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
     e = [
         _ligne("rem_reel", "REM réel (élèves par enseignant disponible)", rem0, [l.get("rem") for l in suivi],
                nature=OBSERVE, decimal=True,
-               detail="Base : écoles à effectif connu ; années : trajectoire du tableau, au début de l'année."),
+               detail="Base : écoles à effectif connu ; années : trajectoire du tableau, au début de l'année.",
+               raisons=[raison_base] + [l.get("rem_raison") for l in suivi]),
         _ligne("rem_reference", "REM de référence", ref, [ref] * horizon, nature=HYPOTHESE, decimal=True),
     ]
     for s in ("min", "maintien", "besoin", "plafond"):
+        r = raison_rems(traj[s][:horizon]) or "Taux non calculable pour cette année."
         e.append(_ligne(f"rem_{s}", f"REM projeté – {LIBELLES_SCENARIOS[s]}", rem0, resumes[s]["rem"], nature=ESTIME,
-                        decimal=True, detail="Élèves de l'année ÷ enseignants disponibles après départs et recrutements."))
+                        decimal=True, detail="Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+                        raisons=[raison_base] + [r] * horizon))
+    r = raison_rems(traj["plafond"][:horizon]) or "Taux non calculable pour cette année."
     e.append(_ligne("ecart_reference", "Écart au REM de référence (sous plafond)", _ecart(rem0, ref),
                     resumes["plafond"]["ecart_reference"], nature=ESTIME, decimal=True,
-                    detail="REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant)."))
+                    detail="REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant).",
+                    raisons=[raison_base] + [r] * horizon))
 
     groupes = [
         {"code": "A", "titre": "Population scolaire", "lignes": a},
@@ -214,7 +251,12 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
         "annees": libelles_annees(annee_scolaire, horizon), "annee_scolaire_plan": annee_scolaire or None,
         "groupes": groupes, "scenarios": [resumes[s] for s in SCENARIOS], "rem_reference": ref,
         "rem_indisponible": next((l["rem_raison"] for l in suivi if l.get("rem_raison")), None),
+        "annee_base": annee_base(annee_scolaire),
+        "avertissement_personnels": AVERTISSEMENT_PERSONNELS,
         "ecoles": nb, "ecoles_minimum_provisoire": provisoires, "ecoles_eleves_inconnus": inconnues,
+        "fiabilite": {"minimum_provisoire": provisoires, "minimum_provisoire_sans_effet": sans_effet,
+                      "besoin_provisoire": besoin_provisoire, "besoin_estime": besoin_estime,
+                      "besoin_confirme": nb - besoin_provisoire - besoin_estime},
         "message_minimum_provisoire": MESSAGE_MULTIGRADES_NON_RENSEIGNES if provisoires else None,
         "minimum_pedagogique": {
             "observe": sum(1 for x in ecoles if x.provenance_groupes == "observe"),
@@ -229,7 +271,7 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
     }
 
 
-def hypotheses_methodologiques(hyp: dict, besoin: Optional[dict] = None) -> List[dict]:
+def hypotheses_methodologiques(hyp: dict, besoin: Optional[dict] = None, annee_scolaire: str = "") -> List[dict]:
     """Hypothèses du calcul, avec leur valeur : reprises par l'interface (vue Analyste) et les exports."""
     from ..parametrage.config import DEFAULT_CONFIG, NORME_HISTORIQUE
     d = hyp["drh"]
@@ -259,5 +301,14 @@ def hypotheses_methodologiques(hyp: dict, besoin: Optional[dict] = None) -> List
         {"code": "salles", "libelle": "Salles sans mode de flux connu",
          "valeur": "comptées en simple flux (BMAX approché)", "a_valider": True},
         {"code": "classes_ouvertes", "libelle": "Classes_Ouvertes lu comme le nombre de groupes-classes",
-         "valeur": "oui" if b["groupes_depuis_classes_ouvertes"] else "non", "a_valider": True},
+         "valeur": ("oui" if b["groupes_depuis_classes_ouvertes"] else
+                    "non (désactivé tant que la définition de la colonne n'est pas validée)"), "a_valider": True},
+        {"code": "excedent_estime", "libelle": "Excédent reposant sur des groupes estimés ou de secours",
+         "valeur": ("mobilisable" if b["mobiliser_excedent_incertain"] else
+                    "soumis à validation administrative (aucune sortie automatique)"), "a_valider": True},
+        {"code": "personnels", "libelle": "Enseignants_Actuels compté comme maîtres chargés de classe",
+         "valeur": "personnels rapprochés dans la cartographie, statut non vérifié", "a_valider": True},
+        {"code": "annee_base", "libelle": "Année des effectifs de base",
+         "valeur": (f"{annee_base(annee_scolaire)} (année qui précède la rentrée {annee_scolaire} du jeu)"
+                    if annee_base(annee_scolaire) else "non précisée"), "a_valider": True},
     ]

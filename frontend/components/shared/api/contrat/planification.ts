@@ -309,6 +309,8 @@ export interface LignePrevisionnel {
   unite: 'nombre' | 'pourcentage'
   /** Définition ou mode de calcul, affiché en vue Analyste. */
   detail: string
+  /** Pourquoi une valeur est absente (même longueur que `valeurs`, `null` quand la valeur existe). */
+  raisons?: (string | null)[]
 }
 
 /** Résultat d'un scénario de recrutement sur l'horizon. */
@@ -353,9 +355,13 @@ export interface PrevisionnelComplet {
   sousSysteme: SousSysteme | null
   scenarioId: string
   baseCalcul: BaseCalculPlanification
-  /** « Base » puis « N+1 (2026-2027) »… */
+  /** « Base (2025-2026) » puis « N+1 (2026-2027) »… : l'année du jeu est la rentrée N+1, la base l'année qui précède. */
   annees: string[]
   anneeScolairePlan: string | null
+  /** Année des effectifs de base (celle qui précède la rentrée du jeu), `null` si l'année du jeu est inconnue. */
+  anneeBase?: string | null
+  /** Les personnels de la cartographie ne sont pas nécessairement tous des maîtres chargés de classe. */
+  avertissementPersonnels?: string
   groupes: { code: 'A' | 'B' | 'C' | 'D' | 'E'; titre: string; lignes: LignePrevisionnel[] }[]
   scenarios: ResumeScenario[]
   remReference: number
@@ -367,6 +373,14 @@ export interface PrevisionnelComplet {
   messageMinimumProvisoire: string | null
   /** Écoles selon la provenance de leurs groupes pédagogiques. */
   minimumPedagogique: { observe: number; estime: number; secours: number; indetermine: number }
+  /** Minimum provisoire et besoin final incertain, comptés séparément (écoles). */
+  fiabilite?: {
+    minimumProvisoire: number
+    minimumProvisoireSansEffet: number
+    besoinProvisoire: number
+    besoinEstime: number
+    besoinConfirme: number
+  }
   /** Postes manquants (Σ b à la base) selon la fiabilité du besoin. */
   besoinsParStatut: { confirme: number; estime: number; provisoire: number }
   nonDisponibles: DonneeNonDisponible[]

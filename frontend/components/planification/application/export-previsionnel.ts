@@ -25,7 +25,16 @@ import type { PrevisionnelComplet } from '../../shared/api'
 import { MENTION_SIMULATION } from '../../shared/kernel'
 import { telechargerFichier } from '../../shared/exports/export-csv'
 import { exporterXLSX, type FeuilleXlsx } from '../../shared/exports/export-xlsx'
-import { ENTETES_SCENARIOS, LIBELLE_NATURE, entetesExport, lignesExport, lignesScenarios } from '../domain/previsionnel'
+import {
+  ENTETES_SCENARIOS,
+  LIBELLE_NATURE,
+  entetesExport,
+  lignesExport,
+  lignesFiabilite,
+  lignesScenarios,
+  raisonsIndisponibles,
+  renvoi,
+} from '../domain/previsionnel'
 
 const TYPE_MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const NON_DISPONIBLE = 'Non disponible'
@@ -40,7 +49,7 @@ export function lignesMinimumPedagogique(p: PrevisionnelComplet): (string | numb
   const b = p.besoinsParStatut
   return [
     ['Écoles du périmètre', p.ecoles],
-    ['Groupes observés (Classes_Ouvertes ou six années sans multigrade)', m.observe],
+    ['Groupes observés (Classes_Ouvertes, seulement si le réglage est activé)', m.observe],
     ['Groupes estimés à partir de Classes_Multigrades (G = 6 − M)', m.estime],
     ['Groupes de secours (Classes_Multigrades non renseigné) : besoin provisoire', m.secours],
     ['Groupes indéterminés', m.indetermine],
@@ -49,17 +58,20 @@ export function lignesMinimumPedagogique(p: PrevisionnelComplet): (string | numb
     ['Postes manquants : besoin confirmé', b.confirme],
     ['Postes manquants : besoin estimé', b.estime],
     ['Postes manquants : besoin provisoire', b.provisoire],
+    ...lignesFiabilite(p),
   ]
 }
 
 /** Les feuilles du classeur : tableau complet, scénarios, hypothèses, données non disponibles, minimum pédagogique. */
 export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
-  const avecDetail = p.groupes.flatMap(g => g.lignes.map(l => l.detail))
+  const lignes = p.groupes.flatMap(g => g.lignes)
+  // Une case vide du classeur n'est jamais muette : la raison de l'absence est dans la dernière colonne.
+  const raisonsLigne = lignes.map(l => [...new Set((l.raisons ?? []).filter((r): r is string => !!r))].join(' ; '))
   return [
     {
       nom: 'Tableau complet',
-      entetes: [...entetesExport(p), 'Définition'],
-      lignes: lignesExport(p).map((l, i) => [...l, avecDetail[i] ?? '']),
+      entetes: [...entetesExport(p), 'Définition', 'Raison des valeurs non disponibles'],
+      lignes: lignesExport(p).map((l, i) => [...l, lignes[i]?.detail ?? '', raisonsLigne[i] ?? '']),
     },
     { nom: 'Scénarios', entetes: ENTETES_SCENARIOS, lignes: lignesScenarios(p) },
     {
@@ -78,6 +90,7 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
       lignes: [
         ...lignesMinimumPedagogique(p),
         ...(p.messageMinimumProvisoire ? [['Avertissement', p.messageMinimumProvisoire]] : []),
+        ...(p.avertissementPersonnels ? [['Personnels enseignants', p.avertissementPersonnels]] : []),
       ],
     },
   ]
@@ -125,6 +138,7 @@ const titre = (t: string) =>
 /** Document Word : mêmes groupes, mêmes valeurs, mêmes hypothèses que l'écran. */
 export function documentPrevisionnel(p: PrevisionnelComplet): Document {
   const annees = p.annees
+  const raisons = raisonsIndisponibles(p)
   return new Document({
     sections: [
       {
@@ -152,13 +166,46 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
                 }),
               ]
             : []),
+          ...(p.avertissementPersonnels
+            ? [
+                new Paragraph({
+                  spacing: { before: 120 },
+                  children: [
+                    new TextRun({ text: 'Personnels enseignants : ', bold: true }),
+                    new TextRun(p.avertissementPersonnels),
+                  ],
+                }),
+              ]
+            : []),
           ...p.groupes.flatMap(g => [
             titre(`${g.code}. ${g.titre}`),
             tableau(
               ['Indicateur', ...annees, 'Nature'],
-              g.lignes.map(l => [l.libelle, ...l.valeurs, LIBELLE_NATURE[l.nature]]),
+              g.lignes.map(l => [
+                l.libelle,
+                ...l.valeurs.map((v, i) => {
+                  const n = renvoi(raisons, l, i)
+                  return n ? `${NON_DISPONIBLE} (${n})` : v
+                }),
+                LIBELLE_NATURE[l.nature],
+              ]),
             ),
           ]),
+          ...(raisons.length
+            ? [
+                titre('Valeurs non disponibles'),
+                ...raisons.map(
+                  (r, i) =>
+                    new Paragraph({
+                      spacing: { before: 80 },
+                      children: [
+                        new TextRun({ text: `(${i + 1}) ${r.cellules.join(' ; ')}. `, bold: true }),
+                        new TextRun(r.raison),
+                      ],
+                    }),
+                ),
+              ]
+            : []),
           titre('Comparaison des scénarios'),
           tableau(ENTETES_SCENARIOS, lignesScenarios(p)),
           titre('Minimum pédagogique et fiabilité du besoin'),

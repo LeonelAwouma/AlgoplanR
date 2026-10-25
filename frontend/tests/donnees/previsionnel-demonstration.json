@@ -10,7 +10,7 @@
   "provisoire": true
  },
  "annees": [
-  "Base",
+  "Base (2025-2026)",
   "N+1 (2026-2027)",
   "N+2 (2027-2028)",
   "N+3 (2028-2029)",
@@ -79,7 +79,7 @@
    "lignes": [
     {
      "cle": "effectif_debut",
-     "libelle": "Enseignants en poste en début d'année (stock administratif)",
+     "libelle": "Personnels enseignants en début d'année (stock administratif)",
      "valeurs": [
       272,
       272,
@@ -91,7 +91,7 @@
      "nature": "observe",
      "decimal": false,
      "unite": "nombre",
-     "detail": "Enseignants_Actuels après les mouvements du scénario retenu ; dès N+2, recrutements de l'année précédente (quota retenu ou calculé) inclus."
+     "detail": "Enseignants_Actuels (personnels rapprochés dans la cartographie, pas nécessairement tous chargés de classe) après les mouvements du scénario retenu ; dès N+2, recrutements de l'année précédente (quota retenu ou calculé) inclus."
     },
     {
      "cle": "departs_retraite",
@@ -322,6 +322,22 @@
      "decimal": true,
      "unite": "pourcentage",
      "detail": "Toutes les écoles renseignent leurs groupes pédagogiques."
+    },
+    {
+     "cle": "part_besoin_incertain",
+     "libelle": "Part des écoles au besoin final incertain (provisoire ou estimé)",
+     "valeurs": [
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0
+     ],
+     "nature": "observe",
+     "decimal": true,
+     "unite": "pourcentage",
+     "detail": "Écoles dont le besoin ou l'excédent change selon l'organisation pédagogique plausible, ou dont l'effectif d'élèves est inconnu. Une école au minimum provisoire dont le besoin est fixé par les élèves ou les salles n'y figure pas."
     }
    ]
   },
@@ -461,7 +477,15 @@
      "nature": "observe",
      "decimal": true,
      "unite": "nombre",
-     "detail": "Base : écoles à effectif connu ; années : trajectoire du tableau, au début de l'année."
+     "detail": "Base : écoles à effectif connu ; années : trajectoire du tableau, au début de l'année.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "rem_reference",
@@ -493,7 +517,15 @@
      "nature": "estime",
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements."
+     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "rem_maintien",
@@ -509,7 +541,15 @@
      "nature": "estime",
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements."
+     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "rem_besoin",
@@ -525,7 +565,15 @@
      "nature": "estime",
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements."
+     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "rem_plafond",
@@ -541,7 +589,15 @@
      "nature": "estime",
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements."
+     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     },
     {
      "cle": "ecart_reference",
@@ -557,7 +613,15 @@
      "nature": "estime",
      "decimal": true,
      "unite": "nombre",
-     "detail": "REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant)."
+     "detail": "REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant).",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
     }
    ]
   }
@@ -742,9 +806,18 @@
  ],
  "rem_reference": 74.4,
  "rem_indisponible": null,
+ "annee_base": "2025-2026",
+ "avertissement_personnels": "Les effectifs enseignants sont ceux des personnels rapprochés dans la cartographie (Enseignants_Actuels). Ces personnels ne sont pas nécessairement tous des maîtres chargés de classe : leur statut n'est pas fourni par les fichiers importés.",
  "ecoles": 40,
  "ecoles_minimum_provisoire": 0,
  "ecoles_eleves_inconnus": 0,
+ "fiabilite": {
+  "minimum_provisoire": 0,
+  "minimum_provisoire_sans_effet": 0,
+  "besoin_provisoire": 0,
+  "besoin_estime": 4,
+  "besoin_confirme": 36
+ },
  "message_minimum_provisoire": null,
  "minimum_pedagogique": {
   "observe": 0,
@@ -753,8 +826,8 @@
   "indetermine": 0
  },
  "besoins_par_statut": {
-  "confirme": 2,
-  "estime": 5,
+  "confirme": 5,
+  "estime": 2,
   "provisoire": 0
  },
  "non_disponibles": [
@@ -849,9 +922,26 @@
   {
    "code": "classes_ouvertes",
    "libelle": "Classes_Ouvertes lu comme le nombre de groupes-classes",
-   "valeur": "oui",
+   "valeur": "non (désactivé tant que la définition de la colonne n'est pas validée)",
+   "a_valider": true
+  },
+  {
+   "code": "excedent_estime",
+   "libelle": "Excédent reposant sur des groupes estimés ou de secours",
+   "valeur": "soumis à validation administrative (aucune sortie automatique)",
+   "a_valider": true
+  },
+  {
+   "code": "personnels",
+   "libelle": "Enseignants_Actuels compté comme maîtres chargés de classe",
+   "valeur": "personnels rapprochés dans la cartographie, statut non vérifié",
+   "a_valider": true
+  },
+  {
+   "code": "annee_base",
+   "libelle": "Année des effectifs de base",
+   "valeur": "2025-2026 (année qui précède la rentrée 2026-2027 du jeu)",
    "a_valider": true
   }
- ],
- "calcule_le": null
+ ]
 }

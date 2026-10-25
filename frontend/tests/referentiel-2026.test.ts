@@ -8,7 +8,7 @@ import { describe, it } from 'node:test'
 
 import { versDiagnostic, type EcoleDjango } from '../components/shared/api/backend/conversions/ecoles'
 import { versEngineSettings } from '../components/shared/api/backend/conversions/parametres'
-import { MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../components/shared/kernel/libelles'
+import { MESSAGE_MINIMUM_SANS_EFFET, MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../components/shared/kernel/libelles'
 import { CONFIG } from './config-serveur'
 
 const REGLES = versEngineSettings(CONFIG, '2026-2027')
@@ -115,6 +115,41 @@ describe('Classes multigrades et minimum pédagogique', () => {
     assert.equal(d.calcul.excedentSur, 1)
     assert.equal(d.calcul.excedentAVerifier, 2)
     assert.equal(d.calcul.bmaxIncertain, true)
+  })
+
+  it('distingue un minimum provisoire sans effet d’un besoin final provisoire', () => {
+    const sansEffet = versDiagnostic(
+      ecole({
+        Classes_Multigrades: '',
+        Me: null,
+        multigrades_statut: 'non_renseigne',
+        minimum_provisoire: true,
+        statut_besoin: 'confirme',
+        besoin_final_incertain: false,
+        be_min: 2,
+        be_max: 2,
+      }),
+      1,
+      REGLES,
+    )
+    const raison = sansEffet.raisons.find(r => r.code === 'besoin_provisoire')
+    assert.ok(raison?.texte.startsWith(MESSAGE_MULTIGRADES_NON_RENSEIGNES))
+    assert.ok(raison?.texte.endsWith(MESSAGE_MINIMUM_SANS_EFFET))
+    assert.equal(sansEffet.calcul.besoinFinalIncertain, false)
+    const incertain = versDiagnostic(
+      ecole({
+        minimum_provisoire: true,
+        statut_besoin: 'provisoire',
+        besoin_final_incertain: true,
+        be_min: 1,
+        be_max: 4,
+      }),
+      1,
+      REGLES,
+    )
+    assert.equal(incertain.calcul.besoinMin, 1)
+    assert.equal(incertain.calcul.besoinMax, 4)
+    assert.equal(incertain.raisons.find(r => r.code === 'besoin_provisoire')?.texte, MESSAGE_MULTIGRADES_NON_RENSEIGNES)
   })
 
   it('garde la norme décimale de 74,4', () => {

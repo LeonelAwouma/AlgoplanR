@@ -150,3 +150,47 @@ export const ENTETES_SCENARIOS = [
   'Écart au REM de référence',
   'Besoin restant (C − U)',
 ]
+
+/** Une raison d'indisponibilité et les cellules qu'elle explique (« REM réel : N+2, N+3 »). */
+export interface RaisonIndisponible {
+  raison: string
+  cellules: string[]
+}
+
+/** Valeurs absentes du tableau, regroupées par raison (fournie par le serveur) : jamais une case vide muette. */
+export function raisonsIndisponibles(p: PrevisionnelComplet): RaisonIndisponible[] {
+  const par = new Map<string, string[]>()
+  for (const g of p.groupes) {
+    for (const l of g.lignes) {
+      const colonnes = (l.raisons ?? [])
+        .map((r, i) => (r ? { r, annee: (p.annees[i] ?? '').replace(/ \(.*\)$/, '') } : null))
+        .filter((x): x is { r: string; annee: string } => x !== null)
+      for (const r of new Set(colonnes.map(c => c.r))) {
+        const annees = colonnes.filter(c => c.r === r).map(c => c.annee)
+        par.set(r, [...(par.get(r) ?? []), `${l.libelle} : ${annees.join(', ')}`])
+      }
+    }
+  }
+  return [...par].map(([raison, cellules]) => ({ raison, cellules }))
+}
+
+/** Numéro de renvoi (1, 2…) de la raison d'une cellule, `null` si la valeur existe ou n'a pas de raison. */
+export function renvoi(raisons: readonly RaisonIndisponible[], l: LignePrevisionnel, colonne: number): number | null {
+  const r = l.raisons?.[colonne]
+  if (!r) return null
+  const i = raisons.findIndex(x => x.raison === r)
+  return i < 0 ? null : i + 1
+}
+
+/** Écoles selon la fiabilité de leur besoin : un minimum provisoire n'est pas toujours un besoin final incertain. */
+export function lignesFiabilite(p: PrevisionnelComplet): [string, number][] {
+  const f = p.fiabilite
+  if (!f) return []
+  return [
+    ['Écoles au minimum pédagogique provisoire (Classes_Multigrades non renseigné)', f.minimumProvisoire],
+    ['dont minimum sans effet : besoin final fixé par les élèves ou les salles', f.minimumProvisoireSansEffet],
+    ['Écoles au besoin final provisoire', f.besoinProvisoire],
+    ['Écoles au besoin final estimé (regroupement multigrade supposé)', f.besoinEstime],
+    ['Écoles au besoin final confirmé', f.besoinConfirme],
+  ]
+}

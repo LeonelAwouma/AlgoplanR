@@ -155,8 +155,8 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
           />
           {b.groupesDepuisClassesOuvertes !== undefined && (
             <Interrupteur
-              titre="Les classes ouvertes donnent le nombre réel de groupes"
-              texte="Quand le fichier renseigne Classes_Ouvertes (groupes-classes qui fonctionnent séparément), ce nombre prime sur l’estimation. Ni les salles ni les enseignants affectés ne servent à compter les groupes."
+              titre="Lire Classes_Ouvertes comme le nombre réel de groupes"
+              texte="Désactivé par défaut, tant que la définition métier de la colonne n’est pas validée. Activé, Classes_Ouvertes (groupes-classes qui fonctionnent séparément) prime sur l’estimation. Ni les salles ni les enseignants affectés ne servent à compter les groupes."
               coche={b.groupesDepuisClassesOuvertes}
               onChange={v => besoin('groupesDepuisClassesOuvertes', v)}
             />
@@ -164,7 +164,7 @@ export function ReglesBesoin({ parametres, maj }: ProprietesReglesBesoin) {
           {b.mobiliserExcedentIncertain !== undefined && (
             <Interrupteur
               titre="Mobiliser sans validation l’excédent incertain"
-              texte="Désactivé (recommandé) : la part de l’excédent qui dépend d’une hypothèse sur les groupes pédagogiques n’entre pas au vivier ; elle attend une vérification administrative."
+              texte="Désactivé (recommandé) : la part de l’excédent qui dépend d’une hypothèse sur les groupes pédagogiques (estimation 6 − classes multigrades, hypothèse de secours, ancien « Oui ») n’entre pas au vivier ; elle attend une validation administrative."
               coche={b.mobiliserExcedentIncertain}
               onChange={v => besoin('mobiliserExcedentIncertain', v)}
             />

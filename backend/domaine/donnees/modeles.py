@@ -40,8 +40,13 @@ class Indicateurs:
     multigrades_statut: str = "non_renseigne"
     minimum_provisoire: bool = True
     minimum_observe: bool = False
-    #: confirme | estime | provisoire : fiabilité de la dotation D.
+    #: confirme | estime | provisoire : fiabilité du besoin final (b et x), et non du seul minimum pédagogique. Un
+    #: minimum provisoire laisse le besoin « confirmé » quand l'effectif d'élèves ou les salles fixent le résultat.
     statut_besoin: str = "provisoire"
+    #: Besoin final incertain (statut estime ou provisoire) et fourchette du besoin b sur les organisations plausibles.
+    besoin_final_incertain: bool = True
+    be_min: float = 0.0
+    be_max: float = 0.0
     #: Excédent sûr (mobilisable sans validation) et part qui dépend d'une hypothèse sur les groupes.
     xe_sur: float = 0.0
     xe_a_verifier: float = 0.0
@@ -97,6 +102,7 @@ class Ecole:
             "Ce": i.Ce, "Ge": i.Ge, "Ge_provenance": i.Ge_provenance, "Me": i.Me,
             "multigrades_statut": i.multigrades_statut, "minimum_provisoire": i.minimum_provisoire,
             "statut_besoin": i.statut_besoin, "xe_sur": i.xe_sur, "xe_a_verifier": i.xe_a_verifier,
+            "besoin_final_incertain": i.besoin_final_incertain, "be_min": i.be_min, "be_max": i.be_max,
             "bmax_incertain": i.bmax_incertain, "salles_double_flux_connues": self.salles_double_flux_connues,
         }
         if self.latitude is not None:

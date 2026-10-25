@@ -25,16 +25,19 @@ import {
   entetesExport,
   ligne,
   lignesExport,
+  lignesFiabilite,
   lignesScenarios,
   pointsEnseignants,
   pointsRecrutements,
   pointsRem,
+  raisonsIndisponibles,
+  renvoi,
   syntheseDecideur,
   valeur,
 } from '../components/planification/domain/previsionnel'
 import { camelProfond } from '../components/shared/api/backend/routes/planification'
 import type { PrevisionnelComplet } from '../components/shared/api/contrat'
-import { MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../components/shared/kernel/libelles'
+import { AVERTISSEMENT_PERSONNELS, MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../components/shared/kernel/libelles'
 
 const RACINE = path.resolve(__dirname, '..', '..')
 
@@ -49,7 +52,11 @@ describe('Tableau prévisionnel complet', () => {
   it('garde la base puis cinq années, et cinq groupes A à E', () => {
     const p = prevision()
     assert.equal(p.annees.length, 6)
-    assert.equal(p.annees[0], 'Base')
+    // L'année du jeu est la rentrée N+1 ; la base est l'année qui précède.
+    assert.equal(p.annees[0], `Base (${p.anneeBase})`)
+    const debut = Number(p.anneeScolairePlan?.slice(0, 4))
+    assert.equal(p.anneeBase, `${debut - 1}-${debut}`)
+    assert.equal(p.annees[1], `N+1 (${debut}-${debut + 1})`)
     assert.deepEqual(
       p.groupes.map(g => g.code),
       ['A', 'B', 'C', 'D', 'E'],
@@ -172,3 +179,64 @@ function documentXml(octets: Buffer): string {
   }
   throw new Error('word/document.xml introuvable')
 }
+
+/** Le prévisionnel avec un REM non disponible en N+2 et N+3, comme le serveur le sert quand des effectifs manquent. */
+function avecRemIndisponible(): PrevisionnelComplet {
+  const p = prevision()
+  const raison = "2 école(s) à effectif d'élèves inconnu : …"
+  const l = ligne(p, 'rem_reel')
+  assert.ok(l)
+  l.valeurs[2] = null
+  l.valeurs[3] = null
+  l.raisons = [null, null, raison, raison, null, null]
+  return p
+}
+
+describe('Valeurs non disponibles et fiabilité', () => {
+  it('donne la raison de chaque valeur non disponible, regroupée par raison', () => {
+    const p = avecRemIndisponible()
+    const raisons = raisonsIndisponibles(p)
+    assert.equal(raisons.length, 1)
+    assert.ok(raisons[0].cellules[0].includes('N+2, N+3'))
+    const l = ligne(p, 'rem_reel')
+    assert.ok(l)
+    assert.equal(renvoi(raisons, l, 2), 1)
+    assert.equal(renvoi(raisons, l, 1), null)
+  })
+
+  it('reporte les raisons dans le classeur et le document Word', async () => {
+    const p = avecRemIndisponible()
+    const tableau = feuillesPrevisionnel(p)[0]
+    assert.equal(tableau.entetes.at(-1), 'Raison des valeurs non disponibles')
+    const rem = tableau.lignes.find(x => x[1] === ligne(p, 'rem_reel')?.libelle)
+    assert.ok(String(rem?.at(-1)).includes('effectif d'))
+    const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
+    assert.ok(xml.includes('Valeurs non disponibles'))
+    assert.ok(xml.includes('Non disponible (1)'))
+  })
+
+  it('compte à part le minimum provisoire et le besoin final incertain', () => {
+    const p = prevision()
+    const f = p.fiabilite
+    assert.ok(f)
+    assert.equal(f.besoinProvisoire + f.besoinEstime + f.besoinConfirme, p.ecoles)
+    const lignes = lignesFiabilite(p)
+    assert.equal(lignes.length, 5)
+    assert.ok(lignesMinimumPedagogique(p).some(l => String(l[0]).includes('besoin final')))
+  })
+
+  it('signale que les personnels de la cartographie ne sont pas tous chargés de classe', async () => {
+    const p = prevision()
+    assert.equal(p.avertissementPersonnels, AVERTISSEMENT_PERSONNELS)
+    assert.ok(feuillesPrevisionnel(p)[4].lignes.some(l => l[1] === AVERTISSEMENT_PERSONNELS))
+    const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
+    assert.ok(xml.includes('Personnels enseignants'))
+    const source = readFileSync(
+      path.join(RACINE, '..', 'backend', 'domaine', 'planification', 'previsionnel.py'),
+      'utf8',
+    )
+    const affectation = /AVERTISSEMENT_PERSONNELS = \(([^)]*\)[^)]*)\)/.exec(source)?.[1] ?? ''
+    const serveur = [...affectation.matchAll(/"([^"]*)"/g)].map(m => m[1]).join('')
+    assert.equal(serveur, AVERTISSEMENT_PERSONNELS)
+  })
+})

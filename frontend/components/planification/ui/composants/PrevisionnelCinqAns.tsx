@@ -23,11 +23,15 @@ import {
   ENTETES_SCENARIOS,
   LIBELLE_NATURE,
   ORDRE_SCENARIOS,
+  ligne,
+  lignesFiabilite,
   lignesScenarios,
   pointsEleves,
   pointsEnseignants,
   pointsRecrutements,
   pointsRem,
+  raisonsIndisponibles,
+  renvoi,
   scenario,
   syntheseDecideur,
 } from '../../domain/previsionnel'
@@ -70,6 +74,8 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
   // jamais dessinée à 0.
   const rem = pointsRem(p).filter(pt => ORDRE_SCENARIOS.every(c => pt.valeurs[c] !== undefined))
   const recrutementsBesoin = scenario(p, 'besoin')
+  const raisons = raisonsIndisponibles(p)
+  const f = p.fiabilite
 
   return (
     <Panel
@@ -89,13 +95,34 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
     >
       <div className="stack">
         {p.messageMinimumProvisoire && (
-          <Notice tone="warn" title={`${fmt(p.ecolesMinimumProvisoire)} école(s) au besoin provisoire.`}>
+          <Notice
+            tone="warn"
+            title={`${fmt(p.ecolesMinimumProvisoire)} école(s) au minimum pédagogique provisoire${
+              f ? `, dont ${fmt(f.besoinProvisoire)} au besoin final provisoire` : ''
+            }.`}
+          >
             {p.messageMinimumProvisoire}
+            {f && f.minimumProvisoireSansEffet > 0 && (
+              <>
+                {' '}
+                Pour {fmt(f.minimumProvisoireSansEffet)} de ces écoles, le besoin final ne dépend pas de cette
+                information : il est fixé par l’effectif d’élèves ou par les salles.
+              </>
+            )}
           </Notice>
         )}
-        {p.remIndisponible && (
-          <Notice tone="neutral" title="REM non disponible.">
-            {p.remIndisponible}
+        {p.avertissementPersonnels && (
+          <Notice tone="neutral" title="Personnels enseignants.">
+            {p.avertissementPersonnels}
+          </Notice>
+        )}
+        {raisons.length > 0 && (
+          <Notice tone="neutral" title="Valeurs non disponibles.">
+            {raisons.map((r, i) => (
+              <span key={r.raison} className="ligne-detail">
+                <strong>({i + 1})</strong> {r.cellules.join(' ; ')}. {r.raison}
+              </span>
+            ))}
           </Notice>
         )}
 
@@ -103,7 +130,7 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
           <KpiCard
             label="Élèves attendus"
             value={entier(s.elevesFin)}
-            hint={`${entier(s.elevesBase)} à la base, ${s.derniere} en fin d’horizon (croissance des hypothèses).`}
+            hint={`${entier(s.elevesBase)} à la base${p.anneeBase ? ` (${p.anneeBase})` : ''}, ${s.derniere} en fin d’horizon (croissance des hypothèses).`}
           />
           <KpiCard
             label="Départs sur l’horizon"
@@ -135,16 +162,26 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
               </tr>
             </thead>
             <tbody>
-              {lignesScenarios(p).map(l => (
-                <tr key={String(l[0])}>
-                  <th scope="row">{l[0]}</th>
-                  {l.slice(1).map((v, i) => (
-                    <td key={i} className="num">
-                      {v === null ? 'Non disponible' : typeof v === 'number' ? (i >= 3 ? fmtDec(v, 1) : fmt(v)) : v}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {lignesScenarios(p).map((l, k) => {
+                const remScenario = ligne(p, `rem_${ORDRE_SCENARIOS[k]}`)
+                const n = remScenario ? renvoi(raisons, remScenario, p.annees.length - 1) : null
+                return (
+                  <tr key={String(l[0])}>
+                    <th scope="row">{l[0]}</th>
+                    {l.slice(1).map((v, i) => (
+                      <td key={i} className="num">
+                        {v === null
+                          ? `Non disponible${n ? ` (${n})` : ''}`
+                          : typeof v === 'number'
+                            ? i >= 3
+                              ? fmtDec(v, 1)
+                              : fmt(v)
+                            : v}
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -190,8 +227,15 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
               formatValeur={v => fmtDec(v, 1)}
               series={[{ cle: 'reference', label: 'Référence', couleur: 'var(--violet)' }, ...seriesScenarios]}
               donnees={rem}
-              vide="REM non calculable sur ce périmètre (effectifs d’élèves inconnus)."
+              vide={`REM non calculable pour les années projetées${
+                raisons.length ? ` : voir (${raisons.map((_, i) => i + 1).join(', ')}) ci-dessus` : ''
+              }.`}
             />
+            {rem.length > 0 && rem.length < p.annees.length && (
+              <p className="hint">
+                Les années sans REM calculable ne sont pas tracées (voir les valeurs non disponibles).
+              </p>
+            )}
           </figure>
         </div>
 
@@ -224,11 +268,18 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
                           {l.libelle}
                           {l.detail && <small className="hint ligne-detail">{l.detail}</small>}
                         </th>
-                        {l.valeurs.map((v, i) => (
-                          <td key={i} className="num" title={v === null ? 'Non disponible ou sans objet' : undefined}>
-                            {cellule(l, v)}
-                          </td>
-                        ))}
+                        {l.valeurs.map((v, i) => {
+                          const n = renvoi(raisons, l, i)
+                          return (
+                            <td
+                              key={i}
+                              className="num"
+                              title={v === null ? (l.raisons?.[i] ?? 'Sans objet pour cette colonne') : undefined}
+                            >
+                              {n ? `Non disponible (${n})` : cellule(l, v)}
+                            </td>
+                          )
+                        })}
                         <td>
                           <Pill tone={TON_NATURE[l.nature]}>{LIBELLE_NATURE[l.nature]}</Pill>
                         </td>
@@ -255,6 +306,16 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
                   <Ligne libelle="Postes manquants : besoin provisoire" valeur={fmt(p.besoinsParStatut.provisoire)} />
                   <Ligne libelle="Écoles à l’effectif d’élèves inconnu" valeur={fmt(p.ecolesElevesInconnus)} />
                 </div>
+                {f && (
+                  <>
+                    <h3 className="titre-section">Fiabilité du besoin final</h3>
+                    <div className="situation-block">
+                      {lignesFiabilite(p).map(([libelle, n]) => (
+                        <Ligne key={libelle} libelle={libelle} valeur={fmt(n)} />
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
               <div>
                 <h3 className="titre-section">Données non disponibles</h3>

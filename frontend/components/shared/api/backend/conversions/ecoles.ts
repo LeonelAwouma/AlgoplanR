@@ -90,6 +90,9 @@ export interface EcoleDjango {
   statut_besoin?: StatutBesoin
   xe_sur?: number
   xe_a_verifier?: number
+  besoin_final_incertain?: boolean
+  be_min?: number
+  be_max?: number
   bmax_incertain?: boolean
   latitude?: number
   longitude?: number
@@ -199,6 +202,9 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
       statutBesoin: e.statut_besoin,
       excedentSur: e.xe_sur,
       excedentAVerifier: e.xe_a_verifier,
+      besoinFinalIncertain: e.besoin_final_incertain,
+      besoinMin: e.be_min,
+      besoinMax: e.be_max,
       bmaxIncertain: e.bmax_incertain,
     },
     classement: classer(e),

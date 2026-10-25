@@ -35,7 +35,7 @@ export const CONFIG: ConfigDjango = {
     niveaux_par_maitre_multigrade: 2,
     groupes_secours: 6,
     minimum_selon_multigrades: true,
-    groupes_depuis_classes_ouvertes: true,
+    groupes_depuis_classes_ouvertes: false,
     mobiliser_excedent_incertain: false,
     double_flux_autorise: true,
   },

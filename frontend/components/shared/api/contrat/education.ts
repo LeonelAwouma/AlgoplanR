@@ -312,10 +312,18 @@ export interface CalculBesoin {
   classesMultigradesLues?: number | null
   /** Lecture de la colonne Classes_Multigrades. */
   statutMultigrades?: StatutMultigrades
-  /** Minimum pédagogique fondé sur l'hypothèse de secours : besoin provisoire. */
+  /** Minimum pédagogique fondé sur l'hypothèse de secours (Classes_Multigrades non renseigné). */
   minimumProvisoire?: boolean
-  /** Fiabilité de la dotation D. */
+  /**
+   * Fiabilité du besoin final (b et x), distincte de celle du minimum : un minimum provisoire laisse le besoin
+   * « confirmé » quand l'effectif d'élèves ou les salles fixent le résultat.
+   */
   statutBesoin?: StatutBesoin
+  /** Besoin final incertain (estimé ou provisoire). */
+  besoinFinalIncertain?: boolean
+  /** Fourchette du besoin b sur les organisations pédagogiques plausibles de l'école. */
+  besoinMin?: number
+  besoinMax?: number
   /** Part de l'excédent mobilisable sans validation administrative. */
   excedentSur?: number
   /** Part de l'excédent qui dépend d'une hypothèse sur les groupes : aucune sortie automatique. */

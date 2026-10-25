@@ -164,7 +164,9 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Indice u',
       'Méthode',
       'Situation',
-      'Fiabilité du besoin',
+      'Fiabilité du besoin final',
+      'Fourchette du besoin b',
+      'Minimum pédagogique provisoire',
       'Avertissement',
     ],
     diagnostics.map(d => [
@@ -211,6 +213,10 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       d.calcul.methode === 'norme_eleves' ? 'Norme élèves' : 'Repli : effectif d’élèves inconnu',
       SEVERITE_LABEL[d.severite],
       d.calcul.statutBesoin ? LIBELLE_STATUT_BESOIN[d.calcul.statutBesoin] : '',
+      d.calcul.besoinMin !== undefined && d.calcul.besoinMax !== undefined && d.calcul.besoinMin !== d.calcul.besoinMax
+        ? `${d.calcul.besoinMin} à ${d.calcul.besoinMax}`
+        : '',
+      d.calcul.minimumProvisoire === undefined ? '' : d.calcul.minimumProvisoire ? 'Oui' : 'Non',
       d.calcul.minimumProvisoire ? MESSAGE_MULTIGRADES_NON_RENSEIGNES : '',
     ]),
   )

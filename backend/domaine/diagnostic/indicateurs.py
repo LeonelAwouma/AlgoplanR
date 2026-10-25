@@ -47,17 +47,22 @@ def lire_multigrades(valeur, b: dict) -> tuple:
 
 
 def _groupes_observes(e: Ecole, b: dict) -> Optional[int]:
-    """Classes_Ouvertes : groupes-classes qui fonctionnent séparément, quand le fichier le donne (jamais les salles ni
-    les enseignants, qui ne prouvent pas le nombre de groupes)."""
-    if not b.get("groupes_depuis_classes_ouvertes", True) or e.classes_ouvertes is None:
+    """Classes_Ouvertes lu comme le nombre de groupes-classes qui fonctionnent séparément : seulement si le réglage
+    `groupes_depuis_classes_ouvertes` est activé (désactivé par défaut, tant que la définition métier de la colonne
+    n'est pas validée). Les salles et les enseignants ne prouvent jamais le nombre de groupes."""
+    if not b.get("groupes_depuis_classes_ouvertes", False) or e.classes_ouvertes is None:
         return None
     c = e.classes_ouvertes
     return int(c) if c >= 1 and c == int(c) else None
 
 
 def determiner_groupes(e: Ecole, b: dict) -> tuple:
-    """(G, provenance, statut de Classes_Multigrades, M, G maximal plausible) : groupes pédagogiques nécessitant chacun
-    un enseignant. G maximal sert à séparer l'excédent sûr de l'excédent qui dépend d'une hypothèse."""
+    """(G, provenance, statut de Classes_Multigrades, M, G minimal plausible, G maximal plausible) : groupes
+    pédagogiques nécessitant chacun un enseignant.
+
+    La fourchette [G minimal ; G maximal] borne ce que l'organisation réelle de l'école peut être, au vu des données.
+    Elle sert à deux choses : l'excédent sûr se calcule avec G maximal (aucune sortie d'enseignant ne repose sur un
+    regroupement supposé), et le besoin final n'est incertain que s'il change d'une borne à l'autre."""
     niveaux = int(b["nombre_niveaux"])
     par_classe = max(1, int(b["niveaux_par_maitre_multigrade"]))
     regroupe = int(math.ceil(niveaux / float(par_classe)))          # toutes les années regroupées : 3
@@ -65,19 +70,19 @@ def determiner_groupes(e: Ecole, b: dict) -> tuple:
     m, statut = lire_multigrades(e.multigrade, b)
     observe = _groupes_observes(e, b)
     if observe is not None:
-        return observe, OBSERVE, statut, m, observe
+        return observe, OBSERVE, statut, m, observe, observe
     if not b["minimum_selon_multigrades"]:
-        return regroupe, ESTIME, statut, m, max(regroupe, niveaux)
+        return regroupe, ESTIME, statut, m, regroupe, max(regroupe, niveaux)
     if statut in (MG_RENSEIGNE, MG_NON):
-        # Chaque classe multigrade réunit `par_classe` années sans chevauchement : 6 − M groupes au plus.
+        # Estimation : chaque classe multigrade réunirait `par_classe` années sans chevauchement, soit 6 − M groupes.
+        # Tant que ce regroupement n'est pas confirmé, l'école peut avoir besoin d'un maître par année (G maximal = 6).
         g = max(1, niveaux - m * (par_classe - 1))
-        return g, ESTIME, statut, m, g
+        return g, ESTIME, statut, m, g, max(g, niveaux)
     if statut == MG_OUI:
         # Ancien « Oui » sans nombre : toutes les années regroupées (comportement historique), à vérifier.
-        return regroupe, ESTIME, statut, m, max(regroupe, niveaux - (par_classe - 1))
-    if statut == MG_NON_RENSEIGNE:
-        return secours, SECOURS, statut, m, max(secours, niveaux)
-    return secours, INDETERMINE, statut, m, max(secours, niveaux)
+        return regroupe, ESTIME, statut, m, regroupe, max(regroupe, niveaux - (par_classe - 1))
+    provenance = SECOURS if statut == MG_NON_RENSEIGNE else INDETERMINE
+    return secours, provenance, statut, m, min(secours, regroupe), max(secours, niveaux)
 
 
 def _pe(n: float, b: dict) -> int:
@@ -142,7 +147,7 @@ def calculer_indicateurs(e: Ecole, cfg: dict) -> Indicateurs:
     ne, ee = e.effectif_eleves, e.enseignants_actuels
     b = {**DEFAULT_CONFIG["besoin"], **(cfg.get("besoin") or {})}   # configuration enregistrée avant ces clés
     pe = _pe(ne, b)
-    ge, provenance, statut_mg, m, ge_max = determiner_groupes(e, b)
+    ge, provenance, statut_mg, m, ge_min, ge_max = determiner_groupes(e, b)
     plancher = int(b.get("plancher_pedagogique", 3))
     me = max(plancher, ge)
     de = max(pe, me)
@@ -152,16 +157,27 @@ def calculer_indicateurs(e: Ecole, cfg: dict) -> Indicateurs:
     xe = max(ee - de, 0.0)
     se = max(de - bmax, 0.0)
     ae = max(min(ee, de) - bmax, 0.0)
+
+    def issue(g: int) -> tuple:
+        """(besoin, excédent) de l'école si elle comptait g groupes pédagogiques."""
+        d = max(pe, plancher, g)
+        return max(min(d, bmax) - ee, 0.0), max(ee - d, 0.0)
+
+    (be_bas, xe_haut), (be_haut, xe_bas) = issue(ge_min), issue(ge_max)
     # Excédent sûr : celui qui reste avec le minimum le plus élevé que les données permettent (G maximal). Le reste
-    # dépend d'une hypothèse sur les groupes : il n'entraîne aucune sortie automatique d'enseignant.
-    xe_sur = max(ee - max(pe, plancher, ge_max), 0.0)
+    # dépend d'une hypothèse sur les groupes (estimation 6 − M, hypothèse de secours, ancien « Oui ») : il n'entraîne
+    # aucune sortie automatique d'enseignant et demande une validation administrative.
+    xe_sur = xe_bas
     if b.get("mobiliser_excedent_incertain"):
         xe_sur = xe
+    xe_sur = min(xe_sur, xe)
     minimum_observe = provenance == OBSERVE
-    depend_minimum = me > pe
-    if not e.effectif_connu or (depend_minimum and provenance in (SECOURS, INDETERMINE)):
+    # Le minimum peut être provisoire sans que le besoin final le soit : quand l'effectif d'élèves (P) ou les salles
+    # (BMAX) fixent le résultat, le besoin et l'excédent sont les mêmes pour toute organisation plausible de l'école.
+    incertain = (be_bas, xe_haut) != (be_haut, xe_bas)
+    if not e.effectif_connu or (incertain and provenance in (SECOURS, INDETERMINE)):
         statut_besoin = "provisoire"
-    elif depend_minimum and provenance == ESTIME:
+    elif incertain:
         statut_besoin = "estime"
     else:
         statut_besoin = "confirme"
@@ -180,6 +196,7 @@ def calculer_indicateurs(e: Ecole, cfg: dict) -> Indicateurs:
         Ge=ge, Ge_provenance=provenance, Me=m, multigrades_statut=statut_mg,
         minimum_provisoire=provenance in (SECOURS, INDETERMINE), minimum_observe=minimum_observe,
         statut_besoin=statut_besoin, xe_sur=xe_sur, xe_a_verifier=max(xe - xe_sur, 0.0),
+        be_min=be_bas, be_max=be_haut, besoin_final_incertain=statut_besoin != "confirme",
         # Fichier sans mode d'utilisation des salles (total des salles compté en simple flux) ; pour un jeu importé
         # avant ce suivi, une absence de double flux est tenue pour incertaine.
         bmax_incertain=e.salles_connues and (e.salles_double_flux_connues is False or (

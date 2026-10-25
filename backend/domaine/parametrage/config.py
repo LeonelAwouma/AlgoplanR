@@ -39,12 +39,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     #   C = ceil(N / norme_eleves_par_maitre)                       (besoin selon le REM de référence, indicatif),
     #   P = max(1 ; ceil((N - effectif_premiere_section) / norme_eleves_par_maitre)),
     #   m = max(plancher_pedagogique ; G), G = groupes pédagogiques observés, estimés ou de secours :
-    #       Classes_Ouvertes (observé, si groupes_depuis_classes_ouvertes),
+    #       Classes_Ouvertes (observé, seulement si groupes_depuis_classes_ouvertes : désactivé par défaut tant que
+    #       la définition métier de la colonne n'est pas validée),
     #       sinon nombre_niveaux - M x (niveaux_par_maitre_multigrade - 1) avec M = Classes_Multigrades (estimé),
     #       sinon groupes_secours (provisoire : Classes_Multigrades non renseigné),
     #   BMAX = salles simple flux + 2 x salles double flux (1 x si le double flux n'est pas autorisé).
-    # Un excédent qui dépend d'un minimum non observé n'alimente le vivier que dans la part sûre (voir indicateurs.py),
-    # sauf si mobiliser_excedent_incertain.
+    # Un excédent qui dépend d'un minimum non observé (estimation 6 - M comprise) n'alimente le vivier que dans la
+    # part sûre, calculée avec G maximal (voir indicateurs.py), sauf si mobiliser_excedent_incertain.
     "besoin": {
         "norme_eleves_par_maitre": 74.4,
         "effectif_premiere_section": 20,
@@ -53,7 +54,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "niveaux_par_maitre_multigrade": 2,
         "groupes_secours": 6,
         "minimum_selon_multigrades": True,
-        "groupes_depuis_classes_ouvertes": True,
+        "groupes_depuis_classes_ouvertes": False,
         "mobiliser_excedent_incertain": False,
         "double_flux_autorise": True,
     },

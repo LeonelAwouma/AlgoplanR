@@ -94,8 +94,13 @@ def totaux_diagnostic(ecoles: List[dict]) -> dict:
                                       if e.get("multigrades_statut") == "renseigne"),
         "multigrades_non_renseignes": sum(1 for e in ecoles if e.get("multigrades_statut", "non_renseigne")
                                           in ("non_renseigne", "invalide", "incoherent")),
-        # Besoins confirmés et provisoires (minimum pédagogique de secours, effectif inconnu) : jamais confondus.
+        # Minimum pédagogique provisoire (hypothèse de secours) et besoin final incertain sont deux comptes distincts :
+        # un minimum provisoire est sans effet quand l'effectif d'élèves ou les salles fixent le besoin.
         "nb_ecoles_minimum_provisoire": sum(1 for e in ecoles if e.get("minimum_provisoire")),
+        "nb_ecoles_besoin_provisoire": sum(1 for e in ecoles if e.get("statut_besoin") == "provisoire"),
+        "nb_ecoles_besoin_estime": sum(1 for e in ecoles if e.get("statut_besoin") == "estime"),
+        "nb_ecoles_minimum_provisoire_sans_effet": sum(1 for e in ecoles if e.get("minimum_provisoire")
+                                                       and e.get("statut_besoin") == "confirme"),
         "besoin_postes_confirme": sum(int(e.get("nb_postes_ouverts", 0) or 0) for e in ecoles
                                       if e.get("statut_besoin", "confirme") == "confirme"),
         "besoin_postes_estime": sum(int(e.get("nb_postes_ouverts", 0) or 0) for e in ecoles

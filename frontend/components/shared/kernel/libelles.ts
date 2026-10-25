@@ -45,6 +45,20 @@ import type {
 export const MESSAGE_MULTIGRADES_NON_RENSEIGNES =
   "Le nombre de classes multigrades n'est pas renseigné. Le besoin en enseignants est provisoire et sera recalculé lorsque cette information sera disponible."
 
+/**
+ * Complément du message ci-dessus pour une école dont le minimum est provisoire mais dont le besoin final ne l'est
+ * pas (le serveur le classe « confirmé » : l'effectif d'élèves ou les salles fixent le résultat).
+ */
+export const MESSAGE_MINIMUM_SANS_EFFET =
+  'Pour cette école, le besoin final ne dépend pas de cette information : il est fixé par l’effectif d’élèves ou par les salles.'
+
+/**
+ * Enseignants_Actuels : personnels rapprochés dans la cartographie. Même texte que le serveur
+ * (`AVERTISSEMENT_PERSONNELS`, backend/domaine/planification/previsionnel.py), vérifié par les tests.
+ */
+export const AVERTISSEMENT_PERSONNELS =
+  "Les effectifs enseignants sont ceux des personnels rapprochés dans la cartographie (Enseignants_Actuels). Ces personnels ne sont pas nécessairement tous des maîtres chargés de classe : leur statut n'est pas fourni par les fichiers importés."
+
 /** Provenance du nombre de groupes pédagogiques, en mots. */
 export const LIBELLE_PROVENANCE_GROUPES: Record<ProvenanceGroupes, string> = {
   observe: 'Observé (classes ouvertes du fichier)',

@@ -100,12 +100,21 @@ def test_anciens_fichiers_oui_non_restent_lisibles():
     assert (non.me, non.multigrades_statut) == (6, "historique_non")
 
 
-def test_classes_ouvertes_prioritaires_quand_elles_sont_lues():
+def test_classes_ouvertes_ignorees_par_defaut():
+    # Tant que la définition métier de Classes_Ouvertes n'est pas validée, la colonne ne compte pas comme le nombre
+    # observé de groupes pédagogiques : l'estimation par Classes_Multigrades s'applique.
+    assert defaut()["besoin"]["groupes_depuis_classes_ouvertes"] is False
     i = _ind(eleves=100, multigrade=2, classes_ouvertes=5)
-    assert (i.Ge, i.Ge_provenance, i.me, i.statut_besoin) == (5, OBSERVE, 5, "confirme")
+    assert (i.Ge, i.Ge_provenance) == (4, ESTIME)
+    sans_mg = _ind(eleves=100, classes_ouvertes=5)
+    assert (sans_mg.Ge, sans_mg.Ge_provenance, sans_mg.minimum_provisoire) == (6, SECOURS, True)
+
+
+def test_classes_ouvertes_lues_si_le_reglage_est_active():
     cfg = defaut()
-    cfg["besoin"]["groupes_depuis_classes_ouvertes"] = False
-    assert calculer_indicateurs(_ecole(eleves=100, multigrade=2, classes_ouvertes=5), cfg).Ge_provenance == ESTIME
+    cfg["besoin"]["groupes_depuis_classes_ouvertes"] = True
+    i = calculer_indicateurs(_ecole(eleves=100, multigrade=2, classes_ouvertes=5), cfg)
+    assert (i.Ge, i.Ge_provenance, i.me, i.statut_besoin) == (5, OBSERVE, 5, "confirme")
     # Les salles et les enseignants ne prouvent jamais le nombre de groupes.
     assert _ind(eleves=100, simple=2, enseignants=2).Ge == 6
 
@@ -153,12 +162,13 @@ def test_aucune_sortie_automatique_fondee_sur_un_excedent_incertain():
     e.ind = calculer_indicateurs(e, cfg)
     assert e.ind.xe == 3 and e.ind.xe_sur == 0 and e.ind.xe_a_verifier == 3
     assert construire_vivier(_agents("E", 6), [e], cfg) == []
-    # Avec Classes_Multigrades renseigné (3 classes : m = 3), l'excédent est mobilisable.
+    # Avec Classes_Multigrades renseigné (3 classes : m = 3 estimé), l'excédent repose sur le regroupement supposé :
+    # il reste à vérifier tant que l'école peut avoir besoin d'un maître par année.
     f = _ecole(eleves=100, enseignants=6, multigrade=3)
     f.id = "F"
     f.ind = calculer_indicateurs(f, cfg)
-    assert f.ind.xe == f.ind.xe_sur == 3
-    assert len(construire_vivier(_agents("F", 6), [f], cfg)) == 3
+    assert f.ind.xe == 3 and f.ind.xe_sur == 0 and f.ind.xe_a_verifier == 3
+    assert construire_vivier(_agents("F", 6), [f], cfg) == []
     # Ancien « Oui » sans nombre : excédent à vérifier.
     g = _ecole(eleves=100, enseignants=6, multigrade="Oui")
     g.ind = calculer_indicateurs(g, defaut())
@@ -169,6 +179,48 @@ def test_excedent_sur_avec_l_hypothese_par_defaut():
     # Secours = 6 groupes, le maximum plausible : l'excédent calculé est sûr, rien n'est retenu.
     i = _ind(eleves=100, enseignants=9)
     assert i.xe == 3 and i.xe_sur == 3 and i.xe_a_verifier == 0
+
+
+def test_excedent_issu_de_groupes_estimes_reste_a_verifier():
+    # G = 6 − M = 4 : excédent théorique 2, mais aucun enseignant n'est mobilisable sans validation administrative.
+    e = _ecole(eleves=100, enseignants=6, multigrade=2)
+    e.ind = calculer_indicateurs(e, defaut())
+    assert (e.ind.Ge, e.ind.Ge_provenance, e.ind.xe) == (4, ESTIME, 2)
+    assert e.ind.xe_sur == 0 and e.ind.xe_a_verifier == 2
+    assert construire_vivier(_agents("E", 6), [e], defaut()) == []
+    # Validation administrative (réglage mobiliser_excedent_incertain) : l'excédent estimé devient mobilisable.
+    cfg = defaut()
+    cfg["besoin"]["mobiliser_excedent_incertain"] = True
+    e.ind = calculer_indicateurs(e, cfg)
+    assert e.ind.xe_sur == 2 and len(construire_vivier(_agents("E", 6), [e], cfg)) == 2
+
+
+def test_excedent_sur_au_dela_de_six_groupes():
+    # Au-delà d'un maître par année, l'excédent est sûr quelle que soit l'organisation : il reste mobilisable.
+    i = _ind(eleves=100, enseignants=9, multigrade=2)
+    assert (i.xe, i.xe_sur, i.xe_a_verifier) == (5, 3, 2)
+    zero = _ind(eleves=100, enseignants=9, multigrade=0)          # aucune classe multigrade : G = 6, sans hypothèse
+    assert (zero.xe, zero.xe_sur, zero.statut_besoin) == (3, 3, "confirme")
+
+
+# --- 3 (fiabilité) : minimum provisoire ≠ besoin final incertain -----------------------------------------------------
+
+def test_minimum_provisoire_sans_effet_sur_le_besoin_final():
+    # Classes_Multigrades vide, mais P = 8 l'emporte sur toute organisation plausible (3 à 6 groupes).
+    par_effectif = _ind(eleves=600, enseignants=5)
+    assert par_effectif.minimum_provisoire and par_effectif.statut_besoin == "confirme"
+    assert not par_effectif.besoin_final_incertain and par_effectif.be_min == par_effectif.be_max == 3
+    # Deux salles seulement : K = BMAX = 2 pour 3 comme pour 6 groupes, le besoin final est certain.
+    par_salles = _ind(eleves=100, enseignants=0, simple=2)
+    assert par_salles.minimum_provisoire and par_salles.statut_besoin == "confirme" and par_salles.be == 2
+
+
+def test_besoin_final_incertain_et_sa_fourchette():
+    i = _ind(eleves=100, enseignants=2)                  # secours : 3 à 6 groupes plausibles
+    assert i.minimum_provisoire and i.besoin_final_incertain and i.statut_besoin == "provisoire"
+    assert (i.be_min, i.be, i.be_max) == (1, 4, 4)
+    j = _ind(eleves=100, enseignants=2, multigrade=2)     # G = 4 estimé, 6 si le regroupement n'est pas réel
+    assert not j.minimum_provisoire and j.statut_besoin == "estime" and (j.be_min, j.be, j.be_max) == (2, 2, 4)
 
 
 # --- 12 à 14 : cohérence D, BMAX, K, b, x, s ------------------------------------------------------------------------

@@ -406,7 +406,8 @@ def previsionnel(ctx: Contexte, p: dict) -> dict:
     traj = {s: calculer_annees(ecoles, ctx.hyp, ressources_supplementaires=supp, scenario=s) for s in SCENARIOS}
     out = prev.construire(ecoles, ctx.enseignants, traj, annees(ctx, p, ecoles), ctx.hyp,
                           annee_scolaire=getattr(ctx.jeu, "annee_scolaire", ""))
-    out["hypotheses"] = prev.hypotheses_methodologiques(ctx.hyp, config_jeu(ctx.jeu)["besoin"])
+    out["hypotheses"] = prev.hypotheses_methodologiques(ctx.hyp, config_jeu(ctx.jeu)["besoin"],
+                                                        getattr(ctx.jeu, "annee_scolaire", ""))
     return {"perimetre": libelle(p), "niveau": niveau_de(p), "sous_systeme": p.get("sous_systeme") or None,
             "scenario_id": str(ctx.scenario.pk), "base_calcul": base_de_calcul(ctx.jeu), **out}
 

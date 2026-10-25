@@ -5,7 +5,7 @@
  * refaites côté interface.
  */
 
-import { MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../../../kernel/libelles'
+import { MESSAGE_MINIMUM_SANS_EFFET, MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../../../kernel/libelles'
 import type { DiagnosticReason, EngineSettings, SchoolDiagnostic, SchoolSeverity } from '../../contrat'
 
 /** Classe la gravité d'un besoin selon les seuils configurés (besoin rapporté à la cible). */
@@ -71,8 +71,15 @@ export function raisonsPriorite(d: SchoolDiagnostic): DiagnosticReason[] {
   }
 
   // Mode « non renseigné » : la phrase destinée à l'utilisateur, jamais une formule à sa place.
+  // Un minimum provisoire sans effet sur le besoin final (fixé par les élèves ou les salles) est dit comme tel.
   if (c.minimumProvisoire) {
-    raisons.push({ code: 'besoin_provisoire', texte: MESSAGE_MULTIGRADES_NON_RENSEIGNES })
+    raisons.push({
+      code: 'besoin_provisoire',
+      texte:
+        c.statutBesoin === 'confirme'
+          ? `${MESSAGE_MULTIGRADES_NON_RENSEIGNES} ${MESSAGE_MINIMUM_SANS_EFFET}`
+          : MESSAGE_MULTIGRADES_NON_RENSEIGNES,
+    })
   }
 
   if (d.school.classesMultigrades > 0 && c.besoin > 0) {

@@ -33,7 +33,10 @@ def test_cinq_groupes_et_annees_sans_annee_codee_en_dur(drh, jeu):
     assert [g["code"] for g in p["groupes"]] == ["A", "B", "C", "D", "E"]
     annee = get(drh, f"jeux/{jeu}/")["annee_scolaire"]
     debut = int(annee[:4])
-    assert p["annees"] == ["Base"] + [f"N+{k + 1} ({debut + k}-{debut + k + 1})" for k in range(5)]
+    # L'année du jeu est la rentrée qu'il prépare (N+1) ; la base est l'année qui précède, sans saut ni doublon.
+    assert p["annees"] == [f"Base ({debut - 1}-{debut})"] + [f"N+{k + 1} ({debut + k}-{debut + k + 1})" for k in range(5)]
+    assert p["annee_base"] == f"{debut - 1}-{debut}" and p["annee_scolaire_plan"] == annee
+    assert any(h["code"] == "annee_base" and h["a_valider"] for h in p["hypotheses"])
     for l in _lignes(p).values():
         assert len(l["valeurs"]) == 6 and l["nature"] in ("observe", "estime", "hypothese", "provisoire")
 
@@ -135,3 +138,48 @@ def test_perimetre_du_delegue(centre):
 
 def test_route_refusee_sans_session(client, jeu):
     assert client.get(B + f"jeux/{jeu}/planification/previsionnel/").status_code in (401, 403)
+
+
+def test_correspondance_des_annees_scolaires():
+    from domaine.planification.previsionnel import annee_base, libelles_annees
+    assert libelles_annees("2026-2027", 5) == ["Base (2025-2026)", "N+1 (2026-2027)", "N+2 (2027-2028)",
+                                               "N+3 (2028-2029)", "N+4 (2029-2030)", "N+5 (2030-2031)"]
+    assert annee_base("") is None and libelles_annees("", 2) == ["Base", "N+1", "N+2"]
+
+
+def test_raisons_des_rem_indisponibles_visibles(centre):
+    etab, ens = _national()
+    centre_ = next(x for x in etab if x["Region"] == "Centre")
+    centre_["Effectif_Eleves_Attendus"] = None              # une école du Centre à effectif inconnu
+    jeu = _importer(centre, etab, ens).json()["id"]
+    l = _lignes(get(centre, f"jeux/{jeu}/planification/previsionnel/"))
+    for cle in ("rem_reel", "rem_min", "rem_maintien", "rem_besoin", "rem_plafond", "ecart_reference"):
+        valeurs, raisons = l[cle]["valeurs"], l[cle]["raisons"]
+        assert len(raisons) == len(valeurs)
+        for v, r in zip(valeurs, raisons):
+            # Une valeur absente porte toujours sa raison ; une valeur présente n'en porte aucune.
+            assert (v is None) == (r is not None), (cle, v, r)
+        assert any(r and "effectif d'élèves inconnu" in r for r in raisons), cle
+
+
+def test_fiabilite_minimum_provisoire_distinct_du_besoin_incertain(centre):
+    etab, ens = _national()
+    for x in etab:
+        x["Classes_Multigrades"] = None
+    jeu = _importer(centre, etab, ens).json()["id"]
+    p = get(centre, f"jeux/{jeu}/planification/previsionnel/")
+    f = p["fiabilite"]
+    assert f["minimum_provisoire"] == p["ecoles"]
+    assert f["besoin_provisoire"] + f["besoin_estime"] + f["besoin_confirme"] == p["ecoles"]
+    assert f["minimum_provisoire_sans_effet"] == f["besoin_confirme"]
+    assert f["besoin_provisoire"] <= f["minimum_provisoire"]
+    l = _lignes(p)
+    assert l["part_besoin_incertain"]["valeurs"][0] == round(100 * (f["besoin_provisoire"] + f["besoin_estime"])
+                                                            / p["ecoles"], 1)
+
+
+def test_avertissement_sur_les_personnels_de_la_cartographie(drh, jeu):
+    p = get(drh, f"jeux/{jeu}/planification/previsionnel/")
+    assert "pas nécessairement tous des maîtres chargés de classe" in p["avertissement_personnels"]
+    assert any(h["code"] == "personnels" and h["a_valider"] for h in p["hypotheses"])
+    assert "pas nécessairement tous" in _lignes(p)["effectif_debut"]["detail"]

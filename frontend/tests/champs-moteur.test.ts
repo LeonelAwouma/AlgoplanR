@@ -73,10 +73,10 @@ describe('Règles du besoin (Référentiel)', () => {
     const config = versConfigDjango({ besoin: { ...reglages.besoin, doubleFluxAutorise: false } })
     assert.equal(config.besoin?.double_flux_autorise, false)
     const prudence = versConfigDjango({
-      besoin: { ...reglages.besoin, mobiliserExcedentIncertain: true, groupesDepuisClassesOuvertes: false },
+      besoin: { ...reglages.besoin, mobiliserExcedentIncertain: true, groupesDepuisClassesOuvertes: true },
     })
     assert.equal(prudence.besoin?.mobiliser_excedent_incertain, true)
-    assert.equal(prudence.besoin?.groupes_depuis_classes_ouvertes, false)
+    assert.equal(prudence.besoin?.groupes_depuis_classes_ouvertes, true)
   })
 
   it('la norme de 74,4 garde sa décimale', () => {
