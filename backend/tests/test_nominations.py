@@ -174,8 +174,12 @@ def test_actualisation(centre):
     mobilisable = get(c, f"jeux/{jeu}/enseignants/", dans_vivier="true", taille=1)["resultats"][0]
     parti = next(x for x in n if x["Matricule_Enseignant"] == mobilisable["Matricule_Enseignant"])
     change = next(x for x in n if x is not parti)
-    envoyer(c, f"jeux/{jeu}/faits-prince/", {"id_ens": parti["Matricule_Enseignant"],
-                                            "id_etab": e[0]["Identifiant_Ecole"], "motif": "Décision"}, 201)
+    # Le Fait de Prince est fermé au délégué par l'API : le fait est posé directement, comme un fait antérieur
+    # à la fermeture de l'écran, pour vérifier que l'actualisation l'invalide.
+    from contextes.donnees.models import JeuDeDonnees
+    from contextes.prince import services as prince
+    prince.ajouter(JeuDeDonnees.objects.get(pk=jeu), parti["Matricule_Enseignant"], e[0]["Identifiant_Ecole"],
+                   "Décision")
     autre_ecole = next(x["Identifiant_Ecole"] for x in e if x["Identifiant_Ecole"] != change["Ecole_Attache_Actuelle"])
     n2 = [{**x, "Ecole_Attache_Actuelle": autre_ecole} if x is change else dict(x) for x in n if x is not parti]
     n2.append({**change, "Matricule_Enseignant": "NOUVEAU-1"})
@@ -187,6 +191,6 @@ def test_actualisation(centre):
     assert ecarts["departs"][0]["matricule"] == parti["Matricule_Enseignant"]
     assert ecarts["decisions_invalidees"][0]["type"] == "fait_prince"
     assert get(c, f"jeux/{jeu}/")["statut"] == "brouillon"
-    assert get(c, f"jeux/{jeu}/faits-prince/")[0]["statut"] == "ANNULE"
+    assert JeuDeDonnees.objects.get(pk=jeu).faits_prince.first().statut == "ANNULE"
     est = envoyer(c, f"jeux/{jeu}/hypotheses/attrition/estimer/")
     assert est["taux_propose"] is not None

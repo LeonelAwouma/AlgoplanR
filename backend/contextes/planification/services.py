@@ -636,10 +636,24 @@ def marquer_obsolete(jeu, declencheur: str) -> None:
     EtatPlanification.objects.filter(jeu=jeu).update(obsolete=True, declencheur=declencheur[:200])
 
 
+def base_de_calcul(jeu) -> dict:
+    """Scénario dont les mouvements alimentent la planification, et pourquoi : retenu explicitement, repli
+    provisoire sur le scénario par défaut, ou aucun. Une projection sans scénario retenu n'est jamais une
+    décision validée."""
+    if jeu.scenario_retenu_id:
+        return {"type": "scenario_retenu", "scenario_id": str(jeu.scenario_retenu_id),
+                "scenario_nom": jeu.scenario_retenu.nom, "provisoire": False}
+    try:
+        sc = sim.scenario_par_defaut(jeu)
+    except RefusMetier:
+        return {"type": "aucun", "scenario_id": None, "scenario_nom": None, "provisoire": True}
+    return {"type": "scenario_par_defaut", "scenario_id": str(sc.pk), "scenario_nom": sc.nom, "provisoire": True}
+
+
 def etat_dict(jeu, e: EtatPlanification) -> dict:
     return {"version": e.version, "calcule_le": e.calcule_le, "declencheur": e.declencheur or None,
             "obsolete": e.obsolete, "scenario_retenu_id": str(jeu.scenario_retenu_id) if jeu.scenario_retenu_id
-            else None}
+            else None, "base_calcul": base_de_calcul(jeu)}
 
 
 @transaction.atomic
