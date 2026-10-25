@@ -19,6 +19,56 @@ function couleurScore(score: number): string {
   return 'var(--alert)'
 }
 
+/** Résumé de l'isolement d'une région dans une base nationale (import d'un délégué régional). */
+function BilanRegional({ bilan }: { bilan: NonNullable<DataQualityReport['importRegional']> }) {
+  const lignes: [string, number][] = [
+    ['Établissements dans le fichier national', bilan.etablissementsFichier],
+    [`Établissements retenus (région ${bilan.region})`, bilan.etablissementsRetenus],
+    ['Enseignants retenus', bilan.enseignantsRetenus],
+    ['Enregistrements exclus (autres régions)', bilan.etablissementsAutresRegions + bilan.enseignantsAutresRegions],
+    ['Enseignants non rattachés', bilan.enseignantsNonRattaches],
+    ['Enseignants au rattachement ambigu', bilan.enseignantsAmbigus],
+    ['Établissements écartés (code ou région inexploitable)', bilan.etablissementsEcartes],
+  ]
+  return (
+    <section aria-labelledby="bilan-regional">
+      <h4 id="bilan-regional">Import de la région {bilan.region} depuis la base nationale</h4>
+      <p className="hint">
+        Seuls les établissements de la région et les enseignants rattachés par le code de leur école ont été conservés ;
+        les fichiers sources n’ont pas été modifiés. Un enseignant dont la région ne peut pas être établie de façon
+        fiable n’est attribué à aucune région.
+      </p>
+      <dl className="bilan-regional">
+        {lignes.map(([libelle, valeur]) => (
+          <div key={libelle}>
+            <dt>{libelle}</dt>
+            <dd>{fmt(valeur)}</dd>
+          </div>
+        ))}
+      </dl>
+      {bilan.anomalies.length > 0 && (
+        <details>
+          <summary>
+            Voir les rattachements écartés ({fmt(bilan.anomalies.length)}
+            {bilan.anomaliesTronquees ? ' premiers' : ''})
+          </summary>
+          <ul className="check-list">
+            {bilan.anomalies.map((a, i) => (
+              <li key={`${a.fichier}-${a.ligne}-${i}`} className="check-warn">
+                <AlertTriangle size={15} aria-hidden="true" />
+                <span>
+                  {a.fichier === 'etablissements' ? 'Établissements' : 'Enseignants'}, ligne {a.ligne} : {a.motif}
+                  {a.valeur ? ` (« ${a.valeur} »)` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  )
+}
+
 export function DataQualityPanel({ rapport, compact = false }: { rapport: DataQualityReport; compact?: boolean }) {
   const bloquants = rapport.missingFields.filter(f => f.bloquant)
 
@@ -44,6 +94,8 @@ export function DataQualityPanel({ rapport, compact = false }: { rapport: DataQu
           </p>
         </div>
       </div>
+
+      {rapport.importRegional && <BilanRegional bilan={rapport.importRegional} />}
 
       <ul className="check-list">
         <li className="check-ok">

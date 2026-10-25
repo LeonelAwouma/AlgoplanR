@@ -33,10 +33,16 @@ describe('Fait de Prince et Vue analyste', () => {
     assert.ok(!ids('analyste', 'delegue').includes('prince'))
   })
 
-  it('les pages techniques de la Vue analyste ne sont jamais ouvertes à un délégué', () => {
+  it('les pages techniques n’existent qu’en Vue analyste, ouverte au DRH comme au délégué', () => {
     for (const page of ['data', 'pool', 'posts', 'assignments', 'unassigned', 'logs', 'engine'] as const) {
-      assert.equal(pageAnalysteSeule(page) || pageReserveeAuDrh(page), true, page)
+      assert.equal(pageAnalysteSeule(page), true, page)
     }
+    // Le délégué les voit en Vue analyste, sauf celles que le DRH seul règle (configuration du moteur).
+    const visibles = RUBRIQUES.flatMap(r => etapesVisibles(r, 'analyste', 'delegue')).map(e => e.id)
+    for (const page of ['data', 'pool', 'posts', 'assignments', 'unassigned', 'logs'] as const) {
+      assert.ok(visibles.includes(page), page)
+    }
+    assert.ok(!visibles.includes('engine'))
   })
 
   it('la vue Décideur ne montre aucune page technique', () => {

@@ -68,6 +68,36 @@ export interface ReconciliationEffectifs {
   regle: string
 }
 
+/** Anomalie de rattachement relevée en isolant une région dans une base nationale. */
+export interface AnomalieImportRegional {
+  fichier: 'etablissements' | 'enseignants'
+  /** Numéro de ligne dans le classeur. */
+  ligne: number
+  code: string
+  motif: string
+  valeur: string
+}
+
+/**
+ * Bilan de l'isolement d'une région dans une base nationale (import d'un délégué régional). Les enseignants non
+ * rattachés ou au rattachement ambigu ne sont attribués à aucune région : ils sont écartés et listés.
+ */
+export interface BilanImportRegional {
+  region: string
+  etablissementsFichier: number
+  etablissementsRetenus: number
+  etablissementsAutresRegions: number
+  /** Établissements écartés : code manquant, région illisible, code porté par plusieurs régions. */
+  etablissementsEcartes: number
+  enseignantsFichier: number
+  enseignantsRetenus: number
+  enseignantsAutresRegions: number
+  enseignantsNonRattaches: number
+  enseignantsAmbigus: number
+  anomalies: AnomalieImportRegional[]
+  anomaliesTronquees: boolean
+}
+
 export interface DataQualityReport {
   /** Score sur 100, obtenu en retirant les pénalités listées dans `issues`. */
   score: number
@@ -95,6 +125,8 @@ export interface DataQualityReport {
   detailScore: { label: string; points: number }[]
   /** `null` quand les fichiers ne permettent pas la comparaison (colonne d'effectif ou de rattachement absente). */
   reconciliationEffectifs?: ReconciliationEffectifs | null
+  /** Présent seulement quand un délégué a importé une base nationale. */
+  importRegional?: BilanImportRegional | null
 }
 
 /** Résultat de la reconnaissance d'une colonne du classeur (§10 étape 3). */

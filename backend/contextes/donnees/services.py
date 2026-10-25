@@ -20,6 +20,7 @@ from contextes.acces.controle_import import colonnes_region, refuser_si_hors_reg
 from contextes.acces.perimetre import PORTEE_NATIONALE, PORTEE_REGIONALE
 from contextes.commun.erreurs import RefusMetier
 from domaine.acces.controle_regions import contient_autres_regions, motifs_lisibles, numero_ligne
+from domaine.acces.isolement_regional import isoler_region
 from domaine.acces.regions import region_canonique
 from domaine.commun.texte import texte
 from domaine.donnees import colonnes as C
@@ -154,26 +155,28 @@ def _exiger_colonne_region(f_etab: FichierImporte) -> None:
                           code="region_obligatoire")
 
 
-def _extraire_region(region: str, e: _Selection, n: _Selection) -> Tuple[_Selection, _Selection]:
-    """Base nationale : écoles de la région du délégué, et enseignants attachés à l'une d'elles."""
+def _extraire_region(region: str, e: _Selection, n: _Selection) -> Tuple[_Selection, _Selection, dict]:
+    """Base nationale : écoles de la région du délégué et enseignants rattachés à l'une d'elles par le code d'école.
+
+    Renvoie aussi le bilan de l'isolement (retenus, exclus, non rattachés, ambigus). Seules les lignes retenues
+    sont conservées : rien d'une autre région n'atteint la base de données.
+    """
     _exiger_colonne_region(e.fichier)
-    if e.fichier.base_nationale:
-        e = e.garder([i for i, l in enumerate(e.normalisees)
-                      if region_canonique(l.get(C.COL_ETAB_REGION)) == region])
-        if not e.normalisees:
-            raise RefusMetier(f"Aucune école de la région {region} dans « {e.fichier.nom_fichier} »",
-                              ["Vérifiez que la colonne associée à « Region » porte bien le nom des régions"],
-                              code="region_absente", details={"region_autorisee": region})
-    # Enseignants : triés d'après les écoles retenues dès que l'un des deux fichiers est national (le fichier des
-    # enseignants n'a souvent aucune colonne Région).
-    if n.fichier.base_nationale or e.fichier.base_nationale:
-        ecoles = {texte(l.get(C.COL_ETAB_ID)) for l in e.normalisees}
-        n = n.garder([i for i, l in enumerate(n.normalisees) if texte(l.get(C.COL_ENS_ETAB)) in ecoles])
-    return e, n
+    cols_ens = colonnes_region(n.fichier.entetes)
+    gardees_e, gardees_n, bilan = isoler_region(
+        region, e.normalisees, n.normalisees, e.numeros, n.numeros,
+        [[texte(l.get(c)) for c in cols_ens] for l in n.brutes], col_region=C.COL_ETAB_REGION,
+        col_id=C.COL_ETAB_ID, col_ecole=C.COL_ENS_ETAB)
+    if not gardees_e:
+        raise RefusMetier(f"Aucune école de la région {region} dans « {e.fichier.nom_fichier} »",
+                          ["Vérifiez que la colonne associée à « Region » porte bien le nom des régions"],
+                          code="region_absente", details={"region_autorisee": region, "bilan": bilan})
+    return e.garder(gardees_e), n.garder(gardees_n), bilan
 
 
 def _controle_regional(region: str, e: _Selection, n: _Selection) -> None:
-    """Contrôles d'un import régional, sur les lignes retenues. Refus du jeu entier au premier écart."""
+    """Contrôles d'un import régional (fichiers d'une seule région), sur les lignes retenues. Refus du jeu entier
+    au premier écart."""
     _exiger_colonne_region(e.fichier)
     refuser_si_hors_region(region, e.normalisees, e.numeros, [C.COL_ETAB_REGION], e.fichier.nom_fichier)
     # Fichier des enseignants : ses éventuelles colonnes Région ont été contrôlées à l'envoi (fichier régional) ;
@@ -187,18 +190,23 @@ def _controle_regional(region: str, e: _Selection, n: _Selection) -> None:
         raise _refus_lignes(
             f"Import refusé : {len(hors)} enseignant(s) attaché(s) à une école hors de la région {region}. "
             "Aucune ligne n'a été enregistrée.", hors, "region_non_autorisee", region, n.fichier.nom_fichier)
-    # Graphie officielle de la région, pour que le périmètre imposé au délégué retrouve toutes ses écoles.
-    for l in e.normalisees:
-        l[C.COL_ETAB_REGION] = region
 
 
-def _lignes_du_jeu(compte, f_etab: FichierImporte, f_ens: FichierImporte) -> Tuple[List[dict], List[dict]]:
-    """Lignes normalisées du futur jeu : celles de la région pour un délégué, toutes pour le DRH."""
+def _lignes_du_jeu(compte, f_etab: FichierImporte, f_ens: FichierImporte
+                   ) -> Tuple[List[dict], List[dict], Optional[dict]]:
+    """Lignes normalisées du futur jeu : celles de la région pour un délégué, toutes pour le DRH.
+
+    Le troisième élément est le bilan de l'isolement régional (None hors extraction d'une base nationale)."""
     e, n = _Selection.complete(f_etab), _Selection.complete(f_ens)
+    bilan = None
     if compte.est_delegue:
         if f_etab.base_nationale or f_ens.base_nationale:
-            e, n = _extraire_region(compte.region, e, n)
-        _controle_regional(compte.region, e, n)
+            e, n, bilan = _extraire_region(compte.region, e, n)
+        else:
+            _controle_regional(compte.region, e, n)
+        # Graphie officielle de la région, pour que le périmètre imposé au délégué retrouve toutes ses écoles.
+        for l in e.normalisees:
+            l[C.COL_ETAB_REGION] = compte.region
     else:
         # Base nationale du DRH : graphie officielle des régions reconnues, pour les filtres territoriaux.
         for l in e.normalisees:
@@ -206,7 +214,7 @@ def _lignes_du_jeu(compte, f_etab: FichierImporte, f_ens: FichierImporte) -> Tup
                 l[C.COL_ETAB_REGION] = officielle
     # Sous-système des enseignants absent du fichier : celui de leur école (sinon ils seraient sans contrainte).
     completer_sous_systemes(e.normalisees, n.normalisees)
-    return e.normalisees, n.normalisees
+    return e.normalisees, n.normalisees, bilan
 
 
 def preparer_fichier_prince(compte, id_fichier) -> Tuple[FichierImporte, List[dict]]:
@@ -230,6 +238,21 @@ def _annee_scolaire(valeur: Optional[str]) -> str:
         raise RefusMetier("Année scolaire invalide", [str(exc)], code="annee_scolaire_invalide")
 
 
+def _joindre_bilan_regional(rapport: dict, bilan: dict) -> None:
+    """Le bilan de l'isolement entre dans le rapport de qualité ; les rattachements douteux deviennent des
+    avertissements (les enseignants concernés ne sont rattachés à aucune région)."""
+    rapport["import_regional"] = bilan
+    for code, cle, libelle in (("ENS_NON_RATTACHES", "enseignants_non_rattaches", "enseignant(s) non rattaché(s)"),
+                               ("ENS_AMBIGUS", "enseignants_ambigus", "enseignant(s) au rattachement ambigu"),
+                               ("ETAB_ECARTES", "etablissements_ecartes",
+                                "établissement(s) écarté(s) (code ou région inexploitable)")):
+        if bilan[cle]:
+            rapport["avertissements"].append({
+                "code": code, "gravite": "avertissement", "valeurs": bilan[cle],
+                "message": f"{bilan[cle]} {libelle} : écarté(s) du jeu régional, sans être attribué(s) à une région"})
+    rapport["statistiques"]["nb_avertissements"] = len(rapport["avertissements"])
+
+
 @transaction.atomic
 def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte, fichier_prince: Optional[FichierImporte] = None,
               annee_scolaire: Optional[str] = None) -> JeuDeDonnees:
@@ -242,8 +265,10 @@ def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte, fichier_prin
                           ["fichier_etablissements doit être de type etablissements",
                            "fichier_enseignants doit être de type enseignants"])
     annee = _annee_scolaire(annee_scolaire)
-    l_etab, l_ens = _lignes_du_jeu(compte, f_etab, f_ens)
+    l_etab, l_ens, bilan = _lignes_du_jeu(compte, f_etab, f_ens)
     rapport = controler(l_etab, l_ens, cfg_dom.defaut())
+    if bilan is not None:
+        _joindre_bilan_regional(rapport, bilan)
     if not rapport["valide"]:
         raise RefusMetier("Les données contiennent des erreurs bloquantes",
                           [e["message"] for e in rapport["erreurs"]], code="qualite_bloquante")
@@ -441,8 +466,10 @@ def actualiser(jeu: JeuDeDonnees, id_fichier_etab, id_fichier_ens, *, compte, re
         raise RefusMetier("Types de fichiers inversés ou incorrects",
                           ["etablissements doit désigner un fichier d'établissements",
                            "enseignants doit désigner un fichier d'enseignants"])
-    l_etab, l_ens = _lignes_du_jeu(compte, f_etab, f_ens)
+    l_etab, l_ens, bilan = _lignes_du_jeu(compte, f_etab, f_ens)
     rapport = controler(l_etab, l_ens, cfg_dom.defaut())
+    if bilan is not None:
+        _joindre_bilan_regional(rapport, bilan)
     if not rapport["valide"]:
         raise RefusMetier("Les données contiennent des erreurs bloquantes",
                           [e["message"] for e in rapport["erreurs"]], code="qualite_bloquante")

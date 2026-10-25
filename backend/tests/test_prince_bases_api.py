@@ -144,11 +144,3 @@ def test_les_deux_bases_se_reimportent(drh, jeu_avec):
         octets = drh.get(B + f"jeux/{jeu_avec}/faits-prince/bases/{nom}/export/").content
         _, _, entetes, lignes, _ = lire_classeur_numerote(octets, f"{nom}.xlsx", None)
         assert lignes and set(colonnes) <= set(entetes)
-
-
-def test_delegue_limite_a_sa_region(centre):
-    jeu = centre.post(B + "jeux/demonstration/", {"nb_ecoles": 20, "nb_enseignants": 150},
-                      content_type="application/json").json()["id"]
-    r = centre.get(B + f"jeux/{jeu}/faits-prince/bases/etablissements/", {"taille": 500})
-    assert r.status_code == 200, r.content
-    assert {l["Region"] for l in r.json()["resultats"]} == {"Centre"}

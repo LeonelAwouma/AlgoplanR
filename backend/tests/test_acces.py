@@ -249,9 +249,10 @@ def test_imports_secondaires_controles(centre):
     r = centre.post(B + f"jeux/{jeu}/recrues/import/", {"fichier": _csv(recrues, "r.csv")})
     assert r.status_code == 422 and r.json()["details"]["lignes"][0]["ligne"] == 3
     assert centre.get(B + f"jeux/{jeu}/recrues/").json() == []
+    # Le Fait de Prince n'est plus ouvert aux délégués (voir test_fait_de_prince_drh.py).
     prince = "id_ens,id_etab,Region\nM1,ECO001,Littoral\n"
     r = centre.post(B + f"jeux/{jeu}/faits-prince/import/", {"fichier": _csv(prince, "p.csv")})
-    assert r.status_code == 422 and r.json()["code"] == "region_non_autorisee"
+    assert r.status_code == 403 and r.json()["code"] == "reserve_drh"
 
 
 ENS_NATIONAL = "Matricule_Enseignant,Ecole_Attache_Actuelle,Age\nM1,E1,30\nM2,E2,40\nM3,E3,35\nM4,X99,50\n"

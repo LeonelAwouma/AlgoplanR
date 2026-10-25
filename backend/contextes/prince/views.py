@@ -1,11 +1,14 @@
+"""Fait de Prince : réservé au DRH, contrôlé ici par `EstDrh` (403 pour tout autre compte, avant toute lecture du jeu).
+"""
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from contextes.acces.controle_import import verifier_fichier
 from contextes.acces.perimetre import jeu_autorise
+from contextes.acces.permissions import EstDrh
 from contextes.audit.services import decision
 from contextes.commun.erreurs import RefusMetier
 from contextes.commun.outils import SansNegociation, bool_param, perimetre_depuis, reponse_excel, reponse_paginee
@@ -30,6 +33,7 @@ def _protege(request):
 @extend_schema(methods=["POST"], request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT,
                summary="Ajouter un fait {id_ens, id_etab, motif} ; recalcule les scénarios")
 @api_view(["GET", "POST"])
+@permission_classes([EstDrh])
 def faits(request, jeu):
     j = jeu_autorise(request, jeu)
     if request.method == "GET":
@@ -44,6 +48,7 @@ def faits(request, jeu):
 
 @extend_schema(request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT, summary="Aperçu d'impact (rien n'est enregistré)")
 @api_view(["POST"])
+@permission_classes([EstDrh])
 def impact(request, jeu):
     d = request.data
     # Simple aperçu, rien n'est enregistré : une lecture suffit.
@@ -55,6 +60,7 @@ def impact(request, jeu):
                parameters=[OpenApiParameter("apercu", bool)],
                summary="Import en lot (xlsx/csv) : acceptées, refus, manquantes ; ?apercu=1 : essai à blanc")
 @api_view(["POST"])
+@permission_classes([EstDrh])
 def importer(request, jeu):
     apercu = bool_param(request, "apercu")
     j = jeu_autorise(request, jeu, ecriture=not apercu)
@@ -80,6 +86,7 @@ def importer(request, jeu):
 
 @extend_schema(responses=None, summary="Annuler un fait ; recalcule les scénarios")
 @api_view(["DELETE"])
+@permission_classes([EstDrh])
 def annuler(request, jeu, pk):
     _protege(request)
     j = jeu_autorise(request, jeu)
@@ -94,6 +101,7 @@ def annuler(request, jeu, pk):
 @extend_schema(responses=OpenApiTypes.OBJECT,
                summary="Faits actifs appliqués aux bases : résumé, avant / après, décisions, écarts d'effectifs")
 @api_view(["GET"])
+@permission_classes([EstDrh])
 def application(request, jeu):
     return Response(services.application(jeu_autorise(request, jeu, ecriture=False)))
 
@@ -105,6 +113,7 @@ BASES = [OpenApiParameter("concernes", bool), OpenApiParameter("q", str), OpenAp
 @extend_schema(parameters=BASES, responses=OpenApiTypes.OBJECT,
                summary="Base « après Prince » (etablissements, enseignants ou journal), paginée")
 @api_view(["GET"])
+@permission_classes([EstDrh])
 def bases(request, jeu, nom):
     j = jeu_autorise(request, jeu, ecriture=False)
     lignes = services.lignes_bases(j, nom, perimetre_depuis(request), concernes=bool_param(request, "concernes"),
@@ -117,6 +126,7 @@ def bases(request, jeu, nom):
                           OpenApiTypes.BINARY},
                summary="Classeur Excel d'une base « après Prince » (base dérivée pour simulation)")
 @api_view(["GET"])
+@permission_classes([EstDrh])
 def bases_export(request, jeu, nom):
     j = jeu_autorise(request, jeu, ecriture=False)
     octets, fichier = services.classeur(j, nom, perimetre_depuis(request), concernes=bool_param(request, "concernes"))
