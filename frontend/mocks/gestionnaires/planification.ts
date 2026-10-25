@@ -192,6 +192,7 @@ export const gestionnairesPlanification = [
   // --- État, recalcul et versions ------------------------------------------------------------
   // Le degré d'aléa est une régression sur les écoles : les données factices ne l'inventent pas.
   http.get(api('jeux/:jeu/planification/alea/'), () => nonSimule('Le calcul du degré d’aléa')),
+  http.get(api('jeux/:jeu/planification/previsionnel/'), () => nonSimule('Le tableau prévisionnel complet')),
   http.get(api('jeux/:jeu/planification/etat/'), ({ params }) =>
     jeuConnu(params.jeu) ? ok(etat().etatPlanification) : introuvable(),
   ),

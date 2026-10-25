@@ -13,8 +13,10 @@ import type {
   IssueCandidature,
   MotifDemande,
   NatureMouvement,
+  ProvenanceGroupes,
   ProximityLevel,
   SchoolSeverity,
+  StatutBesoin,
   SourceVivier,
   SousSysteme,
   StatutFaitPrince,
@@ -34,6 +36,29 @@ import type {
 } from '../api/contrat'
 
 // --- Mentions obligatoires -------------------------------------------------------------------
+
+/**
+ * Phrase obligatoire quand Classes_Multigrades n'est pas renseigné (mode « non renseigné ») : fiche école, détail du
+ * diagnostic, explications des besoins. Même texte que le serveur (`MESSAGE_MULTIGRADES_NON_RENSEIGNES`,
+ * backend/domaine/diagnostic/indicateurs.py), vérifié par les tests des deux côtés.
+ */
+export const MESSAGE_MULTIGRADES_NON_RENSEIGNES =
+  "Le nombre de classes multigrades n'est pas renseigné. Le besoin en enseignants est provisoire et sera recalculé lorsque cette information sera disponible."
+
+/** Provenance du nombre de groupes pédagogiques, en mots. */
+export const LIBELLE_PROVENANCE_GROUPES: Record<ProvenanceGroupes, string> = {
+  observe: 'Observé (classes ouvertes du fichier)',
+  estime: 'Estimé d’après les classes multigrades',
+  secours: 'Provisoire (hypothèse de secours)',
+  indetermine: 'Indéterminé (valeur illisible, hypothèse de secours)',
+}
+
+/** Fiabilité d'un besoin, en mots. */
+export const LIBELLE_STATUT_BESOIN: Record<StatutBesoin, string> = {
+  confirme: 'Besoin confirmé',
+  estime: 'Besoin estimé',
+  provisoire: 'Besoin provisoire',
+}
 
 /** Mention affichée partout où des résultats de simulation sont présentés (§29). */
 export const MENTION_SIMULATION =

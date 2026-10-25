@@ -210,6 +210,7 @@ export interface DiagnosticReason {
     | 'priorite_locale'
     | 'effectif_eleve'
     | 'ecart_postes_declares'
+    | 'besoin_provisoire'
   /** Phrase prête à afficher, construite uniquement à partir des données calculées. */
   texte: string
 }
@@ -298,7 +299,43 @@ export interface CalculBesoin {
   remActuel: number | null
   /** « norme_eleves » : règle du référentiel ; « repli_classes » : sans effectifs, une classe = un maître. */
   methode: 'norme_eleves' | 'repli_classes'
+  /*
+   * Référentiel d'octobre 2026 (calculés par le serveur ; absents des données factices plus anciennes).
+   */
+  /** C = ⌈N ÷ REM de référence⌉ : enseignants nécessaires par ratio, distinct de P ; `null` sans effectif connu. */
+  besoinSelonRem?: number | null
+  /** G : groupes pédagogiques retenus pour le minimum m = max(plancher ; G). */
+  groupesPedagogiques?: number
+  /** Provenance de G : observé (classes ouvertes), estimé (6 − classes multigrades), secours ou indéterminé. */
+  provenanceGroupes?: ProvenanceGroupes
+  /** Classes multigrades lues dans le fichier (`null` : cellule vide ou illisible). */
+  classesMultigradesLues?: number | null
+  /** Lecture de la colonne Classes_Multigrades. */
+  statutMultigrades?: StatutMultigrades
+  /** Minimum pédagogique fondé sur l'hypothèse de secours : besoin provisoire. */
+  minimumProvisoire?: boolean
+  /** Fiabilité de la dotation D. */
+  statutBesoin?: StatutBesoin
+  /** Part de l'excédent mobilisable sans validation administrative. */
+  excedentSur?: number
+  /** Part de l'excédent qui dépend d'une hypothèse sur les groupes : aucune sortie automatique. */
+  excedentAVerifier?: number
+  /** Salles connues sans leur mode d'utilisation (simple / double flux) : BMAX approché par le total des salles. */
+  bmaxIncertain?: boolean
 }
+
+/** Provenance du nombre de groupes pédagogiques G d'une école. */
+export type ProvenanceGroupes = 'observe' | 'estime' | 'secours' | 'indetermine'
+/** Lecture de la colonne Classes_Multigrades. */
+export type StatutMultigrades =
+  | 'renseigne'
+  | 'non_renseigne'
+  | 'invalide'
+  | 'incoherent'
+  | 'historique_oui'
+  | 'historique_non'
+/** Fiabilité d'un besoin : confirmé (données observées), estimé (hypothèse de regroupement) ou provisoire. */
+export type StatutBesoin = 'confirme' | 'estime' | 'provisoire'
 
 /** Poids de vulnérabilité et indice de priorité d'une école ou d'une structure (référentiel §3.1). */
 export interface PrioriteEcole {

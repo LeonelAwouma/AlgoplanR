@@ -8,7 +8,15 @@
  * moteur de référence.
  */
 
-import type { ClassementEcole, EngineSettings, School, SchoolDiagnostic } from '../../contrat'
+import type {
+  ClassementEcole,
+  EngineSettings,
+  ProvenanceGroupes,
+  School,
+  SchoolDiagnostic,
+  StatutBesoin,
+  StatutMultigrades,
+} from '../../contrat'
 import { raisonsPriorite, severite } from '../moteur/diagnostic'
 import { round2 } from '../moteur/nombres'
 import {
@@ -72,6 +80,17 @@ export interface EcoleDjango {
   est_zone_rouge: boolean
   /** Rang d'accueil calculé par le serveur ; `null` pour une école sans besoin. */
   rang_priorite?: number | null
+  /** Référentiel d'octobre 2026 (absents des réponses plus anciennes). */
+  Ce?: number | null
+  Ge?: number
+  Ge_provenance?: ProvenanceGroupes
+  Me?: number | null
+  multigrades_statut?: StatutMultigrades
+  minimum_provisoire?: boolean
+  statut_besoin?: StatutBesoin
+  xe_sur?: number
+  xe_a_verifier?: number
+  bmax_incertain?: boolean
   latitude?: number
   longitude?: number
 }
@@ -110,9 +129,12 @@ export function versSchool(e: EcoleDjango, ligne: number): School {
     nbEnseignantsEtat: nombre(e.Enseignants_Actuels),
     nbAutresEnseignants: null,
     nbPostesOuvertsDeclares: null,
-    // Le fichier dit seulement si l'école a des classes multigrades, pas combien.
-    classesMultigrades: estOui(multigrade) ? 1 : 0,
-    classesMultigradesRenseignees: multigrade !== '',
+    // Classes_Multigrades est un nombre entier, lu par le serveur (`Me`) ; un ancien « Oui » compte pour une classe.
+    // Une cellule vide n'est jamais « aucune classe multigrade » : `classesMultigradesRenseignees` le dit.
+    classesMultigrades: e.Me != null ? e.Me : estOui(multigrade) ? 1 : 0,
+    classesMultigradesRenseignees: e.multigrades_statut
+      ? ['renseigne', 'historique_oui', 'historique_non'].includes(e.multigrades_statut)
+      : multigrade !== '',
     prioriteLocale: 0,
     effectifTotalEleves: eleves,
     effectifFilles: null,
@@ -168,6 +190,16 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
       sallesManquantes: nombre(e.se),
       remActuel: parEnseignant,
       methode: eleves == null ? 'repli_classes' : 'norme_eleves',
+      besoinSelonRem: e.Ce ?? null,
+      groupesPedagogiques: e.Ge,
+      provenanceGroupes: e.Ge_provenance,
+      classesMultigradesLues: e.Me ?? null,
+      statutMultigrades: e.multigrades_statut,
+      minimumProvisoire: e.minimum_provisoire,
+      statutBesoin: e.statut_besoin,
+      excedentSur: e.xe_sur,
+      excedentAVerifier: e.xe_a_verifier,
+      bmaxIncertain: e.bmax_incertain,
     },
     classement: classer(e),
     priorite: {

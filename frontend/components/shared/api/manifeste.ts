@@ -143,6 +143,7 @@ export const MANIFESTE_ROUTES = {
     ['GET', 'jeux/{jeu}/hypotheses/historique/'],
     ['POST', 'jeux/{jeu}/hypotheses/attrition/estimer/'],
     ['GET', 'jeux/{jeu}/planification/'],
+    ['GET', 'jeux/{jeu}/planification/previsionnel/'],
     ['GET', 'jeux/{jeu}/planification/territoires/'],
     ['GET', 'jeux/{jeu}/planification/sous-systemes/'],
     ['GET', 'jeux/{jeu}/planification/ecoles/'],

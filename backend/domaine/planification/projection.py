@@ -9,6 +9,12 @@ Règles (référence : moteur-reference/scripts/serveur/planification.ts, formul
   - besoin d'une école : max(0 ; K − effectif restant) ; attrition hors retraite τ × effectif ÷ 100 arrondie à l'entier
     le plus proche (comme le rapport DRH : 44 232 × 2,25 % = 995) et classes
     libérées par les directeurs déchargés (DIR_NOM_AN × DIR_H_PRI_PCT), au niveau du périmètre ;
+  - deux grandeurs distinctes : le stock administratif S(t+1) = S(t) − retraites − autres départs + recrutements, et
+    les enseignants disponibles pour tenir une classe U(t) = S(t) − H(t), H(t) étant les décharges cumulées des
+    directeurs nommés depuis le début de l'horizon. Un directeur déchargé reste dans le stock : il n'est retranché
+    qu'une fois, des disponibles, et jamais à nouveau comme un départ les années suivantes ;
+  - enseignants nécessaires selon le REM de référence : C(t) = ⌈N(t) ÷ REM_REF_PRI⌉ (rapport MINEDUB), distinct de
+    la somme des besoins pédagogiques calculés école par école (P, m, D, K) ;
   - quotas des années précédentes supposés recrutés (hypothèse par défaut) : ils s'ajoutent à l'effectif suivant
     et le besoin d'une année est son besoin nouveau ; sinon le besoin se cumule d'année en année ;
   - quota calculé (scénario « sous plafond » de codeSource) : besoin de l'année, déficit initial rattrapé sur
@@ -24,7 +30,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from ..commun.encadrement import CHIFFRES_ENCADREMENT, ratio_encadrement
 from ..commun.texte import norm, texte
-from ..diagnostic.indicateurs import calculer_indicateurs
+from ..diagnostic.indicateurs import besoin_rem, calculer_indicateurs
 from ..donnees.modeles import Ecole, Enseignant
 from .parametres import ANNEES_PLAN, PART_DIRECTEURS_PRIMAIRE, STOCK_NATIONAL_PRIMAIRE
 from .referentiel_drh import _cle as cle_region
@@ -78,6 +84,21 @@ class ProjectionEcole:
     effectifs: List[int] = field(default_factory=list)
     besoins: List[int] = field(default_factory=list)
     excedents: List[int] = field(default_factory=list)
+    #: Excédent initial mobilisable sans validation (hors part qui dépend d'un minimum pédagogique non observé).
+    excedent_sur_initial: int = 0
+    #: Minimum pédagogique fondé sur l'hypothèse de secours (Classes_Multigrades non renseigné ou illisible).
+    minimum_provisoire: bool = False
+    provenance_groupes: str = "secours"
+    statut_besoin: str = "provisoire"
+    bmax_incertain: bool = False
+    #: Composantes du besoin à l'année de base (effectif d'élèves importé).
+    pe_initial: int = 0
+    me_initial: int = 0
+    de_initial: int = 0
+    #: Composantes du besoin pédagogique, année par année (élèves projetés) : P, m, D.
+    pe: List[int] = field(default_factory=list)
+    me: List[int] = field(default_factory=list)
+    de: List[int] = field(default_factory=list)
 
     @property
     def cible(self) -> int:
@@ -164,7 +185,10 @@ def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], 
             iaeb=e.iaeb, sous_systeme=code_sous_systeme(e.sous_systeme), eleves_connus=e.effectif_connu,
             effectif_initial=initial, arrivees=arrivees.get(e.id, 0),
             deficit_initial=int(ind0.be), excedent_initial=int(ind0.xe), cible_initial=int(ind0.Ke),
-            eleves_initial=e.effectif_eleves)
+            eleves_initial=e.effectif_eleves, excedent_sur_initial=int(ind0.xe_sur),
+            minimum_provisoire=ind0.minimum_provisoire, provenance_groupes=ind0.Ge_provenance,
+            statut_besoin=ind0.statut_besoin, bmax_incertain=ind0.bmax_incertain, pe_initial=ind0.Pe,
+            me_initial=ind0.me, de_initial=ind0.De)
         par_annee = retraites.get(e.id, [0] * n)
         restant = initial
         for k in range(n):
@@ -178,6 +202,9 @@ def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], 
             p.effectifs.append(restant)
             p.besoins.append(int(ind.be))
             p.excedents.append(int(ind.xe))
+            p.pe.append(ind.Pe)
+            p.me.append(ind.me)
+            p.de.append(ind.De)
         resultat.append(p)
     return resultat, departs
 
@@ -249,8 +276,8 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
     """Les indicateurs du mémo, année par année, pour un ensemble d'écoles (avant report des décisions).
 
     `scenario` fixe les recrues ajoutées au stock suivant : « plafond » (quota calculé, si les quotas précédents
-    sont supposés recrutés), « min » (retraites), « maintien » (tous les départs) ou « besoin » (quota avant
-    plafond, jamais sous les retraites).
+    sont supposés recrutés), « min » (retraites), « maintien » (tous les départs et les décharges de l'année) ou
+    « besoin » (quota avant plafond, jamais sous les retraites). Chaque scénario a son propre stock.
     """
     drh = hyp["drh"]
     horizon = min(int(hyp.get("horizon", 5)), len(ANNEES_PLAN))
@@ -263,15 +290,18 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
     deficit = somme(lambda e: e.deficit_initial)
     supposes = bool(hyp["quotas"].get("annees_precedentes_realisees", True))
     etalement = max(1, int(drh["ETAL_N"]))
+    rem_ref = float(drh.get("REM_REF_PRI", 74.4))
 
     # Population commune du taux d'encadrement (décision « Encadrement ») : élèves ET enseignants des seules écoles à
     # effectif d'élèves connu. Le stock de début de l'année 1 est connu école par école : il se restreint sans rien
     # répartir. Après, l'attrition, les directeurs et les recrutements ne sont projetés que pour le périmètre entier :
     # sans école à effectif inconnu le périmètre EST la population commune ; sinon le taux n'est pas calculable.
     nb_inconnues = sum(1 for e in ecoles if not e.eleves_connus)
+    nb_provisoires = sum(1 for e in ecoles if e.minimum_provisoire)
     initial_connus = somme(lambda e: e.effectif_initial if e.eleves_connus else 0)
-    effectif = initial
-    attrition_cumulee = directeurs_cumules = 0
+    effectif = initial                      # S(t) : stock administratif en début d'année
+    decharges = 0                           # H(t − 1) : décharges cumulées avant l'année
+    attrition_cumulee = 0
     besoin_precedent = rattrapage_precedent = 0
     origine = origine_taux(hyp)
     lignes = []
@@ -279,11 +309,11 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
         retraites = somme(lambda e: e.retraites[k])
         attrition = arrondi(taux * effectif / 100.0)
         attrition_cumulee += attrition
-        directeurs_cumules += directeurs
-        besoin_cumule = somme(lambda e: e.besoins[k]) + attrition_cumulee + directeurs_cumules
+        decharges_fin = decharges + directeurs
+        besoin_cumule = somme(lambda e: e.besoins[k]) + attrition_cumulee + decharges_fin
         besoin = max(0, besoin_cumule - besoin_precedent) if supposes else besoin_cumule
         besoin_precedent = besoin_cumule
-        vivier = (somme(lambda e: e.excedents[0]) + ressources_supplementaires) if k == 0 else 0
+        vivier = (somme(lambda e: e.excedent_sur_initial) + ressources_supplementaires) if k == 0 else 0
         part_cumulee = arrondi(deficit * min(k + 1, etalement) / etalement)
         if supposes:
             rattrapage, inclus = part_cumulee - rattrapage_precedent, (deficit if k == 0 else 0)
@@ -298,8 +328,9 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
         else:
             quota = min(brut, plafond)
         eleves = somme(lambda e: e.eleves[k] if e.eleves_connus else 0.0)
+        disponibles = max(0, effectif - decharges)          # U(t) au début de l'année
         if nb_inconnues == 0:
-            rem_den, rem_raison = effectif, None
+            rem_den, rem_raison = disponibles, None
         elif k == 0:
             rem_den, rem_raison = initial_connus, None
         else:
@@ -313,12 +344,18 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
             "besoin_restant": quota,
             # Détail DRH (hors contrat) : taux appliqué, classes libérées, rattrapage, plafond, REM projeté.
             "taux_attrition": round(taux, 4), "origine_taux": origine, "directeurs_decharges": directeurs,
-            "rattrapage": rattrapage, "plafond": plafond,
+            "decharges_avant": decharges, "decharges_cumulees": decharges_fin, "disponibles_debut": disponibles,
+            "rattrapage": rattrapage, "plafond": plafond, "quota_avant_plafond": brut,
             # Taux d'encadrement projeté (population commune, voir plus haut) : arrondi à la restitution seulement ;
             # `rem_brut` et `eleves_brut` gardent la précision pour la suite des calculs. `None` + raison quand il
             # n'est pas calculable sur la population commune.
             "rem": None if rem_brut is None else round(rem_brut, CHIFFRES_ENCADREMENT), "rem_brut": rem_brut,
             "rem_denominateur": rem_den, "rem_raison": rem_raison, "population_complete": nb_inconnues == 0, "eleves_brut": eleves,
+            # Besoins pédagogiques école par école (élèves projetés) et besoin selon le REM de référence.
+            "besoin_rem": besoin_rem(eleves, rem_ref), "somme_pe": somme(lambda e: e.pe[k]),
+            "somme_me": somme(lambda e: e.me[k]), "somme_de": somme(lambda e: e.de[k]),
+            "somme_ke": somme(lambda e: e.cibles[k]), "besoin_non_couvert": somme(lambda e: e.besoins[k]),
+            "ecoles": len(ecoles), "ecoles_eleves_inconnus": nb_inconnues, "ecoles_minimum_provisoire": nb_provisoires,
         })
         if scenario == "min":
             recrutes = retraites
@@ -330,7 +367,10 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
             recrutes = quota if supposes else 0
         lignes[-1]["recrutement"] = recrutes
         lignes[-1]["eleves"] = round(eleves, 1)
-        effectif = max(0, effectif - retraites - attrition - directeurs + recrutes)
+        effectif = max(0, effectif - retraites - attrition + recrutes)
+        decharges = decharges_fin
+        lignes[-1]["effectif_fin"] = effectif
+        lignes[-1]["disponibles_fin"] = max(0, effectif - decharges)
     return lignes
 
 

@@ -78,7 +78,10 @@ export interface ScoringConfig {
 
 /** Règle de détermination du besoin d'une école (§2.2 à §2.4). */
 export interface ReglesBesoin {
-  /** Norme d'encadrement : un maître pour ce nombre d'élèves (60 selon la note de cadrage). */
+  /**
+   * Norme d'encadrement : REM de référence, un maître pour ce nombre d'élèves (74,4 depuis le rapport MINEDUB
+   * d'octobre 2026 ; 60 selon l'ancienne note de cadrage). Décimale conservée.
+   */
   elevesParMaitre: number
   /** Tolérance d'arrondi : P = max(1 ; ⌈(N − tolérance) ÷ norme⌉). 0 = arrondi supérieur strict. */
   toleranceArrondi: number
@@ -94,6 +97,14 @@ export interface ReglesBesoin {
   doubleFluxAutorise: boolean
   /** Âge légal de départ à la retraite, pour repérer les départs connus et prévisibles. */
   ageRetraite: number
+  /** Plancher du minimum pédagogique : m = max(plancher ; G) (3 par défaut, hypothèse à valider). */
+  plancherPedagogique?: number
+  /** Groupes pédagogiques supposés quand Classes_Multigrades n'est pas renseigné (6 : école complète). */
+  groupesSecours?: number
+  /** Lire Classes_Ouvertes comme le nombre de groupes-classes qui fonctionnent séparément (G observé). */
+  groupesDepuisClassesOuvertes?: boolean
+  /** Mobiliser sans validation l'excédent qui dépend d'une hypothèse sur les groupes (désactivé par défaut). */
+  mobiliserExcedentIncertain?: boolean
 }
 
 /** Poids de vulnérabilité et indice de priorité des postes (§3.1). */

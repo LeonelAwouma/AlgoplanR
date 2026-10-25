@@ -5,6 +5,7 @@
  * refaites côté interface.
  */
 
+import { MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../../../kernel/libelles'
 import type { DiagnosticReason, EngineSettings, SchoolDiagnostic, SchoolSeverity } from '../../contrat'
 
 /** Classe la gravité d'un besoin selon les seuils configurés (besoin rapporté à la cible). */
@@ -67,6 +68,11 @@ export function raisonsPriorite(d: SchoolDiagnostic): DiagnosticReason[] {
       code: 'effectif_eleve',
       texte: `${pluriel(c.surnombre, 'maître')} au-delà des salles, mais utile(s) aux élèves : à examiner (passage au double flux), pas à redéployer.`,
     })
+  }
+
+  // Mode « non renseigné » : la phrase destinée à l'utilisateur, jamais une formule à sa place.
+  if (c.minimumProvisoire) {
+    raisons.push({ code: 'besoin_provisoire', texte: MESSAGE_MULTIGRADES_NON_RENSEIGNES })
   }
 
   if (d.school.classesMultigrades > 0 && c.besoin > 0) {

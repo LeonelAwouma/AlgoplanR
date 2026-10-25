@@ -17,7 +17,7 @@ from typing import Dict, List, Optional
 from ..commun.encadrement import CHIFFRES_ENCADREMENT, ratio_encadrement
 from ..commun.texte import norm
 from .projection import arrondi
-from .rapport import stock_fin
+from .rapport import disponibles_fin, stock_fin
 
 
 def dans(lieu: Optional[Dict[str, str]], p: Dict[str, Optional[str]]) -> bool:
@@ -81,13 +81,18 @@ def appliquer_suivi(annees: List[dict], p: Dict[str, Optional[str]], *, quotas: 
                  "deploiements_prevus": compte_m("prevu"), "deploiements_realises": compte_m("realise"),
                  "besoin_restant": max(0, besoin_ajuste - a["ressources_vivier"] - (retenu or 0))}
         ligne["effectif_fin"] = stock_fin(ligne)
+        if "decharges_cumulees" in a:
+            ligne["disponibles_debut"] = max(0, debut - a.get("decharges_avant", 0))
+            ligne["disponibles_fin"] = disponibles_fin(ligne)
         if a.get("population_complete", True) and a.get("eleves"):
             # Taux d'encadrement projeté : élèves de l'année ÷ effectif au début de l'année (ajusté). Quand des écoles
             # ont un effectif d'élèves inconnu, la ligne garde celui de `calculer_annees` (année 1 sur la population
             # commune, puis « non disponible ») : l'ajustement de l'effectif ne peut pas être attribué à ces seules
             # écoles.
-            ligne["rem_brut"] = ratio_encadrement(a.get("eleves_brut", a["eleves"]), debut)
-            ligne["rem_denominateur"] = debut
+            # Dénominateur : enseignants disponibles (stock moins les décharges cumulées des années précédentes).
+            dispo = max(0, debut - a.get("decharges_avant", 0))
+            ligne["rem_brut"] = ratio_encadrement(a.get("eleves_brut", a["eleves"]), dispo)
+            ligne["rem_denominateur"] = dispo
             ligne["rem"] = None if ligne["rem_brut"] is None else round(ligne["rem_brut"], CHIFFRES_ENCADREMENT)
         if recrutements_supposes and k + 1 < len(annees):
             # Écart réellement transmis à l'année suivante : fin d'année ajustée moins le début théorique (non

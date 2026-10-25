@@ -31,6 +31,7 @@ import type {
   LignePlanificationEcole,
   ListesRapportPrevisionnel,
   PlanDeparts,
+  PrevisionnelComplet,
   QuotaRecrutement,
   RapportPrevisionnel,
   SousSysteme,
@@ -523,6 +524,9 @@ export const conversionsPlanification: Record<string, Conversion> = {
   },
   'GET jeux/{jeu}/planification/alea/': async (r, acces, p): Promise<DegreAlea> =>
     camelProfond(await lire<unknown>(acces, `${P(p.jeu)}alea/`, r.query)),
+  // Tableau prévisionnel complet : clés du serveur = noms de champs, jamais des données (libellés en valeurs).
+  'GET jeux/{jeu}/planification/previsionnel/': async (r, acces, p): Promise<PrevisionnelComplet> =>
+    camelProfond(await lire<unknown>(acces, `${P(p.jeu)}previsionnel/`, r.query)),
   // Tableaux du rapport DRH : les clés du serveur sont des noms de champs, jamais des données (régions…).
   'GET jeux/{jeu}/planification/rapport/': async (r, acces, p): Promise<RapportPrevisionnel> =>
     camelProfond(await lire<unknown>(acces, `${P(p.jeu)}rapport/`, r.query)),
