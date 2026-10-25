@@ -16,6 +16,7 @@ from typing import Dict, Iterable, List, Optional
 
 from ..commun.encadrement import CHIFFRES_ENCADREMENT, encadrement_population, taux_encadrement
 from ..commun.texte import cle_tri_fr
+from ..diagnostic.indicateurs import besoin_rem
 from ..donnees.modeles import Ecole, Enseignant
 from .parametres import ANNEES_PLAN
 from .projection import (SCENARIOS, ProjectionEcole, arrondi, calculer_annees, code_sous_systeme, est_structure,
@@ -85,7 +86,10 @@ def trajectoires(ecoles: List[ProjectionEcole], hyp: dict, horizon: int, ressour
 def _sommer(par_region: List[Dict[str, List[dict]]], horizon: int) -> Dict[str, List[dict]]:
     """Additionne les trajectoires régionales, année par année et scénario par scénario."""
     cles = ("effectif_debut", "departs_retraite", "departs_attrition", "directeurs_decharges", "recrutement",
-            "eleves", "eleves_brut", "besoin", "quota_calcule")
+            "eleves", "eleves_brut", "besoin", "quota_calcule", "decharges_avant", "decharges_cumulees",
+            "disponibles_debut", "disponibles_fin", "effectif_fin", "besoin_non_couvert", "somme_pe", "somme_me",
+            "somme_de", "somme_ke", "ressources_vivier", "quota_avant_plafond", "ecoles", "ecoles_eleves_inconnus",
+            "ecoles_minimum_provisoire")
     out: Dict[str, List[dict]] = {}
     for s in SCENARIOS:
         lignes = []
@@ -102,10 +106,17 @@ def _sommer(par_region: List[Dict[str, List[dict]]], horizon: int) -> Dict[str, 
 
 
 def stock_fin(d: dict) -> int:
-    """Stock de l'année après ses départs et ses recrutements (base du taux d'encadrement obtenu, comme dans le
-    rapport)."""
-    return max(0, d["effectif_debut"] - d["departs_retraite"] - d["departs_attrition"] - d["directeurs_decharges"]
-               + d["recrutement"])
+    """Stock administratif de fin d'année : S(t+1) = S(t) − retraites − autres départs + recrutements. Les directeurs
+    déchargés y restent (ils ne quittent pas le corps)."""
+    return max(0, d["effectif_debut"] - d["departs_retraite"] - d["departs_attrition"] + d["recrutement"])
+
+
+def disponibles_fin(d: dict) -> int:
+    """Enseignants disponibles pour tenir une classe en fin d'année : U = S(t+1) − H(t), décharges cumulées des
+    directeurs (base du taux d'encadrement obtenu, comme dans le rapport). Une ligne d'une version plus ancienne,
+    sans `decharges_cumulees`, retranchait les seules décharges de l'année de son effectif de début."""
+    h = d.get("decharges_cumulees", d.get("directeurs_decharges", 0)) or 0
+    return max(0, stock_fin(d) - h)
 
 
 def rems(lignes: List[dict]) -> List[Optional[float]]:
@@ -114,7 +125,7 @@ def rems(lignes: List[dict]) -> List[Optional[float]]:
     Population commune : le stock après départs et recrutements est celui du périmètre entier, il n'est attribuable
     aux seules écoles à effectif d'élèves connu que si toutes le sont (`population_complete`) ; sinon `None`
     (« non disponible »), sans répartir les recrutements entre écoles."""
-    return [_rem(d.get("eleves_brut", d["eleves"]), stock_fin(d)) if d.get("population_complete", True) else None
+    return [_rem(d.get("eleves_brut", d["eleves"]), disponibles_fin(d)) if d.get("population_complete", True) else None
             for d in lignes]
 
 
@@ -142,13 +153,17 @@ def tableau_national(ecoles: List[ProjectionEcole], traj: Dict[str, List[dict]],
 
     lignes = [
         ligne("Élèves projetés", round(base_eleves), [round(l["eleves"]) for l in plafond]),
-        ligne("Enseignants nécessaires (élèves ÷ taux d'encadrement de référence)", arrondi(base_eleves / ref),
-              [arrondi(l["eleves"] / ref) for l in plafond]),
+        # ⌈élèves ÷ REM⌉ (rapport MINEDUB), comme le tableau prévisionnel de la planification : l'arrondi à l'entier le
+        # plus proche, utilisé jusqu'en octobre 2026, sous-estimait d'un enseignant une fois sur deux.
+        ligne("Enseignants nécessaires (⌈élèves ÷ taux d'encadrement de référence⌉)", besoin_rem(base_eleves, ref),
+              [besoin_rem(l.get("eleves_brut", l["eleves"]), ref) for l in plafond]),
         ligne("Enseignants en poste en début d'année (sous plafond)", base_effectif,
               [l["effectif_debut"] for l in plafond]),
         ligne("Retraites (quota incompressible)", None, [l["departs_retraite"] for l in plafond]),
         ligne("Autres départs (sous plafond)", None, [l["departs_attrition"] for l in plafond]),
         ligne("Directeurs déchargés de classe", None, [l["directeurs_decharges"] for l in plafond]),
+        ligne("Enseignants disponibles en fin d'année (sous plafond)", base_effectif,
+              [disponibles_fin(l) for l in plafond]),
     ]
     for s in SCENARIOS:
         lignes.append(ligne(f"Recrutement {LIBELLES_SCENARIOS[s]}", None, [l["recrutement"] for l in traj[s]]))
@@ -390,15 +405,17 @@ def limites(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], hyp: d
         f"Croissance des élèves de {drh['G_PRI_PCT']} % par an appliquée à toutes les écoles.",
         f"Directeurs : {drh['DIR_NOM_AN']} prises de fonction par an, dont {drh['DIR_H_PRI_PCT']} % sans classe "
         "(paramètres nationaux rapportés au périmètre) ; le jeu ne renseigne ni la fonction ni la date de prise de "
-        "fonction.",
+        "fonction. Un directeur déchargé reste dans le stock et n'est retranché qu'une fois des enseignants "
+        "disponibles.",
         "Degré d'aléa (1 − R²) calculé sur tous les enseignants déclarés (Enseignants_Actuels) : le jeu ne distingue "
         "pas les enseignants payés par l'État, contrairement au rapport de référence — valeurs non directement "
         "comparables aux valeurs historiques de ce rapport.",
         "Taux d'encadrement projeté : calculé sur les seules écoles à effectif d'élèves connu (population commune) ; "
         "s'il existe des écoles à effectif inconnu, il n'est disponible que pour N+1 — les départs et recrutements "
         "ne sont pas répartis entre écoles, et les années suivantes sont « non disponibles ».",
-        "Besoin des écoles calculé par la règle du référentiel MINEDUB ; la ligne « enseignants nécessaires » "
-        f"utilise le taux d'encadrement de référence ({drh['REM_REF_PRI']}).",
+        "Besoin des écoles calculé par la règle du référentiel MINEDUB (P avec la tolérance de 20 élèves, minimum "
+        "pédagogique max(3 ; G)) ; la ligne « enseignants nécessaires » divise directement les élèves par le taux "
+        f"d'encadrement de référence ({drh['REM_REF_PRI']}).",
         "La maternelle n'est pas distinguée dans le jeu, et les chargés de classe du SIGE (colonne C2) comme les "
         "agents absents de la cartographie ne sont pas disponibles.",
     ]

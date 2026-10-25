@@ -10,7 +10,7 @@ pd = pytest.importorskip("pandas")
 from domaine.donnees.demonstration import construire_jeu_demonstration
 from domaine.donnees.modeles import construire_ecole, construire_enseignant
 from domaine.mobilite.moteur import lancer_affectation
-from domaine.parametrage.config import defaut
+from domaine.parametrage.config import config_historique
 
 REF = Path(__file__).parent / "reference" / "app_algoplanr_origine.py"
 
@@ -25,7 +25,7 @@ def legacy():
 
 
 def _comparer(legacy, graine, nb_e, nb_n, prince=None, cfg=None):
-    cfg = cfg or defaut()
+    cfg = cfg or config_historique()   # référentiel du moteur d'origine (norme de 60)
     cfg["regles_dreb"]["regions_etanches"] = False   # le moteur d'origine ne connaît pas la règle des régions
     e, n = construire_jeu_demonstration(graine, nb_e, nb_n)
     mien = lancer_affectation([construire_ecole(x) for x in e], [construire_enseignant(x) for x in n],
@@ -58,7 +58,7 @@ def test_parite_sans_prince(legacy, graine):
 
 
 def test_parite_phases_desactivees(legacy):
-    cfg = defaut()
+    cfg = config_historique()
     cfg["regles_dreb"]["phase3_extension_regionale"] = False
     cfg["regles_dreb"]["phase2_proximite_iaeb"] = False
     _comparer(legacy, 9, 60, 700, cfg=cfg)

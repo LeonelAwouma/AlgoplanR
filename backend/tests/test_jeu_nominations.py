@@ -36,8 +36,10 @@ def jeu(drh):
     ident = r.json()["id"]
     assert r.json()["qualite"]["statistiques"]["nb_erreurs"] == 0
     # Ce jeu a été conçu avec des redéploiements entre régions : on garde la règle des régions désactivée
-    # (le comportement par défaut, régions étanches, est couvert par test_regions_etanches.py).
-    r = c.patch(B + f"jeux/{ident}/parametres/", {"regles_dreb": {"regions_etanches": False}},
+    # (le comportement par défaut, régions étanches, est couvert par test_regions_etanches.py). Ses chiffres sont
+    # calibrés sur la norme historique de 60 élèves par maître (référentiel d'avant octobre 2026) : on la garde.
+    r = c.patch(B + f"jeux/{ident}/parametres/", {"regles_dreb": {"regions_etanches": False},
+                                                   "besoin": {"norme_eleves_par_maitre": 60}},
                 content_type="application/json")
     assert r.status_code == 200, r.content
     r = c.post(B + f"jeux/{ident}/scenarios/base/")

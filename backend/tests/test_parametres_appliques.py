@@ -10,7 +10,9 @@ from domaine.mobilite.moteur import lancer_affectation
 from domaine.parametrage.config import defaut
 
 #: Réglages lus par le code mais sans effet démontrable sur le jeu fictif ci-dessous (donnée absente de ce jeu).
-SANS_EFFET_SUR_LE_JEU_FICTIF: set = set()
+#: Le jeu fictif renseigne Classes_Multigrades (Oui / Non) et pas Classes_Ouvertes : ni l'hypothèse de secours ni la
+#: lecture des classes ouvertes n'y servent (leur effet est vérifié dans tests/test_referentiel_2026.py).
+SANS_EFFET_SUR_LE_JEU_FICTIF: set = {"besoin.groupes_secours", "besoin.groupes_depuis_classes_ouvertes"}
 #: Réglages présents dans la configuration mais lus par aucun calcul.
 INACTIFS: set = set()
 

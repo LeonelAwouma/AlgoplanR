@@ -85,7 +85,30 @@ def totaux_diagnostic(ecoles: List[dict]) -> dict:
         "effectif_total_eleves": effectif_total_eleves,
         "eleves_par_enseignant_etat": eleves_par_enseignant,
         "eleves_par_classe": eleves_par_classe,
-        "classes_multigrades": sum(1 for e in ecoles if est_oui(e.get(C.COL_ETAB_MULTIGRADE))),
+        # Écoles déclarant au moins une classe multigrade (nombre entier, ou ancien « Oui ») ; une cellule vide n'est
+        # jamais comptée comme « aucune classe multigrade ».
+        "classes_multigrades": sum(1 for e in ecoles if (e.get("Me") or 0) > 0
+                                   or e.get("multigrades_statut") == "historique_oui"
+                                   or ("Me" not in e and est_oui(e.get(C.COL_ETAB_MULTIGRADE)))),
+        "nb_classes_multigrades": sum(int(e.get("Me") or 0) for e in ecoles
+                                      if e.get("multigrades_statut") == "renseigne"),
+        "multigrades_non_renseignes": sum(1 for e in ecoles if e.get("multigrades_statut", "non_renseigne")
+                                          in ("non_renseigne", "invalide", "incoherent")),
+        # Minimum pédagogique provisoire (hypothèse de secours) et besoin final incertain sont deux comptes distincts :
+        # un minimum provisoire est sans effet quand l'effectif d'élèves ou les salles fixent le besoin.
+        "nb_ecoles_minimum_provisoire": sum(1 for e in ecoles if e.get("minimum_provisoire")),
+        "nb_ecoles_besoin_provisoire": sum(1 for e in ecoles if e.get("statut_besoin") == "provisoire"),
+        "nb_ecoles_besoin_estime": sum(1 for e in ecoles if e.get("statut_besoin") == "estime"),
+        "nb_ecoles_minimum_provisoire_sans_effet": sum(1 for e in ecoles if e.get("minimum_provisoire")
+                                                       and e.get("statut_besoin") == "confirme"),
+        "besoin_postes_confirme": sum(int(e.get("nb_postes_ouverts", 0) or 0) for e in ecoles
+                                      if e.get("statut_besoin", "confirme") == "confirme"),
+        "besoin_postes_estime": sum(int(e.get("nb_postes_ouverts", 0) or 0) for e in ecoles
+                                    if e.get("statut_besoin") == "estime"),
+        "besoin_postes_provisoire": sum(int(e.get("nb_postes_ouverts", 0) or 0) for e in ecoles
+                                        if e.get("statut_besoin") == "provisoire"),
+        "excedent_a_verifier": int(sum(float(e.get("xe_a_verifier", 0) or 0) for e in ecoles)),
+        "besoin_selon_rem": sum(int(e.get("Ce") or 0) for e in ecoles),
     }
 
 

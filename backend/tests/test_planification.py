@@ -84,8 +84,10 @@ def test_tableau_et_ventilations(c, jeu):
     assert len(t["fiabilite"]) == 12
     # Effectifs suivants : départs retranchés, quotas supposés recrutés.
     a0, a1 = t["annees"][0], t["annees"][1]
+    # Stock administratif : les directeurs déchargés y restent ; ils ne sont retranchés que des disponibles.
     assert a1["effectif_debut"] == max(0, a0["effectif_debut"] - a0["departs_retraite"] - a0["departs_attrition"]
-                                       - a0["directeurs_decharges"] + a0["quota_calcule"])
+                                       + a0["quota_calcule"])
+    assert a1["disponibles_debut"] == a1["effectif_debut"] - a0["decharges_cumulees"]
     ventil = get(c, f"jeux/{jeu}/planification/territoires/")
     assert ventil["niveau"] == "region" and ventil["lignes"]
     region = ventil["lignes"][0]["territoire"]["nom"]
@@ -231,13 +233,21 @@ def _tableau_national(c, jeu, **kw):
 
 
 def test_effectifs_chaines_sur_cinq_ans(c, jeu):
-    """L'effectif de fin d'une année est l'effectif de début de la suivante : rien n'apparaît ni ne disparaît."""
+    """L'effectif de fin d'une année est l'effectif de début de la suivante : rien n'apparaît ni ne disparaît.
+
+    S(t+1) = S(t) − retraites − autres départs + recrutements ; U(t) = S(t) − H(t) : les mêmes directeurs déchargés
+    ne sont pas retranchés chaque année comme de nouveaux départs."""
     retenir(c, jeu)
     annees = _tableau_national(c, jeu)
     assert len(annees) == 5
+    cumul = 0
     for a in annees:
         assert a["effectif_fin"] == max(0, a["effectif_debut"] - a["departs_retraite"] - a["departs_attrition"]
-                                        - a["directeurs_decharges"] + a["recrutement"])
+                                        + a["recrutement"])
+        assert a["decharges_avant"] == cumul
+        cumul += a["directeurs_decharges"]
+        assert a["decharges_cumulees"] == cumul
+        assert a["disponibles_fin"] == a["effectif_fin"] - cumul
     for a, b in zip(annees, annees[1:]):
         assert b["effectif_debut"] == a["effectif_fin"]
 
@@ -303,8 +313,8 @@ def test_rem_projete_suit_l_effectif_de_debut_meme_avec_un_quota_retenu(c, jeu):
     envoyer(c, "put", url, {"sous_systeme": q["sous_systeme"], "retenu": q["calcule"] + 6, "motif": "Budget",
                             "auteur": "DRH"})
     for a in _tableau_national(c, jeu):
-        assert a["effectif_debut"] > 0
-        assert abs(a["rem"] - a["eleves"] / a["effectif_debut"]) < 0.1
+        assert a["disponibles_debut"] > 0
+        assert abs(a["rem"] - a["eleves"] / a["disponibles_debut"]) < 0.1
 
 
 def test_quota_retenu_refuse_les_valeurs_hostiles(c, jeu):

@@ -60,7 +60,7 @@ _PREP: "OrderedDict[tuple, Preparation]" = OrderedDict()
 _ECOLES: "OrderedDict[tuple, List[dict]]" = OrderedDict()
 _MAX_JEUX = 4
 # Version du contenu des écoles enrichies : la changer invalide les caches SQLite déjà écrits.
-_VERSION_ECOLES = 6
+_VERSION_ECOLES = 7
 
 
 def empreinte_jeu(jeu) -> str:

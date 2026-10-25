@@ -6,7 +6,8 @@
  * Rien ne se règle ni ne se calcule ici : les effectifs, départs, besoins, recrutements et le taux d’encadrement
  * viennent du tableau de planification du périmètre, calculé avec les hypothèses du jeu (retraite, attrition,
  * quotas). Pour les modifier,
- * il faut passer par « Hypothèses de calcul ». L'effectif de fin d'une année est celui de début de la suivante.
+ * il faut passer par « Hypothèses de calcul ». L'effectif de fin d'une année (S − R − A + Q) est celui de début de la
+ * suivante.
  */
 
 import { Download } from 'lucide-react'
@@ -76,7 +77,9 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
   const totaux = totauxProjection(lignes)
   const ruptures = rupturesDeChainage(lignes)
   const taux = tauxAttritionApplique(lignes)
-  const avecRem = lignes.some(l => l.rem !== null)
+  // La courbe n'est tracée que si le taux est connu chaque année : une année non disponible n'est jamais dessinée à 0.
+  const avecRem = lignes.length > 0 && lignes.every(l => l.rem !== null)
+  const raisonRem = lignes.find(l => l.rem === null && l.remRaison)?.remRaison ?? null
   const donneesGraphique = lignes
     .filter(l => l.effectifFin !== null)
     .map(l => ({
@@ -94,7 +97,9 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
       <Notice tone="info" title="Lecture seule : chiffres du serveur.">
         Cette projection est calculée par le serveur à partir des hypothèses du jeu
         {taux !== null ? ` (attrition hors retraite : ${fmtDec(taux, 2)} % par an)` : ''}. Elle ne se modifie pas ici :
-        les hypothèses se règlent dans « Hypothèses de calcul ». Une projection n’est pas un engagement.
+        les hypothèses se règlent dans « Hypothèses de calcul ». Une projection n’est pas un engagement. L’effectif de
+        fin est le stock administratif (début − retraites − attrition + recrutements) : les directeurs déchargés y
+        restent et ne sont retirés que des enseignants disponibles pour tenir une classe, une seule fois.
       </Notice>
 
       {quotasRetenus && (
@@ -240,6 +245,9 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
             donnees={donneesGraphique}
             vide="Aucun effectif projeté sur ce périmètre."
           />
+        )}
+        {!avecRem && raisonRem && (
+          <p className="hint">Taux d’encadrement projeté non disponible pour certaines années : {raisonRem}</p>
         )}
       </Panel>
     </div>

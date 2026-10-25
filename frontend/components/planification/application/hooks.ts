@@ -33,6 +33,7 @@ import {
   lireHypothesesDefaut,
   lireIndicateurs,
   lirePlanDeparts,
+  lirePrevisionnel,
   lireRapportPrevisionnel,
   lireTableauPlanification,
   lireVentilationSousSystemes,
@@ -98,6 +99,13 @@ export function useEstimerAttrition(jeu: IdJeu | null) {
 export function useTableauPlanification(jeu: IdJeu | null, requete: RequetePlanification = {}) {
   return useLectureJeu(jeu, 'planification', ['tableau', requete], (id, signal) =>
     lireTableauPlanification(id, requete, signal),
+  )
+}
+
+/** Tableau prévisionnel complet du périmètre (mêmes chiffres que les graphiques et les exports). */
+export function usePrevisionnel(jeu: IdJeu | null, requete: RequetePlanification = {}) {
+  return useLectureJeu(jeu, 'planification', ['previsionnel', requete], (id, signal) =>
+    lirePrevisionnel(id, requete, signal),
   )
 }
 

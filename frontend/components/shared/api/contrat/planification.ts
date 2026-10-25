@@ -294,6 +294,99 @@ export interface RapportPrevisionnel {
   }
 }
 
+// --- Tableau prévisionnel complet (Planification – Projection sur 5 ans) ---------------------------------
+
+/** Nature d'une valeur : observée dans les données, estimée par une formule, hypothèse, ou provisoire. */
+export type NatureValeur = 'observe' | 'estime' | 'hypothese' | 'provisoire'
+
+/** Ligne du tableau complet : base puis une valeur par année (`null` : sans objet ou non disponible). */
+export interface LignePrevisionnel {
+  cle: string
+  libelle: string
+  valeurs: (number | null)[]
+  nature: NatureValeur
+  decimal: boolean
+  unite: 'nombre' | 'pourcentage'
+  /** Définition ou mode de calcul, affiché en vue Analyste. */
+  detail: string
+  /** Pourquoi une valeur est absente (même longueur que `valeurs`, `null` quand la valeur existe). */
+  raisons?: (string | null)[]
+}
+
+/** Résultat d'un scénario de recrutement sur l'horizon. */
+export interface ResumeScenario {
+  scenario: ScenarioRecrutement
+  libelle: string
+  recrutements: number[]
+  recrutementsTotal: number
+  /** Stock administratif en fin d'année. */
+  effectifFin: number[]
+  /** Enseignants disponibles pour tenir une classe en fin d'année. */
+  disponiblesFin: number[]
+  /** REM obtenu chaque année, `null` quand il n'est pas calculable. */
+  rem: (number | null)[]
+  ecartReference: (number | null)[]
+  remFinal: number | null
+  ecartFinal: number | null
+  /** Enseignants qui manquent encore en fin d'horizon pour atteindre le REM de référence, `null` si non calculable. */
+  besoinRestantFinal: number | null
+  besoinRestantRaison: string | null
+}
+
+/** Indicateur du rapport MINEDUB sans donnée dans AlgoPlanR : jamais inventé, jamais ajouté aux totaux. */
+export interface DonneeNonDisponible {
+  indicateur: string
+  valeur: null
+  sourceManquante: string
+}
+
+/** Hypothèse du calcul, et si elle doit encore être validée administrativement. */
+export interface HypotheseMethodologique {
+  code: string
+  libelle: string
+  valeur: string
+  aValider: boolean
+}
+
+/** Tableau prévisionnel complet du périmètre (`GET jeux/{jeu}/planification/previsionnel/`). */
+export interface PrevisionnelComplet {
+  perimetre: string
+  niveau: NiveauTerritorial
+  sousSysteme: SousSysteme | null
+  scenarioId: string
+  baseCalcul: BaseCalculPlanification
+  /** « Base (2025-2026) » puis « N+1 (2026-2027) »… : l'année du jeu est la rentrée N+1, la base l'année qui précède. */
+  annees: string[]
+  anneeScolairePlan: string | null
+  /** Année des effectifs de base (celle qui précède la rentrée du jeu), `null` si l'année du jeu est inconnue. */
+  anneeBase?: string | null
+  /** Les personnels de la cartographie ne sont pas nécessairement tous des maîtres chargés de classe. */
+  avertissementPersonnels?: string
+  groupes: { code: 'A' | 'B' | 'C' | 'D' | 'E'; titre: string; lignes: LignePrevisionnel[] }[]
+  scenarios: ResumeScenario[]
+  remReference: number
+  remIndisponible: string | null
+  ecoles: number
+  ecolesMinimumProvisoire: number
+  ecolesElevesInconnus: number
+  /** Phrase du mode « non renseigné », `null` quand toutes les écoles renseignent leurs groupes. */
+  messageMinimumProvisoire: string | null
+  /** Écoles selon la provenance de leurs groupes pédagogiques. */
+  minimumPedagogique: { observe: number; estime: number; secours: number; indetermine: number }
+  /** Minimum provisoire et besoin final incertain, comptés séparément (écoles). */
+  fiabilite?: {
+    minimumProvisoire: number
+    minimumProvisoireSansEffet: number
+    besoinProvisoire: number
+    besoinEstime: number
+    besoinConfirme: number
+  }
+  /** Postes manquants (Σ b à la base) selon la fiabilité du besoin. */
+  besoinsParStatut: { confirme: number; estime: number; provisoire: number }
+  nonDisponibles: DonneeNonDisponible[]
+  hypotheses: HypotheseMethodologique[]
+}
+
 export type StatutEcoleRedeploiement = 'deficit' | 'excedent' | 'equilibre' | 'sans_eleves'
 
 /** Listes nominatives du volet redéploiement. */

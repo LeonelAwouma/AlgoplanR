@@ -47,6 +47,7 @@ import {
   type ListesRapportPrevisionnel,
   type Page,
   type PlanDeparts,
+  type PrevisionnelComplet,
   type QuotaRecrutement,
   type RapportPrevisionnel,
   type TableauPlanification,
@@ -67,6 +68,7 @@ const ROUTES = {
   estimerAttrition: route<EstimationAttrition>()('POST', 'jeux/{jeu}/hypotheses/attrition/estimer/'),
 
   tableau: route<TableauPlanification>()('GET', `${P}/`),
+  previsionnel: route<PrevisionnelComplet>()('GET', `${P}/previsionnel/`),
   territoires: route<VentilationTerritoriale>()('GET', `${P}/territoires/`),
   sousSystemes: route<VentilationSousSystemes>()('GET', `${P}/sous-systemes/`),
   ecoles: route<Page<LignePlanificationEcole>>()('GET', `${P}/ecoles/`),
@@ -141,6 +143,15 @@ export function lireTableauPlanification(
   signal?: AbortSignal,
 ): Promise<TableauPlanification> {
   return appeler(ROUTES.tableau, { params: { jeu }, query: query(requete), signal })
+}
+
+/** Tableau prévisionnel complet (base, N+1 à N+5) : élèves, personnels, besoins, scénarios, taux d'encadrement. */
+export function lirePrevisionnel(
+  jeu: IdJeu,
+  requete: RequetePlanification = {},
+  signal?: AbortSignal,
+): Promise<PrevisionnelComplet> {
+  return appeler(ROUTES.previsionnel, { params: { jeu }, query: query(requete), signal })
 }
 
 /** Même tableau, ventilé par territoire enfant du périmètre. */

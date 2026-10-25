@@ -90,8 +90,9 @@ export function PrioritesPage() {
       cle: 'multigrade',
       entete: 'Multigrades',
       numerique: true,
-      rendu: d => fmt(d.school.classesMultigrades),
-      tri: d => d.school.classesMultigrades,
+      // Cellule vide du fichier : « non renseigné », jamais « 0 classe multigrade ».
+      rendu: d => (d.school.classesMultigradesRenseignees ? fmt(d.school.classesMultigrades) : 'Non renseigné'),
+      tri: d => (d.school.classesMultigradesRenseignees ? d.school.classesMultigrades : -1),
     },
     {
       cle: 'raison',

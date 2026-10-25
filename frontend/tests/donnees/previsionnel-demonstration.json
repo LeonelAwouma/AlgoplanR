@@ -1,0 +1,947 @@
+{
+ "perimetre": "Cameroun",
+ "niveau": "national",
+ "sous_systeme": null,
+ "scenario_id": "3",
+ "base_calcul": {
+  "type": "scenario_par_defaut",
+  "scenario_id": "3",
+  "scenario_nom": "Mobilité régionale (référence)",
+  "provisoire": true
+ },
+ "annees": [
+  "Base (2025-2026)",
+  "N+1 (2026-2027)",
+  "N+2 (2027-2028)",
+  "N+3 (2028-2029)",
+  "N+4 (2029-2030)",
+  "N+5 (2030-2031)"
+ ],
+ "annee_scolaire_plan": "2026-2027",
+ "groupes": [
+  {
+   "code": "A",
+   "titre": "Population scolaire",
+   "lignes": [
+    {
+     "cle": "eleves",
+     "libelle": "Effectifs d'élèves (écoles à effectif connu)",
+     "valeurs": [
+      8820,
+      9058,
+      9303,
+      9554,
+      9812,
+      10077
+     ],
+     "nature": "observe",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Base : effectifs importés ; années suivantes : projection N(t+1) = N(t) × (1 + croissance), arrondie à l'unité à l'affichage seulement."
+    },
+    {
+     "cle": "croissance",
+     "libelle": "Taux de croissance annuel des élèves",
+     "valeurs": [
+      null,
+      2.7,
+      2.7,
+      2.7,
+      2.7,
+      2.7
+     ],
+     "nature": "hypothese",
+     "decimal": true,
+     "unite": "pourcentage",
+     "detail": "Hypothèse G_PRI_PCT (2,7 % par défaut), appliquée à chaque école dont l'effectif est connu."
+    },
+    {
+     "cle": "ecoles_eleves_inconnus",
+     "libelle": "Écoles dont l'effectif d'élèves est inconnu",
+     "valeurs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "nature": "observe",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Aucun effectif n'est inventé pour ces écoles : elles ne comptent ni dans les élèves projetés ni dans le taux d'encadrement."
+    }
+   ]
+  },
+  {
+   "code": "B",
+   "titre": "Ressources humaines",
+   "lignes": [
+    {
+     "cle": "effectif_debut",
+     "libelle": "Personnels enseignants en début d'année (stock administratif)",
+     "valeurs": [
+      272,
+      272,
+      248,
+      246,
+      246,
+      244
+     ],
+     "nature": "observe",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Enseignants_Actuels (personnels rapprochés dans la cartographie, pas nécessairement tous chargés de classe) après les mouvements du scénario retenu ; dès N+2, recrutements de l'année précédente (quota retenu ou calculé) inclus."
+    },
+    {
+     "cle": "departs_retraite",
+     "libelle": "Départs à la retraite",
+     "valeurs": [
+      null,
+      18,
+      10,
+      3,
+      10,
+      9
+     ],
+     "nature": "observe",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Comptés nominativement d'après l'âge (jamais par le taux de 1,08 %)."
+    },
+    {
+     "cle": "departs_attrition",
+     "libelle": "Autres départs par attrition (hors retraite)",
+     "valeurs": [
+      null,
+      6,
+      6,
+      6,
+      6,
+      5
+     ],
+     "nature": "hypothese",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Taux d'autres départs (2.25 %) × stock de début : l'attrition totale (3,33 %) n'est pas ajoutée aux retraites."
+    },
+    {
+     "cle": "directeurs_decharges",
+     "libelle": "Directeurs déchargés de classe (nouveaux)",
+     "valeurs": [
+      null,
+      1,
+      1,
+      1,
+      1,
+      1
+     ],
+     "nature": "hypothese",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Prises de fonction de l'année sans classe (DIR_NOM_AN × DIR_H_PRI_PCT, rapportés au périmètre)."
+    },
+    {
+     "cle": "decharges_cumulees",
+     "libelle": "Décharges cumulées depuis la base",
+     "valeurs": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "nature": "hypothese",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Un directeur déchargé reste dans le stock ; il n'est retranché qu'une fois des enseignants disponibles."
+    },
+    {
+     "cle": "effectif_fin",
+     "libelle": "Enseignants en fin d'année (stock administratif)",
+     "valeurs": [
+      null,
+      248,
+      246,
+      246,
+      244,
+      243
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "S(t+1) = S(t) − retraites − autres départs + recrutements."
+    },
+    {
+     "cle": "disponibles_fin",
+     "libelle": "Enseignants disponibles pour tenir une classe (fin d'année)",
+     "valeurs": [
+      272,
+      247,
+      244,
+      243,
+      240,
+      238
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "U = S − décharges cumulées."
+    }
+   ]
+  },
+  {
+   "code": "C",
+   "titre": "Besoins pédagogiques",
+   "lignes": [
+    {
+     "cle": "besoin_rem",
+     "libelle": "Enseignants nécessaires selon le REM de référence",
+     "valeurs": [
+      119,
+      122,
+      126,
+      129,
+      132,
+      136
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "⌈élèves ÷ 74.4⌉ : estimation par ratio, distincte de la somme des besoins des écoles."
+    },
+    {
+     "cle": "somme_pe",
+     "libelle": "Besoin pédagogique lié aux élèves (Σ P)",
+     "valeurs": [
+      137,
+      137,
+      137,
+      137,
+      137,
+      137
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "P = max(1 ; ⌈(N − tolérance) ÷ 74.4⌉), école par école."
+    },
+    {
+     "cle": "somme_me",
+     "libelle": "Minimum pédagogique (Σ m)",
+     "valeurs": [
+      216,
+      216,
+      216,
+      216,
+      216,
+      216
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "m = max(plancher ; G) ; G de secours (6) quand Classes_Multigrades n'est pas renseigné."
+    },
+    {
+     "cle": "somme_de",
+     "libelle": "Dotation théorique (Σ D)",
+     "valeurs": [
+      228,
+      228,
+      228,
+      228,
+      228,
+      228
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "D = max(P ; m)."
+    },
+    {
+     "cle": "somme_ke",
+     "libelle": "Cible réalisable (Σ K)",
+     "valeurs": [
+      214,
+      214,
+      214,
+      214,
+      214,
+      214
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "K = min(D ; BMAX)."
+    },
+    {
+     "cle": "besoin_non_couvert",
+     "libelle": "Besoin non couvert (Σ b)",
+     "valeurs": [
+      7,
+      20,
+      25,
+      26,
+      31,
+      37
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "b = max(0 ; K − enseignants restants après les retraites), école par école."
+    },
+    {
+     "cle": "ressources_vivier",
+     "libelle": "Ressources mobilisables (vivier)",
+     "valeurs": [
+      null,
+      51,
+      0,
+      0,
+      0,
+      0
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Excédents sûrs des écoles et personnes du vivier retenues (N+1)."
+    },
+    {
+     "cle": "part_provisoire",
+     "libelle": "Part des écoles au minimum pédagogique provisoire",
+     "valeurs": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "nature": "observe",
+     "decimal": true,
+     "unite": "pourcentage",
+     "detail": "Toutes les écoles renseignent leurs groupes pédagogiques."
+    },
+    {
+     "cle": "part_besoin_incertain",
+     "libelle": "Part des écoles au besoin final incertain (provisoire ou estimé)",
+     "valeurs": [
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0
+     ],
+     "nature": "observe",
+     "decimal": true,
+     "unite": "pourcentage",
+     "detail": "Écoles dont le besoin ou l'excédent change selon l'organisation pédagogique plausible, ou dont l'effectif d'élèves est inconnu. Une école au minimum provisoire dont le besoin est fixé par les élèves ou les salles n'y figure pas."
+    }
+   ]
+  },
+  {
+   "code": "D",
+   "titre": "Scénarios de recrutement",
+   "lignes": [
+    {
+     "cle": "recrutement_min",
+     "libelle": "Recrutement S-min",
+     "valeurs": [
+      null,
+      18,
+      10,
+      3,
+      10,
+      9
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": ""
+    },
+    {
+     "cle": "recrutement_maintien",
+     "libelle": "Recrutement S-maintien",
+     "valeurs": [
+      null,
+      25,
+      17,
+      10,
+      17,
+      16
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": ""
+    },
+    {
+     "cle": "recrutement_besoin",
+     "libelle": "Recrutement S-besoin",
+     "valeurs": [
+      null,
+      18,
+      14,
+      9,
+      14,
+      14
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": ""
+    },
+    {
+     "cle": "recrutement_plafond",
+     "libelle": "Recrutement Sous plafond",
+     "valeurs": [
+      null,
+      0,
+      14,
+      9,
+      14,
+      13
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": ""
+    },
+    {
+     "cle": "quota_avant_plafond",
+     "libelle": "Recrutement avant plafond (besoin et rattrapage − vivier)",
+     "valeurs": [
+      null,
+      0,
+      14,
+      9,
+      14,
+      13
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": ""
+    },
+    {
+     "cle": "quota_calcule",
+     "libelle": "Quota calculé",
+     "valeurs": [
+      null,
+      0,
+      14,
+      9,
+      14,
+      13
+     ],
+     "nature": "estime",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": ""
+    },
+    {
+     "cle": "quota_retenu",
+     "libelle": "Quota retenu",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "observe",
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Décision administrative (page « Quotas ») ; vide tant qu'elle n'est pas prise."
+    }
+   ]
+  },
+  {
+   "code": "E",
+   "titre": "Taux d'encadrement",
+   "lignes": [
+    {
+     "cle": "rem_reel",
+     "libelle": "REM réel (élèves par enseignant disponible)",
+     "valeurs": [
+      32.4,
+      33.3,
+      37.7,
+      39.2,
+      40.4,
+      42.0
+     ],
+     "nature": "observe",
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Base : écoles à effectif connu ; années : trajectoire du tableau, au début de l'année.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "rem_reference",
+     "libelle": "REM de référence",
+     "valeurs": [
+      74.4,
+      74.4,
+      74.4,
+      74.4,
+      74.4,
+      74.4
+     ],
+     "nature": "hypothese",
+     "decimal": true,
+     "unite": "nombre",
+     "detail": ""
+    },
+    {
+     "cle": "rem_min",
+     "libelle": "REM projeté – S-min",
+     "valeurs": [
+      32.4,
+      34.2,
+      36.1,
+      38.1,
+      40.2,
+      42.5
+     ],
+     "nature": "estime",
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "rem_maintien",
+     "libelle": "REM projeté – S-maintien",
+     "valeurs": [
+      32.4,
+      33.3,
+      34.2,
+      35.1,
+      36.1,
+      37.0
+     ],
+     "nature": "estime",
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "rem_besoin",
+     "libelle": "REM projeté – S-besoin",
+     "valeurs": [
+      32.4,
+      34.2,
+      35.5,
+      36.6,
+      38.0,
+      39.4
+     ],
+     "nature": "estime",
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "rem_plafond",
+     "libelle": "REM projeté – Sous plafond",
+     "valeurs": [
+      32.4,
+      36.7,
+      38.1,
+      39.3,
+      40.9,
+      42.3
+     ],
+     "nature": "estime",
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Élèves de l'année ÷ enseignants disponibles après départs et recrutements.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "ecart_reference",
+     "libelle": "Écart au REM de référence (sous plafond)",
+     "valeurs": [
+      -42.0,
+      -37.7,
+      -36.3,
+      -35.1,
+      -33.5,
+      -32.1
+     ],
+     "nature": "estime",
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant).",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    }
+   ]
+  }
+ ],
+ "scenarios": [
+  {
+   "scenario": "min",
+   "libelle": "S-min",
+   "recrutements": [
+    18,
+    10,
+    3,
+    10,
+    9
+   ],
+   "recrutements_total": 50,
+   "effectif_fin": [
+    266,
+    260,
+    254,
+    248,
+    242
+   ],
+   "disponibles_fin": [
+    265,
+    258,
+    251,
+    244,
+    237
+   ],
+   "rem": [
+    34.2,
+    36.1,
+    38.1,
+    40.2,
+    42.5
+   ],
+   "ecart_reference": [
+    -40.2,
+    -38.3,
+    -36.3,
+    -34.2,
+    -31.9
+   ],
+   "rem_final": 42.5,
+   "ecart_final": -31.9,
+   "besoin_restant_final": 0,
+   "besoin_restant_raison": null
+  },
+  {
+   "scenario": "maintien",
+   "libelle": "S-maintien",
+   "recrutements": [
+    25,
+    17,
+    10,
+    17,
+    16
+   ],
+   "recrutements_total": 85,
+   "effectif_fin": [
+    273,
+    274,
+    275,
+    276,
+    277
+   ],
+   "disponibles_fin": [
+    272,
+    272,
+    272,
+    272,
+    272
+   ],
+   "rem": [
+    33.3,
+    34.2,
+    35.1,
+    36.1,
+    37.0
+   ],
+   "ecart_reference": [
+    -41.1,
+    -40.2,
+    -39.3,
+    -38.3,
+    -37.4
+   ],
+   "rem_final": 37.0,
+   "ecart_final": -37.4,
+   "besoin_restant_final": 0,
+   "besoin_restant_raison": null
+  },
+  {
+   "scenario": "besoin",
+   "libelle": "S-besoin",
+   "recrutements": [
+    18,
+    14,
+    9,
+    14,
+    14
+   ],
+   "recrutements_total": 69,
+   "effectif_fin": [
+    266,
+    264,
+    264,
+    262,
+    261
+   ],
+   "disponibles_fin": [
+    265,
+    262,
+    261,
+    258,
+    256
+   ],
+   "rem": [
+    34.2,
+    35.5,
+    36.6,
+    38.0,
+    39.4
+   ],
+   "ecart_reference": [
+    -40.2,
+    -38.9,
+    -37.8,
+    -36.4,
+    -35.0
+   ],
+   "rem_final": 39.4,
+   "ecart_final": -35.0,
+   "besoin_restant_final": 0,
+   "besoin_restant_raison": null
+  },
+  {
+   "scenario": "plafond",
+   "libelle": "Sous plafond",
+   "recrutements": [
+    0,
+    14,
+    9,
+    14,
+    13
+   ],
+   "recrutements_total": 50,
+   "effectif_fin": [
+    248,
+    246,
+    246,
+    244,
+    243
+   ],
+   "disponibles_fin": [
+    247,
+    244,
+    243,
+    240,
+    238
+   ],
+   "rem": [
+    36.7,
+    38.1,
+    39.3,
+    40.9,
+    42.3
+   ],
+   "ecart_reference": [
+    -37.7,
+    -36.3,
+    -35.1,
+    -33.5,
+    -32.1
+   ],
+   "rem_final": 42.3,
+   "ecart_final": -32.1,
+   "besoin_restant_final": 0,
+   "besoin_restant_raison": null
+  }
+ ],
+ "rem_reference": 74.4,
+ "rem_indisponible": null,
+ "annee_base": "2025-2026",
+ "avertissement_personnels": "Les effectifs enseignants sont ceux des personnels rapprochés dans la cartographie (Enseignants_Actuels). Ces personnels ne sont pas nécessairement tous des maîtres chargés de classe : leur statut n'est pas fourni par les fichiers importés.",
+ "ecoles": 40,
+ "ecoles_minimum_provisoire": 0,
+ "ecoles_eleves_inconnus": 0,
+ "fiabilite": {
+  "minimum_provisoire": 0,
+  "minimum_provisoire_sans_effet": 0,
+  "besoin_provisoire": 0,
+  "besoin_estime": 4,
+  "besoin_confirme": 36
+ },
+ "message_minimum_provisoire": null,
+ "minimum_pedagogique": {
+  "observe": 0,
+  "estime": 40,
+  "secours": 0,
+  "indetermine": 0
+ },
+ "besoins_par_statut": {
+  "confirme": 5,
+  "estime": 2,
+  "provisoire": 0
+ },
+ "non_disponibles": [
+  {
+   "indicateur": "Chargés de classe déclarés au SIGE",
+   "valeur": null,
+   "source_manquante": "Extraction SIGE des chargés de classe par école (non importée dans AlgoPlanR)."
+  },
+  {
+   "indicateur": "Agents hors cartographie",
+   "valeur": null,
+   "source_manquante": "Rapprochement SIGE ↔ fichier de cartographie des personnels (non disponible)."
+  },
+  {
+   "indicateur": "Écart de couverture SIGE − cartographie",
+   "valeur": null,
+   "source_manquante": "Les deux sources ci-dessus."
+  },
+  {
+   "indicateur": "Qualité réelle des personnels rattachés (chargés de classe ou non)",
+   "valeur": null,
+   "source_manquante": "Enseignants_Actuels compte les personnes rattachées à l'école ; leur qualité de maître chargé de classe n'est pas vérifiée."
+  }
+ ],
+ "hypotheses": [
+  {
+   "code": "rem_reference",
+   "libelle": "REM de référence (rapport MINEDUB d'octobre 2026)",
+   "valeur": "74.4 élèves par enseignant",
+   "a_valider": false
+  },
+  {
+   "code": "norme_historique",
+   "libelle": "Norme historique d'AlgoPlanR (avant octobre 2026)",
+   "valeur": "60 élèves par maître",
+   "a_valider": false
+  },
+  {
+   "code": "tolerance",
+   "libelle": "Tolérance pédagogique AlgoPlanR",
+   "valeur": "20 élèves",
+   "a_valider": false
+  },
+  {
+   "code": "plancher",
+   "libelle": "Plancher du minimum pédagogique",
+   "valeur": "3 enseignants",
+   "a_valider": true
+  },
+  {
+   "code": "groupes_secours",
+   "libelle": "Groupes de secours si Classes_Multigrades est absent",
+   "valeur": "6 groupes (école complète de six années supposée)",
+   "a_valider": true
+  },
+  {
+   "code": "regroupement",
+   "libelle": "Années réunies par classe multigrade (estimation G = 6 − M)",
+   "valeur": "2 années, sans chevauchement",
+   "a_valider": true
+  },
+  {
+   "code": "croissance",
+   "libelle": "Croissance annuelle des élèves",
+   "valeur": "2.7 %",
+   "a_valider": false
+  },
+  {
+   "code": "attrition",
+   "libelle": "Attrition totale / dont retraites / autres départs",
+   "valeur": "3.33 % / 1.08 % / 2.25 %",
+   "a_valider": false
+  },
+  {
+   "code": "directeurs",
+   "libelle": "Directeurs déchargés de classe",
+   "valeur": "856 prises de fonction par an, dont 15.4 % sans classe",
+   "a_valider": true
+  },
+  {
+   "code": "plafond",
+   "libelle": "Plafond annuel de recrutement (primaire national)",
+   "valeur": "3000 ; rattrapage sur 5 an(s)",
+   "a_valider": false
+  },
+  {
+   "code": "salles",
+   "libelle": "Salles sans mode de flux connu",
+   "valeur": "comptées en simple flux (BMAX approché)",
+   "a_valider": true
+  },
+  {
+   "code": "classes_ouvertes",
+   "libelle": "Classes_Ouvertes lu comme le nombre de groupes-classes",
+   "valeur": "non (désactivé tant que la définition de la colonne n'est pas validée)",
+   "a_valider": true
+  },
+  {
+   "code": "excedent_estime",
+   "libelle": "Excédent reposant sur des groupes estimés ou de secours",
+   "valeur": "soumis à validation administrative (aucune sortie automatique)",
+   "a_valider": true
+  },
+  {
+   "code": "personnels",
+   "libelle": "Enseignants_Actuels compté comme maîtres chargés de classe",
+   "valeur": "personnels rapprochés dans la cartographie, statut non vérifié",
+   "a_valider": true
+  },
+  {
+   "code": "annee_base",
+   "libelle": "Année des effectifs de base",
+   "valeur": "2025-2026 (année qui précède la rentrée 2026-2027 du jeu)",
+   "a_valider": true
+  }
+ ]
+}

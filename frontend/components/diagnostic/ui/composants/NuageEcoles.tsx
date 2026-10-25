@@ -42,7 +42,7 @@ export function NuageEcoles({ ecoles, elevesParMaitre, onOuvrirEcole }: Propriet
     return { points: retenus, echantillonne: pas > 1 }
   }, [ecoles, onOuvrirEcole])
 
-  const norme = elevesParMaitre == null ? '' : ` : un maître pour ${elevesParMaitre} élèves`
+  const norme = elevesParMaitre == null ? '' : ` : un maître pour ${elevesParMaitre.toLocaleString('fr-FR')} élèves`
   const echantillon = echantillonne
     ? ` Échantillon régulier de ${fmt(points.length)} établissements sur ${fmt(ecoles.length)}, pour préserver la lisibilité.`
     : ''

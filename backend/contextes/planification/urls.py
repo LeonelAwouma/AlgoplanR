@@ -11,6 +11,7 @@ urlpatterns = [
     path(J + "hypotheses/historique/", v.historique_hypotheses),
     path(J + "hypotheses/attrition/estimer/", v.estimer_attrition),
     path(P, v.tableau),
+    path(P + "previsionnel/", v.previsionnel),
     path(P + "territoires/", v.territoires),
     path(P + "sous-systemes/", v.sous_systemes),
     path(P + "ecoles/", v.ecoles),

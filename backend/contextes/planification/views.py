@@ -99,6 +99,13 @@ def tableau(request, jeu):
     return Response(pl.tableau(pl.contexte(j, request.query_params.get("scenario") or None), p))
 
 
+@extend_schema(parameters=PERIMETRE, responses=OBJ,
+               summary="Tableau prévisionnel complet (base, N+1 à N+5) : élèves, personnels, besoins, scénarios, REM")
+@api_view(["GET"])
+def previsionnel(request, jeu):
+    return Response(pl.previsionnel(_ctx(request, jeu), perimetre(request)))
+
+
 @extend_schema(parameters=PERIMETRE, responses=OBJ, summary="Tableau ventilé par territoire enfant (ou ?niveau=)")
 @api_view(["GET"])
 def territoires(request, jeu):

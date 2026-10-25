@@ -22,8 +22,9 @@ from contextes.simulation import services as sim
 from domaine.commun.texte import cle_tri_fr, norm
 from domaine.donnees.modeles import Enseignant
 from domaine.planification import parametres as par
+from domaine.planification import previsionnel as prev
 from domaine.planification import rapport as rap
-from domaine.planification.projection import (DepartRetraite, ProjectionEcole, calculer_annees,
+from domaine.planification.projection import (SCENARIOS, DepartRetraite, ProjectionEcole, calculer_annees,
                                               fiabilite_indicateurs, ligne_fiabilite, projeter_ecoles)
 from domaine.planification.referentiel_drh import region_drh
 from domaine.planification.suivi import appliquer_suivi, dans, indicateurs_suivi
@@ -394,6 +395,21 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
                          seuil_cohorte=_seuil_cohorte(seuil_cohorte),
                          agents_age_atteint=age_atteint if ctx.hyp["drh"].get("CORR_60", True) else 0)
     return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **out}
+
+
+def previsionnel(ctx: Contexte, p: dict) -> dict:
+    """Tableau prévisionnel complet (base, N+1 à N+5) : les quatre scénarios sont calculés sur le même périmètre que le
+    tableau principal, dont la trajectoire sous plafond (quotas retenus inclus) fournit les groupes A à C."""
+    from contextes.parametrage.services import config_jeu
+    ecoles = ecoles_de(ctx, p)
+    supp = _supplementaires(ctx, p)
+    traj = {s: calculer_annees(ecoles, ctx.hyp, ressources_supplementaires=supp, scenario=s) for s in SCENARIOS}
+    out = prev.construire(ecoles, ctx.enseignants, traj, annees(ctx, p, ecoles), ctx.hyp,
+                          annee_scolaire=getattr(ctx.jeu, "annee_scolaire", ""))
+    out["hypotheses"] = prev.hypotheses_methodologiques(ctx.hyp, config_jeu(ctx.jeu)["besoin"],
+                                                        getattr(ctx.jeu, "annee_scolaire", ""))
+    return {"perimetre": libelle(p), "niveau": niveau_de(p), "sous_systeme": p.get("sous_systeme") or None,
+            "scenario_id": str(ctx.scenario.pk), "base_calcul": base_de_calcul(ctx.jeu), **out}
 
 
 def alea(ctx: Contexte, p: dict) -> dict:
