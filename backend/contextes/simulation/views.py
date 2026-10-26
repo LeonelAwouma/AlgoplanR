@@ -7,6 +7,7 @@ from contextes.acces.perimetre import jeu_autorise
 from contextes.commun.erreurs import RefusMetier
 from contextes.commun.outils import entier_param, perimetre_depuis, reponse_paginee
 from contextes.donnees import depots
+from contextes.donnees.services import exiger_nominatif
 from contextes.donnees.lecteur import ecrire_excel
 from contextes.planification import services as pl
 from domaine.donnees import colonnes as C
@@ -23,8 +24,15 @@ PAGE = [OpenApiParameter("page", int), OpenApiParameter("taille", int), OpenApiP
 OBJ = OpenApiTypes.OBJECT
 
 
-def _ctx(request, jeu, sid):
+FONCTION_MOBILITE = "Simulation de mobilité des enseignants"
+
+
+def _ctx(request, jeu, sid, *, nominatif=True):
+    """Jeu, scénario et résultat restreint au périmètre. Par défaut la fonction exige des agents identifiés : un jeu
+    sans fichier nominatif la refuse explicitement plutôt que d'afficher un résultat vide qui passerait pour réel."""
     j = jeu_autorise(request, jeu)
+    if nominatif:
+        exiger_nominatif(j, FONCTION_MOBILITE)
     sc = sim.scenario_du_jeu(j, sid)
     return j, sc, restreindre_resultat(sim.charger_resultat(sc), perimetre_depuis(request))
 
@@ -37,6 +45,7 @@ def scenarios(request, jeu):
     j = jeu_autorise(request, jeu)
     if request.method == "GET":
         return Response([sim.resume_scenario(s) for s in j.scenarios.all()])
+    exiger_nominatif(j, FONCTION_MOBILITE)
     d = request.data
     if not isinstance(d.get("parametres") or {}, dict):
         raise RefusMetier("Paramètres invalides", ["« parametres » doit être un objet"])
@@ -67,7 +76,9 @@ def scenario_detail(request, jeu, sid):
 @extend_schema(request=None, responses=OBJ, summary="Relance du calcul")
 @api_view(["POST"])
 def executer(request, jeu, sid):
-    sc = sim.scenario_du_jeu(jeu_autorise(request, jeu), sid)
+    j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, FONCTION_MOBILITE)
+    sc = sim.scenario_du_jeu(j, sid)
     sim.calculer(sc)
     return Response(sim.resume_scenario(sc))
 
@@ -75,18 +86,19 @@ def executer(request, jeu, sid):
 @extend_schema(parameters=GEO, responses=OBJ, summary="Résultat complet restreint au territoire (synthèse + listes)")
 @api_view(["GET"])
 def resultat(request, jeu, sid):
-    j, sc, r = _ctx(request, jeu, sid)
+    j, sc, r = _ctx(request, jeu, sid, nominatif=False)
     return Response({"scenario": sim.resume_scenario(sc), "perimetre": r["perimetre"], "synthese": r["synthese"],
+                     "nominatif_disponible": j.nominatif_disponible,
                      "nb": {k: len(r[k]) for k in ("affectations", "non_affectes", "postes_non_pourvus", "vivier",
                                                   "ecoles_en_besoin", "projections_n3", "journal_audit")},
                      "synthese_sous_systeme": an.synthese_sous_systeme_avant_apres(r, pl.hypotheses_dict(j))})
 
 
-def _liste(cle, titre, tri=None, filtre=None):
+def _liste(cle, titre, tri=None, filtre=None, *, nominatif=True):
     @extend_schema(parameters=GEO + PAGE, responses=OBJ, summary=titre)
     @api_view(["GET"])
     def vue(request, jeu, sid):
-        _, sc, r = _ctx(request, jeu, sid)
+        _, sc, r = _ctx(request, jeu, sid, nominatif=nominatif)
         lignes = r[cle]
         if filtre:
             lignes = filtre(request, lignes)
@@ -106,7 +118,7 @@ vivier = _liste("vivier", "Vivier de redéploiement", "-bareme")
 postes = _liste("postes_non_pourvus", "Postes ouverts non pourvus")
 postes_non_couverts = _liste("postes_non_pourvus", "Postes non couverts (regroupés dans `groupes` ci-dessous)")
 postes_rouge = _liste("postes_rouge_non_pourvus", "Postes non pourvus en zone rouge")
-ecoles_besoin = _liste("ecoles_en_besoin", "Écoles en besoin", "-Up")
+ecoles_besoin = _liste("ecoles_en_besoin", "Écoles en besoin", "-Up", nominatif=False)
 ecoles_fournisseurs = _liste("ecoles_fournisseurs", "Écoles fournissant le vivier", "-nb_enseignants_vivier")
 journal = _liste("journal_audit", "Journal des tours de l'appariement")
 # OBSOLÈTE : projection N à N+3 du moteur d'affectation (domaine/mobilite/projection.py), à taux d'attrition fixe de 2 %.
@@ -134,6 +146,7 @@ def postes_non_couverts_groupes(request, jeu, sid):
 @api_view(["GET"])
 def explication(request, jeu, sid, matricule):
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, FONCTION_MOBILITE)
     sc = sim.scenario_du_jeu(j, sid)
     out = an.expliquer_proposition(sim.charger_resultat(sc), matricule, sim.config_resultat(sc))
     if out is None:
@@ -146,6 +159,7 @@ def explication(request, jeu, sid, matricule):
 def encadrement(request, jeu, sid):
     from contextes.diagnostic.services import preparer
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, "Turnover et encadrement par enseignant")
     sc = sim.scenario_du_jeu(j, sid)
     perimetre = perimetre_depuis(request)
     res = restreindre_resultat(sim.charger_resultat(sc), perimetre)       # le périmètre s'applique comme ailleurs
@@ -176,6 +190,7 @@ def candidatures(request, jeu, sid):
 @api_view(["GET"])
 def combinaisons(request, jeu, sid):
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, FONCTION_MOBILITE)
     sc = sim.scenario_du_jeu(j, sid)
     r = restreindre_resultat(sim.charger_resultat(sc), perimetre_depuis(request))
     lignes = an.combinaisons(r, sim.config_resultat(sc), entier_param(request.query_params.get("options"), "options", defaut=3, minimum=1, maximum=10))
@@ -204,6 +219,7 @@ def recrutes(request, jeu, sid):
 @api_view(["GET"])
 def flux(request, jeu, sid):
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, FONCTION_MOBILITE)
     niveau = request.query_params.get("niveau", "region")
     try:
         lignes = an.calculer_flux(sim.charger_resultat(sim.scenario_du_jeu(j, sid))["affectations"], niveau)
@@ -230,6 +246,7 @@ def scenario_retenu(request, jeu):
 
     from .models import ResultatSimulation
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, "Retenue d'un scénario de mobilité")
     d = request.data if isinstance(request.data, dict) else {}
     ident = str(d.get("scenario") or "")
     sc = j.scenarios.filter(pk=ident).first() if ident.isdigit() else None

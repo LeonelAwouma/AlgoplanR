@@ -29,7 +29,8 @@ export const LIGNES_INDICATEURS: readonly LigneIndicateur[] = [
   {
     cle: 'departsRetraite',
     libelle: 'Départs à la retraite',
-    definition: 'Enseignants qui atteignent l’âge légal pendant l’année.',
+    definition:
+      'Départs nominatifs : agents ayant l’âge légal à la date de référence de l’année ; en N+1, aussi ceux qui l’ont déjà dépassé (CORR_60). Une école ne perd jamais plus d’agents que son stock déclaré : l’excédent est signalé comme non imputable dans la projection sur 5 ans.',
   },
   {
     cle: 'departsAttrition',
@@ -50,7 +51,8 @@ export const LIGNES_INDICATEURS: readonly LigneIndicateur[] = [
   {
     cle: 'quotaCalcule',
     libelle: 'Quota de recrutement calculé',
-    definition: 'Besoin non couvert par les ressources du vivier.',
+    definition:
+      'Besoin non couvert par le vivier, limité au plafond, jamais sous les retraites de l’année si le plancher (PLANCHER_RET) est actif. Une proposition, pas une décision.',
   },
   {
     cle: 'quotaRetenu',

@@ -18,14 +18,21 @@ import { useSession } from '@shared/session'
 import { Notice, Panel, Pill, fmt, fmtDec, type Tone } from '@shared/ui/commun'
 import { ChargementEnCours, ErreurAction, EtatRequetes } from '@shared/ui/etats'
 
+import { AvisRetraites } from './composants/AvisRetraites'
 import { LIBELLE_SCENARIO, SCENARIOS, telechargerRapportPrevisionnel } from '../application/export-rapport-previsionnel'
 import { useRapportPrevisionnel, type RequetePlanification } from '../application/hooks'
 
 const TON_PRIORITE: Record<FichePrioriteRegion['priorite'], Tone> = { 1: 'alert', 2: 'warn', 3: 'ok' }
 
-/** Cellule numérique : entier, ou décimal pour les taux d'encadrement. */
-function cellule(v: number | null, decimal = false): string {
+/** Cellule numérique : entier, ou décimal pour les taux d'encadrement ; une valeur inconnue n'est jamais un zéro. */
+function cellule(v: number | null, decimal = false, inconnue = false): string {
+  if (v === null && inconnue) return 'Non calculable'
   return decimal ? fmtDec(v) : fmt(v)
+}
+
+const INCONNUES: Record<string, string> = {
+  non_calculable: 'Non calculable',
+  conditionnel: 'Conditionnel',
 }
 
 function TableauNational({ rapport }: { rapport: RapportPrevisionnel }) {
@@ -52,10 +59,18 @@ function TableauNational({ rapport }: { rapport: RapportPrevisionnel }) {
           <tbody>
             {n.lignes.map(l => (
               <tr key={l.libelle} className={l.libelle.startsWith('Recrutement') ? 'ligne-forte' : undefined}>
-                <th scope="row">{l.libelle}</th>
+                <th scope="row">
+                  {l.libelle}
+                  {l.fiabilite && (
+                    <>
+                      {' '}
+                      <Pill tone="warn">{INCONNUES[l.fiabilite]}</Pill>
+                    </>
+                  )}
+                </th>
                 {l.valeurs.map((v, i) => (
                   <td key={i} className="num">
-                    {cellule(v, l.decimal)}
+                    {cellule(v, l.decimal, l.fiabilite === 'non_calculable')}
                   </td>
                 ))}
               </tr>
@@ -97,10 +112,10 @@ function RetraitesRegions({ rapport }: { rapport: RapportPrevisionnel }) {
                 <th scope="row">{l.region}</th>
                 {l.annees.map((v, i) => (
                   <td key={i} className="num">
-                    {fmt(v)}
+                    {cellule(v, false, true)}
                   </td>
                 ))}
-                <td className="num">{fmt(l.total)}</td>
+                <td className="num">{cellule(l.total, false, true)}</td>
               </tr>
             ))}
           </tbody>
@@ -150,11 +165,11 @@ function ScenariosRegions({ rapport }: { rapport: RapportPrevisionnel }) {
                 <th scope="row">{l.region}</th>
                 {SCENARIOS.map(x => (
                   <td key={x} className="num">
-                    {fmt(l[x])}
+                    {cellule(l[x], false, s.fiabilite?.[x] === 'non_calculable')}
                   </td>
                 ))}
                 <td className="num">{fmtDec(l.remBase)}</td>
-                <td className="num">{fmtDec(l.remFinal.min)}</td>
+                <td className="num">{cellule(l.remFinal.min, true, s.fiabilite?.min === 'non_calculable')}</td>
                 <td className="num">{fmtDec(l.remFinal.besoin)}</td>
                 <td className="num">{fmtDec(l.remFinal.plafond)}</td>
               </tr>
@@ -216,7 +231,7 @@ function Redeploiement({ rapport }: { rapport: RapportPrevisionnel }) {
                 <td className="num">{fmt(l.deficits)}</td>
                 <td className="num">{fmt(l.redeployableArrondissement)}</td>
                 <td className="num">{fmt(l.cohorte)}</td>
-                <td className="num">{fmt(l.retraites)}</td>
+                <td className="num">{cellule(l.retraites, false, true)}</td>
               </tr>
             ))}
           </tbody>
@@ -239,13 +254,19 @@ function Priorites({ rapport }: { rapport: RapportPrevisionnel }) {
           <article key={f.region}>
             <h3>
               {f.region} <Pill tone={TON_PRIORITE[f.priorite]}>Priorité {f.priorite}</Pill>
+              {f.prioriteProvisoire && (
+                <>
+                  {' '}
+                  <Pill tone="warn">Provisoire : retraites inconnues ou incomplètes</Pill>
+                </>
+              )}
               {f.prioriteRapportDrh != null && f.prioriteRapportDrh !== f.priorite && (
                 <small> (rapport DRH : priorité {f.prioriteRapportDrh})</small>
               )}
             </h3>
             <p>
               <strong>{f.situation}.</strong> Taux d’encadrement du primaire {fmtDec(f.remBase)} ; retraites de
-              l’horizon {fmtDec(f.partRetraites)} % du stock.
+              l’horizon {f.partRetraites === null ? 'non calculables' : `${fmtDec(f.partRetraites)} % du stock`}.
             </p>
             <ol>
               {f.problemes.map(x => (
@@ -256,7 +277,7 @@ function Priorites({ rapport }: { rapport: RapportPrevisionnel }) {
             </ol>
             <p>
               <strong>Orientation</strong> : {f.orientation}. Recrutements :{' '}
-              {SCENARIOS.map(s => `${LIBELLE_SCENARIO[s]} ${fmt(f.recrutements[s])}`).join(', ')}.
+              {SCENARIOS.map(s => `${LIBELLE_SCENARIO[s]} ${cellule(f.recrutements[s], false, true)}`).join(', ')}.
             </p>
           </article>
         ))}
@@ -345,6 +366,7 @@ export function RapportPrevisionnelPage() {
         <EtatRequetes requetes={[rapport]} />
       ) : (
         <>
+          <AvisRetraites fiabilite={rapport.data.retraitesFiabilite} />
           <TableauNational rapport={rapport.data} />
           <RetraitesRegions rapport={rapport.data} />
           <ScenariosRegions rapport={rapport.data} />

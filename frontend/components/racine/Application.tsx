@@ -16,7 +16,7 @@ import { useEffect } from 'react'
 import type { SessionAcces } from '@components/acces'
 import { WelcomePage } from '@components/bienvenue'
 import { useOptionsFiltres } from '@components/diagnostic'
-import { useJeu, useSupprimerJeu } from '@components/donnees'
+import { MESSAGE_ETABLISSEMENTS_SEULS, useJeu, useSupprimerJeu } from '@components/donnees'
 import { useFaitsPrince } from '@components/prince'
 import { SANS_SCENARIO, useScenarioAffiche } from '@components/simulation'
 import { ApiError, FILTRES_VIDES } from '@shared/api'
@@ -189,12 +189,24 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
             onBasculer={basculerBarre}
             donneesChargees={donneesChargees}
             simulationPrete={simulationPrete}
+            nominatifDisponible={meta.data?.nominatifDisponible}
             version={miseAJour?.versionActuelle}
           />
 
           <div className="main-col">
             <main className="content" id="contenu">
               <PageHeader page={page} onAccueil={ouvrirAccueil} />
+              {meta.data && !meta.data.nominatifDisponible && (
+                <Notice tone="warn" title="Jeu en établissements seuls : analyses incomplètes.">
+                  {MESSAGE_ETABLISSEMENTS_SEULS} Les résultats qui dépendent des retraites ou des agents sont signalés «
+                  non calculable » ou « conditionnel » ; ils ne sont pas des résultats administratifs officiels.{' '}
+                  {estDrh || regionImposee ? (
+                    <button type="button" className="btn-link" onClick={() => setPage('validation')}>
+                      Importer le fichier des enseignants
+                    </button>
+                  ) : null}
+                </Notice>
+              )}
               <EtapesRubrique
                 page={page}
                 onNavigate={setPage}
@@ -202,6 +214,7 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
                 role={utilisateur.role}
                 donneesChargees={donneesChargees}
                 simulationPrete={simulationPrete}
+                nominatifDisponible={meta.data?.nominatifDisponible}
               />
               <BoutonContinuer
                 page={page}
@@ -210,6 +223,7 @@ export function Application({ utilisateur, onDeconnexion }: ProprietesApplicatio
                 role={utilisateur.role}
                 donneesChargees={donneesChargees}
                 simulationPrete={simulationPrete}
+                nominatifDisponible={meta.data?.nominatifDisponible}
                 ignorer={sansFaitPrince ? ['prince'] : []}
               />
 

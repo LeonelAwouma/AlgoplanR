@@ -15,8 +15,16 @@ import { DataTable, Delta, Panel, Pill, fmt, type Colonne, type Tone } from '@sh
 import { ChampAuteur, useAuteur } from '@shared/ui/ChampAuteur'
 import { ChargementEnCours, EtatRequetes, ErreurAction } from '@shared/ui/etats'
 
-import { useAjusterQuota, useHistoriqueQuotas, useQuotas, useValiderQuotas } from '../application/hooks'
+import {
+  useAjusterQuota,
+  useHistoriqueQuotas,
+  useQuotas,
+  useTableauPlanification,
+  useValiderQuotas,
+} from '../application/hooks'
 import { AjustementQuota } from './composants/AjustementQuota'
+import { AvisRetraites } from './composants/AvisRetraites'
+import { ReservesValidationQuotas, reservesDuRefus } from './composants/ReservesValidationQuotas'
 
 /** Ton de la pastille de statut. */
 const TON_STATUT: Record<QuotaRecrutement['statut'], Tone> = { calcule: 'neutral', ajuste: 'warn', valide: 'ok' }
@@ -35,6 +43,13 @@ export function QuotasPage() {
     departement: filtres.territoire.departement,
     commune: filtres.territoire.commune,
   })
+  // Fiabilité des retraites du périmètre : sans fichier nominatif, les quotas sont une simulation conditionnelle.
+  const tableau = useTableauPlanification(jeu, {
+    niveau: selectionLevel(filtres.territoire),
+    region: filtres.territoire.region,
+    departement: filtres.territoire.departement,
+    commune: filtres.territoire.commune,
+  })
   const historique = useHistoriqueQuotas(jeu)
   const ajustement = useAjusterQuota(jeu)
   const validation = useValiderQuotas(jeu)
@@ -42,6 +57,8 @@ export function QuotasPage() {
   if (!jeu) return <ChargementEnCours />
   if (!quotas.data) return <EtatRequetes requetes={[quotas]} />
 
+  // Refus « réserves à reconnaître » : affiché comme un formulaire de reconnaissance, pas comme une erreur.
+  const reservesRefus = reservesDuRefus(validation.error)
   const tousValides = quotas.data.length > 0 && quotas.data.every(q => q.statut === 'valide')
 
   const colonnes: Colonne<QuotaRecrutement>[] = [
@@ -94,6 +111,7 @@ export function QuotasPage() {
 
   return (
     <div className="stack">
+      <AvisRetraites fiabilite={tableau.data?.retraitesFiabilite} />
       <Panel
         kicker="Quotas de recrutement"
         title="Quotas prévisionnels par territoire et sous-système"
@@ -112,7 +130,25 @@ export function QuotasPage() {
           </div>
           <ChampAuteur auteur={auteur} onChange={setAuteur} />
         </div>
-        <ErreurAction erreur={validation.error} />
+        {reservesRefus ? (
+          <ReservesValidationQuotas
+            key={reservesRefus.reserves.map(r => r.code).join('|')}
+            reserves={reservesRefus.reserves}
+            referenceRequise={reservesRefus.referenceRequise}
+            annee={annee}
+            enCours={validation.isPending}
+            onValider={(reservesReconnues, referenceAdministrative) =>
+              validation.mutate({
+                annee,
+                auteur: auteur.trim(),
+                reservesReconnues,
+                ...(referenceAdministrative ? { referenceAdministrative } : {}),
+              })
+            }
+          />
+        ) : (
+          <ErreurAction erreur={validation.error} />
+        )}
         <div className="topbar-actions actions-formulaire">
           <button
             type="button"

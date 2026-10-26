@@ -9,6 +9,8 @@
  */
 
 import type {
+  CorpsLotNominations,
+  CorpsValidationNomination,
   AnneePlan,
   BilanGenerationNominations,
   BilanImportNominations,
@@ -160,7 +162,18 @@ function versMouvement(m: MouvementDjango): Mouvement {
 }
 
 function miseEnOeuvre(c: CorpsMiseEnOeuvre | CorpsMiseEnOeuvreMouvement) {
-  return { date_effet: c.dateEffet, reference_acte: c.referenceActe, auteur: c.auteur }
+  return {
+    date_effet: c.dateEffet,
+    reference_acte: c.referenceActe,
+    auteur: c.auteur,
+    ...('verificationSources' in c && c.verificationSources ? { verification_sources: true } : {}),
+  }
+}
+
+/** Corps d'une décision : `verificationSources` devient le champ du serveur, envoyé seulement quand il est reconnu. */
+function versCorpsAvecSources<T extends { verificationSources?: boolean }>(corps: T) {
+  const { verificationSources, ...reste } = corps
+  return { ...reste, ...(verificationSources ? { verification_sources: true } : {}) }
 }
 
 // --- Routes -----------------------------------------------------------------------------------------------
@@ -221,7 +234,7 @@ export const conversionsNominations: Record<string, Conversion> = {
     return { proposees: b.proposees, sansPoste: b.sans_poste, postesSansCandidat: b.postes_sans_candidat }
   },
   'POST jeux/{jeu}/nominations/lot/': (r, acces, p): Promise<BilanLot> =>
-    acces.ecrire('POST', `jeux/${p.jeu}/nominations/lot/`, r.corps),
+    acces.ecrire('POST', `jeux/${p.jeu}/nominations/lot/`, versCorpsAvecSources(r.corps as CorpsLotNominations)),
   'POST jeux/{jeu}/nominations/import/': (r, acces, p): Promise<BilanImportNominations> =>
     acces.ecrire('POST', `jeux/${p.jeu}/nominations/import/`, r.corps, 'multipart'),
   'GET jeux/{jeu}/nominations/synthese/': async (_, acces, p): Promise<SyntheseNominations> => {
@@ -244,7 +257,13 @@ export const conversionsNominations: Record<string, Conversion> = {
   'GET jeux/{jeu}/nominations/{nomination}/': async (_, acces, p) =>
     versNomination(await acces.lire<NominationDjango>(N(p))),
   'POST jeux/{jeu}/nominations/{nomination}/valider/': async (r, acces, p) =>
-    versNomination(await acces.ecrire<NominationDjango>('POST', `${N(p)}valider/`, r.corps)),
+    versNomination(
+      await acces.ecrire<NominationDjango>(
+        'POST',
+        `${N(p)}valider/`,
+        versCorpsAvecSources(r.corps as CorpsValidationNomination),
+      ),
+    ),
   'POST jeux/{jeu}/nominations/{nomination}/rejeter/': async (r, acces, p) =>
     versNomination(await acces.ecrire<NominationDjango>('POST', `${N(p)}rejeter/`, r.corps)),
   'POST jeux/{jeu}/nominations/{nomination}/mettre-en-oeuvre/': async (r, acces, p) =>

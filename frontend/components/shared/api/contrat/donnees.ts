@@ -70,17 +70,43 @@ export interface CorpsCorrespondances {
   correspondances: Record<string, string | null>
 }
 
-/** Création d'un jeu à partir de deux fichiers déjà envoyés. */
+/** Création d'un jeu à partir du fichier des établissements (et, facultatif, des enseignants) déjà envoyés. */
 export interface CorpsCreationJeu {
   etablissements: string
-  enseignants: string
+  /**
+   * Fichier nominatif des enseignants : facultatif. Absent, le jeu est créé en mode « établissements seuls » : le
+   * serveur n'invente ni enseignant ni matricule, et n'envoie aucun identifiant de fichier fictif.
+   */
+  enseignants?: string
   /** Faits du Prince (DRH) : appliqués avant l'algorithme, qui calcule ensuite normalement le reste. */
   prince?: string
   /** Date de référence des âges (ISO 8601), aujourd'hui par défaut. */
   dateReference?: string
-  /** Rentrée que prépare le jeu, « AAAA-AAAA » : l'année en cours par défaut. */
+  /** Année scolaire des données importées, « AAAA-AAAA » (base des projections) : l'année en cours par défaut. */
   anneeScolaire?: string
+  /** Sens de l'année saisie : année des données (enregistré explicitement par défaut) ou rentrée préparée. */
+  sensAnneeScolaire?: SensAnneeScolaire
+  /** Jeu de test fictif, déclaré par la personne qui l'importe : un bandeau l'indique dans les vues et les exports. */
+  donneesFictives?: boolean
 }
+
+/**
+ * Sens de l'année saisie d'un jeu : `donnees` (année des données observées, la base), `rentree_preparee` (rentrée que
+ * le jeu prépare : les données sont celles de l'année précédente, convention historique), `non_confirme` (sens
+ * impossible à établir : le calendrier historique est conservé, avec une demande de confirmation, sans jamais inventer
+ * l'année réelle des données). Une personne autorisée peut confirmer ou corriger le sens ; l'année saisie n'est jamais
+ * réécrite.
+ */
+export type SensAnneeScolaire = 'donnees' | 'rentree_preparee' | 'non_confirme'
+
+/** Confirmation du sens de l'année ou déclaration de l'origine fictive d'un jeu (`PATCH jeux/{jeu}/`). */
+export interface CorpsModificationJeu {
+  sensAnneeScolaire?: SensAnneeScolaire
+  donneesFictives?: boolean
+}
+
+/** Mode d'import d'un jeu : avec ou sans fichier nominatif des enseignants. */
+export type ModeImport = 'complet' | 'etablissements_seuls'
 
 /** Statut d'un jeu : il ne sert de référence aux projections qu'une fois validé. */
 export type StatutJeu = 'brouillon' | 'valide'
@@ -93,9 +119,23 @@ export interface JeuDeDonnees {
   importeLe: string
   fichiersSource: { etablissements: string | null; enseignants: string | null }
   anneeScolaire: string
+  /** Sens de l'année saisie et année des données qui en découle (base des projections). */
+  sensAnneeScolaire: SensAnneeScolaire
+  /** Comment le sens a été établi : à la création, par la migration des anciens jeux, ou par confirmation. */
+  sensAnneeOrigine: 'creation' | 'migration' | 'confirmation'
+  anneeDonnees: string
+  /** Origine fictive vérifiable : jeu de démonstration, ou marqueur déclaré ; jamais déduite du nom ni de la taille. */
+  donneesFictives: boolean
   statut: StatutJeu
   nbEtablissements: number
-  nbEnseignants: number
+  /** `null` quand aucun fichier nominatif n'a été importé : jamais « 0 enseignant » pour dire « fichier absent ». */
+  nbEnseignants: number | null
+  /** Vrai quand un fichier nominatif des enseignants a été importé ; enregistré explicitement par le serveur. */
+  nominatifDisponible: boolean
+  /** Mode d'import enregistré : établissements et enseignants, ou établissements seuls. */
+  modeImport: ModeImport
+  /** Message du serveur qui décrit les limites du mode (absent en mode complet). */
+  messageModeImport: string | null
   /** Écoles hors structures administratives, après séparation des sections bilingues. */
   nbUnitesCalcul: number
   /** Scénario dont les mouvements alimentent la planification, `null` tant qu'aucun n'est retenu. */
@@ -164,7 +204,13 @@ export interface ReserveValidation {
 /** Actualisation d'un exercice avec deux nouveaux fichiers déjà envoyés. */
 export interface CorpsActualisation {
   etablissements: string
-  enseignants: string
+  /**
+   * Nouveau fichier d'enseignants : il remplace les enseignants enregistrés (ou les crée, pour passer d'un jeu
+   * « établissements seuls » à un jeu complet). Absent, les enseignants enregistrés sont conservés, jamais supprimés.
+   */
+  enseignants?: string
+  /** Suppression volontaire des données nominatives (seule façon de les retirer) ; exclut un nouveau fichier. */
+  supprimerNominatif?: boolean
   auteur: string
 }
 
@@ -183,7 +229,9 @@ export interface Actualisation {
   id: string
   realiseeLe: string
   realiseePar: string | null
-  fichiersSource: { etablissements: string; enseignants: string }
+  fichiersSource: { etablissements: string; enseignants: string | null }
+  /** Sort des données nominatives : remplacées, conservées, supprimées à la demande, ou sans objet (jeu sans fichier). */
+  modeNominatif: 'remplace' | 'conserve' | 'supprime' | 'aucun' | null
   /** Résumé des écarts, détaillés par `actualisations/{actualisation}/ecarts/`. */
   resume: { arrivees: number; departs: number; changementsEcole: number; decisionsInvalidees: number }
 }

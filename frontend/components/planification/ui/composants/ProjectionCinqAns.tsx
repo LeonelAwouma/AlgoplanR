@@ -17,6 +17,8 @@ import { exporterTableauXLSX } from '@shared/exports/export-xlsx'
 import { KpiCard, Notice, Panel, fmt, fmtDec } from '@shared/ui/commun'
 import { Colonnes, Combo } from '@shared/ui/graphiques'
 
+import { AvisRetraites } from './AvisRetraites'
+
 import {
   construireProjection,
   rupturesDeChainage,
@@ -39,7 +41,7 @@ function signe(v: number | null): string {
 }
 
 /** Exporte la projection affichée en Excel. */
-function exporter(perimetre: string, lignes: LigneProjection[]) {
+function exporter(perimetre: string, lignes: LigneProjection[], retraitesInconnues: boolean) {
   void exporterTableauXLSX(
     `projection-n1-n5-${perimetre}.xlsx`,
     [
@@ -58,7 +60,7 @@ function exporter(perimetre: string, lignes: LigneProjection[]) {
     lignes.map(l => [
       l.annee,
       l.effectifDebut,
-      l.departsRetraite,
+      retraitesInconnues ? 'Non calculable' : (l.departsRetraite ?? 'Non calculable'),
       l.departsAttrition,
       l.directeursDecharges ?? '',
       l.recrutement ?? '',
@@ -74,6 +76,8 @@ function exporter(perimetre: string, lignes: LigneProjection[]) {
 /** Panneau « Projection N+1 à N+5 ». */
 export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }) {
   const lignes = construireProjection(tableau.annees)
+  // Retraites non calculables : jamais un zéro, ni dans la colonne, ni dans le cumul.
+  const retraitesInconnues = tableau.retraitesFiabilite?.statut === 'non_calculable'
   const totaux = totauxProjection(lignes)
   const ruptures = rupturesDeChainage(lignes)
   const taux = tauxAttritionApplique(lignes)
@@ -94,6 +98,8 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
 
   return (
     <div className="stack">
+      <AvisRetraites fiabilite={tableau.retraitesFiabilite} />
+
       <Notice tone="info" title="Lecture seule : chiffres du serveur.">
         Cette projection est calculée par le serveur à partir des hypothèses du jeu
         {taux !== null ? ` (attrition hors retraite : ${fmtDec(taux, 2)} % par an)` : ''}. Elle ne se modifie pas ici :
@@ -126,8 +132,14 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
           />
           <KpiCard
             label="Départs à la retraite"
-            value={fmt(totaux.departsRetraite)}
-            hint={`Cumul sur ${duree}, comptés nominativement d’après l’âge.`}
+            value={retraitesInconnues ? 'Non calculable' : fmt(totaux.departsRetraite)}
+            hint={
+              retraitesInconnues
+                ? 'Fichier nominatif des enseignants indisponible : aucun zéro n’est affiché.'
+                : `Cumul sur ${duree}, comptés nominativement d’après l’âge${
+                    tableau.retraitesFiabilite?.statut === 'partiel' ? ' (identifiées : total non exhaustif)' : ''
+                  }.`
+            }
           />
           <KpiCard
             label="Départs par attrition"
@@ -147,7 +159,11 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
         title={`Effectifs, départs et recrutements — ${tableau.perimetre}`}
         hint={`Version ${tableau.version}, calculée le ${new Date(tableau.calculeLe).toLocaleString('fr-FR')}.`}
         actions={
-          <button type="button" className="btn btn-sm" onClick={() => exporter(tableau.perimetre, lignes)}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => exporter(tableau.perimetre, lignes, retraitesInconnues)}
+          >
             <Download size={13} aria-hidden="true" /> Exporter (Excel)
           </button>
         }
@@ -195,7 +211,7 @@ export function ProjectionCinqAns({ tableau }: { tableau: TableauPlanification }
                 <tr key={l.annee}>
                   <th scope="row">{l.annee}</th>
                   <td className="num">{fmt(l.effectifDebut)}</td>
-                  <td className="num">{fmt(l.departsRetraite)}</td>
+                  <td className="num">{retraitesInconnues ? TIRET : fmt(l.departsRetraite)}</td>
                   <td className="num">{fmt(l.departsAttrition)}</td>
                   <td className="num">{entier(l.directeursDecharges)}</td>
                   <td className="num">{entier(l.recrutement)}</td>

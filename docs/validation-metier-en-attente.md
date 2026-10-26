@@ -39,3 +39,18 @@ renseignées : impact nul. L'impact réel dépend de la qualité des fichiers de
 ## Autres points à trancher
 - Aléa calculé sur tous les enseignants déclarés (le rapport de référence le calcule sur les enseignants payés par l'État).
 - Taux d'encadrement projeté « Non disponible » dès N+2 quand des écoles ont un effectif d'élèves inconnu.
+
+## Projections sur 5 ans (PR #7) — **EN ATTENTE DE VALIDATION MÉTIER**
+
+Les règles ci-dessous sont implémentées et testées, mais aucune n'est approuvée officiellement.
+
+| Réf. | Sujet | Règle en vigueur | Ce qui reste à trancher |
+|---|---|---|---|
+| D1 | Plancher des retraites face au plafond | Q = max(min(B ; P) ; R) : le remplacement des retraites peut dépasser le plafond. La règle alternative Q' = min(max(B ; R) ; P) est affichée à côté, jamais appliquée. Le dépassement est signalé (« validation administrative ou budgétaire »). | Le plancher peut-il dépasser le plafond ? |
+| D2 | Année de mesure des âges | Date réelle si elle est précisée dans les hypothèses ; sinon âges supposés mesurés au début de N+1, retraites **provisoires**, avertissement affiché. | Année de mesure des âges du fichier national. |
+| D3 | 59 ans à la rentrée | Âge légal atteint dans l'année : départ à la rentrée suivante, règle conservée et signalée. | Confirmer le traitement des agents qui atteignent 60 ans entre deux rentrées. |
+| D4 | Sens de l'année d'un jeu | Anciens jeux : calendrier historique conservé (année = rentrée préparée, base = année précédente), sens tracé (`sens_annee_origine`). Jeux ambigus : « non confirmé », avertissement, jamais d'année réelle inventée. Nouveaux jeux : sens enregistré explicitement (par défaut : année des données). | Confirmer ou corriger le sens des jeux « non confirmés » (action journalisée, projections marquées à recalculer). |
+| D5 | Qualification des valeurs | Observé, projeté, hypothèse, décision enregistrée, réalisé, conditionnel, non disponible. | Valider le vocabulaire. |
+| D6 | Stock déclaré et liste nominative discordants | Retraites bornées au stock restant de l'école ; excédent « non imputable », visible, non remplacé. Le bornage est une protection arithmétique, pas une preuve de concordance. | Méthode à retenir (bornage actuel, proratisation, ou liste nominative comme stock). |
+| D7 | Import sans fichier nominatif | **Mise en œuvre** : le fichier des enseignants est facultatif. Le jeu porte un mode explicite (établissements seuls ou complet) ; retraites, plancher, S-min, S-maintien et indicateurs de mouvements sont « non calculables » (jamais zéro), S-besoin, sous-plafond et vivier estimé sont « conditionnels », les fonctions nominatives sont refusées avec un motif. | Valider le message affiché à l'import et le mode « établissements seuls ». |
+| D8 | Colonne Arrondissement du fichier national (Commune vide) | Non appliqué : sans correspondance, 58 nœuds « non renseignés » et 2 224 postes redéployables ; avec Arrondissement comme niveau commune, 360 nœuds et 1 926 postes. | Utiliser la colonne Arrondissement comme niveau commune ? |

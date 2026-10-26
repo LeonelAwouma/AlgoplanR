@@ -22,6 +22,8 @@ export function LotNominations({ jeu, cochees, onTraite }: ProprietesLotNominati
   const lot = useTraiterNominationsEnLot(jeu)
   const [auteur, setAuteur] = useAuteur()
   const [texte, setTexte] = useState('')
+  // Sources discordantes : la validation d'une nomination fondée sur une telle école exige la vérification reconnue.
+  const [sourcesVerifiees, setSourcesVerifiees] = useState(false)
   const bilan = lot.data
 
   if (cochees.size === 0 && !bilan) return null
@@ -34,6 +36,7 @@ export function LotNominations({ jeu, cochees, onTraite }: ProprietesLotNominati
         reference: action === 'valider' ? texte.trim() : undefined,
         motif: action === 'rejeter' ? texte.trim() : undefined,
         auteur: auteur.trim(),
+        ...(action === 'valider' && sourcesVerifiees ? { verificationSources: true } : {}),
       },
       { onSuccess: onTraite },
     )
@@ -50,6 +53,11 @@ export function LotNominations({ jeu, cochees, onTraite }: ProprietesLotNominati
         <ChampAuteur auteur={auteur} onChange={setAuteur} />
       </div>
       <ErreurAction erreur={lot.error} />
+      <label className="hint">
+        <input type="checkbox" checked={sourcesVerifiees} onChange={e => setSourcesVerifiees(e.target.checked)} /> J’ai
+        vérifié les sources des écoles dont le stock déclaré et les agents nominatifs diffèrent (requis pour valider ces
+        nominations ; consigné au journal).
+      </label>
       {bilan && (
         <Notice
           tone={bilan.refus.length > 0 ? 'warn' : 'info'}

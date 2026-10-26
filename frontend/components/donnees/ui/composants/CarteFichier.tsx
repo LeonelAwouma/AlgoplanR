@@ -32,7 +32,7 @@ export function CarteFichier({ type, fichier, erreur, enLecture, desactive, onFi
     <div className="upload-card" data-state={etat}>
       <div className="upload-card-entete">
         <div>
-          <p className="eyebrow">{type === 'prince' ? 'Fichier facultatif' : 'Fichier requis'}</p>
+          <p className="eyebrow">{type === 'etablissements' ? 'Fichier obligatoire' : 'Fichier facultatif'}</p>
           <h2>{description.titre}</h2>
         </div>
         {etat === 'ready' && (
@@ -45,7 +45,11 @@ export function CarteFichier({ type, fichier, erreur, enLecture, desactive, onFi
             <X size={12} aria-hidden="true" /> Illisible
           </Pill>
         )}
-        {etat === 'vide' && <Pill tone="warn">À fournir</Pill>}
+        {etat === 'vide' && (
+          <Pill tone={type === 'etablissements' ? 'warn' : 'neutral'}>
+            {type === 'etablissements' ? 'À fournir' : 'Facultatif'}
+          </Pill>
+        )}
       </div>
 
       <p className="hint">{description.texte}</p>

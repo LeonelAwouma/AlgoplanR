@@ -11,8 +11,8 @@ import { useState } from 'react'
 import type { IdJeu, Nomination } from '@shared/api'
 import { Notice, Panel } from '@shared/ui/commun'
 import { ChampAuteur, useAuteur } from '@shared/ui/ChampAuteur'
-import { ErreurAction } from '@shared/ui/etats'
 
+import { ErreurOuVerificationSources } from './VerificationSources'
 import {
   useAnnulerNomination,
   useMettreEnOeuvreNomination,
@@ -48,6 +48,8 @@ export function ActionNomination({ jeu, nomination, action, onTermine, onAnnuler
   const [auteur, setAuteur] = useAuteur()
   const [texte, setTexte] = useState('')
   const [dateEffet, setDateEffet] = useState(aujourdhui)
+  // Sources discordantes : la décision n'est prise qu'une fois leur vérification reconnue.
+  const [sourcesVerifiees, setSourcesVerifiees] = useState(false)
 
   const saisie = SAISIE_ACTION[action]
   const mutation = { valider, rejeter, 'mettre-en-oeuvre': mettreEnOeuvre, annuler }[action]
@@ -59,7 +61,17 @@ export function ActionNomination({ jeu, nomination, action, onTermine, onAnnuler
     const options = { onSuccess: onTermine }
     switch (action) {
       case 'valider':
-        valider.mutate({ nomination: ref, corps: { reference: texte.trim(), ...signature } }, options)
+        valider.mutate(
+          {
+            nomination: ref,
+            corps: {
+              reference: texte.trim(),
+              ...signature,
+              ...(sourcesVerifiees ? { verificationSources: true } : {}),
+            },
+          },
+          options,
+        )
         break
       case 'rejeter':
         rejeter.mutate({ nomination: ref, corps: { motif: texte.trim(), ...signature } }, options)
@@ -102,7 +114,7 @@ export function ActionNomination({ jeu, nomination, action, onTermine, onAnnuler
         )}
         <ChampAuteur auteur={auteur} onChange={setAuteur} />
       </div>
-      <ErreurAction erreur={mutation.error} />
+      <ErreurOuVerificationSources erreur={mutation.error} reconnue={sourcesVerifiees} onChange={setSourcesVerifiees} />
       <div className="topbar-actions actions-formulaire">
         <button type="button" className="btn btn-primary" disabled={!pret || mutation.isPending} onClick={confirmer}>
           {LIBELLE_ACTION[action]}

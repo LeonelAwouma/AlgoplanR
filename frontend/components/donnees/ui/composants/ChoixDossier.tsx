@@ -84,7 +84,13 @@ export function ChoixDossier({ desactive, enCours, bilan, erreur, onDossier }: P
               <span key={type}>
                 <strong className="texte-fort">{DESCRIPTION_FICHIER[type].titre}</strong>{' '}
                 <ArrowRight size={12} aria-hidden="true" />{' '}
-                {chemin ? <span className="mono">{chemin}</span> : 'aucun classeur reconnu dans ce dossier'}
+                {chemin ? (
+                  <span className="mono">{chemin}</span>
+                ) : type === 'enseignants' ? (
+                  'aucun classeur reconnu dans ce dossier (facultatif : poursuite avec les établissements seuls)'
+                ) : (
+                  'aucun classeur reconnu dans ce dossier'
+                )}
               </span>
             )
           })}

@@ -39,7 +39,7 @@ export function TableauCinqAns({ tableau }: { tableau: TableauPlanification }) {
   return (
     <Panel
       kicker="Planification sur cinq ans"
-      title={`Tableau prévisionnel — ${tableau.perimetre}`}
+      title={`Suivi des quotas et des nominations — ${tableau.perimetre}`}
       hint={`Version ${tableau.version}, calculée le ${new Date(tableau.calculeLe).toLocaleString('fr-FR')}. Une projection n’est pas un engagement : elle dépend des hypothèses de calcul.`}
       actions={
         <button type="button" className="btn btn-sm" onClick={() => exporterTableau(tableau)}>

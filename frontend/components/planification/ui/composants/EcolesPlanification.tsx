@@ -52,7 +52,9 @@ export function EcolesPlanification({ jeu, requete }: { jeu: IdJeu; requete: Req
                 {e.annees.map(a => (
                   <td key={a.annee} className="num">
                     {fmt(a.effectif)} · {fmt(a.besoin)}
-                    {a.departsRetraite > 0 && <small className="bloc">{fmt(a.departsRetraite)} retraite(s)</small>}
+                    {a.departsRetraite !== null && a.departsRetraite > 0 && (
+                      <small className="bloc">{fmt(a.departsRetraite)} retraite(s)</small>
+                    )}
                   </td>
                 ))}
               </tr>

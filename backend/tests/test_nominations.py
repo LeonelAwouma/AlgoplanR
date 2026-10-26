@@ -67,7 +67,9 @@ def test_cycle_de_vie_et_registre(c, jeu):
     envoyer(c, f"jeux/{jeu}/nominations/", {**corps, "motif": "Doublon"}, 409)
     ni = f"jeux/{jeu}/nominations/{n['id']}/"
     envoyer(c, ni + "mettre-en-oeuvre/", {"auteur": "Agent"}, 409)
-    v = envoyer(c, ni + "valider/", {"reference": "DEC-1", "auteur": "Agent"})
+    refus = envoyer(c, ni + "valider/", {"reference": "DEC-1", "auteur": "Agent"}, 422)   # sources discordantes (D6)
+    assert refus["code"] == "verification_sources_requise" and refus["details"]["ecoles"]
+    v = envoyer(c, ni + "valider/", {"reference": "DEC-1", "auteur": "Agent", "verification_sources": True})
     assert v["statut"] == "validee" and v["poste"]["statut"] == "reserve" and v["reference_decision"] == "DEC-1"
     mvts = get(c, f"jeux/{jeu}/mouvements/", type="nomination")["resultats"]
     assert [m["id"] for m in mvts] == [f"nom-{n['id']}"] and mvts[0]["statut"] == "prevu"
@@ -94,7 +96,8 @@ def test_generation_lot_et_controles(c, jeu):
     assert len(proposees) == bilan["proposees"]
     assert len({n["poste"]["id"] for n in proposees}) == len(proposees)   # un poste par proposition
     ids = [n["id"] for n in proposees[:3]] + ["999999"]
-    lot = envoyer(c, f"jeux/{jeu}/nominations/lot/", {"action": "valider", "nominations": ids, "auteur": "Agent"})
+    lot = envoyer(c, f"jeux/{jeu}/nominations/lot/", {"action": "valider", "nominations": ids, "auteur": "Agent",
+                                                         "verification_sources": True})
     assert lot["traitees"] == 3 and lot["refus"][0]["nomination"] == "999999"
     rejet = envoyer(c, f"jeux/{jeu}/nominations/{proposees[3]['id']}/rejeter/", {"motif": "Contrainte familiale"})
     assert rejet["statut"] == "rejetee" and rejet["personne"]["disponibilite"] == "libre"
@@ -102,7 +105,10 @@ def test_generation_lot_et_controles(c, jeu):
     assert ctl["ok"] is True, ctl
     redeploiement = get(c, f"jeux/{jeu}/mouvements/", type="redeploiement", taille=1)["resultats"][0]
     r = envoyer(c, f"jeux/{jeu}/mouvements/{redeploiement['id']}/mettre-en-oeuvre/",
-                {"date_effet": "2027-09-01", "reference_acte": "A", "auteur": "Agent"})
+                {"date_effet": "2027-09-01", "reference_acte": "A", "auteur": "Agent"}, 422)
+    assert r["code"] == "verification_sources_requise"
+    r = envoyer(c, f"jeux/{jeu}/mouvements/{redeploiement['id']}/mettre-en-oeuvre/",
+                {"date_effet": "2027-09-01", "reference_acte": "A", "auteur": "Agent", "verification_sources": True})
     assert r["statut"] == "realise"
     envoyer(c, f"jeux/{jeu}/mouvements/{redeploiement['id']}/mettre-en-oeuvre/", {"date_effet": "x"}, 409)
 

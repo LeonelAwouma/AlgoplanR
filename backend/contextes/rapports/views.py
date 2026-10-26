@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from contextes.acces.perimetre import jeu_autorise
 from contextes.commun.erreurs import RefusMetier
+from contextes.donnees.services import exiger_nominatif
 from contextes.commun.outils import SansNegociation, entier_param, perimetre_depuis, reponse_docx, reponse_excel
 from contextes.planification.views import perimetre as perimetre_planification
 from contextes.simulation import services as sim
@@ -25,6 +26,7 @@ from . import rapport_territorial as rt
 @api_view(["GET"])
 def rapport(request, jeu):
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, "Rapport de décision de mobilité")
     sid = request.query_params.get("scenario")
     sc = sim.scenario_du_jeu(j, entier_param(sid, "scenario")) if sid else sim.scenario_par_defaut(j)
     r = restreindre_resultat(sim.charger_resultat(sc), perimetre_depuis(request))

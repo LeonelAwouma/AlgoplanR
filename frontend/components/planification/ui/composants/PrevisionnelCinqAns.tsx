@@ -20,12 +20,22 @@ import { Aires, Colonnes } from '@shared/ui/graphiques'
 import { exporterPrevisionnelExcel, exporterPrevisionnelWord } from '../../application/export-previsionnel'
 import { usePrevisionnel, type RequetePlanification } from '../../application/hooks'
 import {
+  ENTETES_AUDIT_RETRAITES,
+  ENTETES_RAPPROCHEMENT,
   ENTETES_SCENARIOS,
   LIBELLE_NATURE,
   ORDRE_SCENARIOS,
+  avertissementsCoherence,
+  controlesAuditRetraites,
+  libelleNatures,
   ligne,
+  lignesAuditRetraites,
+  lignesContexte,
   lignesFiabilite,
+  lignesRapprochement,
   lignesScenarios,
+  natureCase,
+  phraseContexte,
   pointsEleves,
   pointsEnseignants,
   pointsRecrutements,
@@ -34,6 +44,7 @@ import {
   renvoi,
   scenario,
   syntheseDecideur,
+  syntheseRapprochement,
 } from '../../domain/previsionnel'
 
 const TIRET = '—'
@@ -41,10 +52,31 @@ const COULEURS_SCENARIOS = ['var(--serie-1)', 'var(--serie-2)', 'var(--serie-4)'
 
 const TON_NATURE: Record<NatureValeur, Tone> = {
   observe: 'neutral',
+  projete: 'info',
   estime: 'info',
   hypothese: 'warn',
   provisoire: 'warn',
+  conditionnel: 'warn',
+  decision: 'info',
+  realise: 'ok',
+  non_disponible: 'neutral',
+  sans_objet: 'neutral',
 }
+
+/** Décomposition du quota d'une année : du besoin calculé au recrutement réalisé, sans les confondre. */
+const ETAPES_QUOTA: [string, string][] = [
+  ['quota_avant_plafond', 'Besoin de recrutement calculé'],
+  ['plafond', 'Plafond du périmètre'],
+  ['plancher_retraites', 'Plancher : retraites de l’année'],
+  ['quota_calcule', 'Quota calculé (proposition)'],
+  ['depassement_plafond', 'Dépassement du plafond (remplacement des retraites)'],
+  ['quota_plafond_prioritaire', 'Règle alternative : plafond prioritaire (non appliquée)'],
+  ['quota_retenu', 'Quota retenu (décision administrative)'],
+  ['nominations_realisees', 'Recrutements réalisés'],
+]
+
+/** Écoles du rapprochement détaillées à l'écran ; les exports les contiennent toutes. */
+const MAX_ECOLES_ECRAN = 50
 
 /** Valeur d'une cellule ; une valeur absente est « non disponible », jamais 0. */
 function cellule(l: LignePrevisionnel, v: number | null): string {
@@ -76,6 +108,19 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
   const recrutementsBesoin = scenario(p, 'besoin')
   const raisons = raisonsIndisponibles(p)
   const f = p.fiabilite
+  const audit = p.auditRetraites
+  // Renvois des seules raisons qui expliquent un REM absent (pas celles des quotas ou des nominations).
+  const renvoisRem = [
+    ...new Set(
+      ['rem_reel', ...ORDRE_SCENARIOS.map(c => `rem_${c}`)].flatMap(cle => {
+        const l = ligne(p, cle)
+        return l ? l.valeurs.map((_, i) => renvoi(raisons, l, i)).filter((n): n is number => n !== null) : []
+      }),
+    ),
+  ].sort((a, b) => a - b)
+  const n1 = p.annees[1] ?? 'N+1'
+  const avertissements = avertissementsCoherence(p)
+  const rappro = p.rapprochement
 
   return (
     <Panel
@@ -94,6 +139,34 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
       }
     >
       <div className="stack">
+        {p.texteDonneesFictives && (
+          <Notice tone="alert" title="Jeu fictif.">
+            {p.texteDonneesFictives}
+          </Notice>
+        )}
+        {avertissements.length > 0 && (
+          <Notice
+            tone={
+              avertissements.some(a => a.code === 'retraites_non_calculables')
+                ? 'alert'
+                : avertissements.some(a => a.gravite === 'important')
+                  ? 'warn'
+                  : 'neutral'
+            }
+            title="Avertissements de cohérence."
+          >
+            {avertissements.map(a => (
+              <span key={`${a.code}-${a.annee ?? ''}`} className="ligne-pleine">
+                {a.message}
+              </span>
+            ))}
+          </Notice>
+        )}
+        {p.contexte && (
+          <Notice tone="neutral" title="Provenance et périmètre.">
+            {phraseContexte(p)} {p.hypotheseTransition}
+          </Notice>
+        )}
         {p.messageMinimumProvisoire && (
           <Notice
             tone="warn"
@@ -119,7 +192,7 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
         {raisons.length > 0 && (
           <Notice tone="neutral" title="Valeurs non disponibles.">
             {raisons.map((r, i) => (
-              <span key={r.raison} className="ligne-detail">
+              <span key={r.raison} className="ligne-pleine">
                 <strong>({i + 1})</strong> {r.cellules.join(' ; ')}. {r.raison}
               </span>
             ))}
@@ -130,26 +203,89 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
           <KpiCard
             label="Élèves attendus"
             value={entier(s.elevesFin)}
-            hint={`${entier(s.elevesBase)} à la base${p.anneeBase ? ` (${p.anneeBase})` : ''}, ${s.derniere} en fin d’horizon (croissance des hypothèses).`}
+            hint={`Projeté pour ${s.derniere}. Observé à la base${p.anneeBase ? ` (${p.anneeBase})` : ''} : ${entier(s.elevesBase)}.`}
           />
           <KpiCard
             label="Départs sur l’horizon"
-            value={fmt(s.departs)}
-            hint={`Dont ${fmt(s.retraites)} retraites nominatives ; le reste par attrition hors retraite.`}
+            value={s.departs === null ? 'Non calculable' : fmt(s.departs)}
+            hint={
+              s.retraites === null
+                ? 'Retraites non calculables : le fichier nominatif des enseignants est indisponible (aucun zéro affiché).'
+                : `Projeté. Dont ${fmt(s.retraites)} retraites nominatives${
+                    s.statutRetraites === 'partiel' ? ' (identifiées, total non exhaustif)' : ''
+                  } ; le reste par attrition hors retraite.`
+            }
           />
           <KpiCard
             label="Recrutements S-besoin"
             value={entier(s.recrutementsBesoin)}
-            hint={`Pour approcher le REM de référence ; ${entier(s.recrutementsPlafond)} sous plafond budgétaire.`}
+            hint={`${
+              s.statutRetraites === 'non_calculable'
+                ? 'Simulation conditionnelle (aucun départ à la retraite modélisé). '
+                : ''
+            }Projeté, à décider : pour approcher le REM de référence ; ${entier(s.recrutementsPlafond)} sous plafond budgétaire.`}
           />
           <KpiCard
-            label="REM actuel"
+            label="REM à la base"
             value={decimal(s.remBase)}
-            hint={`Référence ${fmtDec(s.remReference, 1)} ; ${recrutementsBesoin?.remFinal != null ? `${fmtDec(recrutementsBesoin.remFinal, 1)} en fin d’horizon avec S-besoin` : 'fin d’horizon non calculable'}.`}
+            hint={`Observé (écoles à effectif connu). Référence ${fmtDec(s.remReference, 1)} ; ${recrutementsBesoin?.remFinal != null ? `projeté à ${fmtDec(recrutementsBesoin.remFinal, 1)} en fin d’horizon avec S-besoin` : 'fin d’horizon non calculable'}.`}
           />
         </div>
 
+        <h3 className="titre-section">Du besoin calculé au recrutement réalisé</h3>
+        <p className="hint">
+          Un quota calculé est une proposition ; seul le quota retenu est une décision, et seules les nominations mises
+          en œuvre sont des recrutements réalisés.
+        </p>
+        <div className="table-scroll">
+          <table className="compare-table">
+            <thead>
+              <tr>
+                <th scope="col">Étape</th>
+                {p.annees.slice(1).map(a => (
+                  <th key={a} scope="col" className="num">
+                    {a}
+                  </th>
+                ))}
+                <th scope="col">Nature</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ETAPES_QUOTA.map(([cle, libelle]) => {
+                const l = ligne(p, cle)
+                if (!l) return null
+                return (
+                  <tr key={cle}>
+                    <th scope="row">{libelle}</th>
+                    {l.valeurs.slice(1).map((v, i) => (
+                      <td key={i} className="num" title={v === null ? (l.raisons?.[i + 1] ?? undefined) : undefined}>
+                        {v === null ? TIRET : fmt(v)}
+                      </td>
+                    ))}
+                    <td>
+                      <Pill tone={TON_NATURE[natureCase(l, 1)]}>{LIBELLE_NATURE[natureCase(l, 1)]}</Pill>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {rappro && (
+          <>
+            <h3 className="titre-section">Rapprochement des effectifs</h3>
+            <p className="hint">{rappro.methode}</p>
+            <div className="situation-block">
+              {syntheseRapprochement(p).map(([libelle, v]) => (
+                <Ligne key={libelle} libelle={libelle} valeur={typeof v === 'number' ? fmt(v) : v} />
+              ))}
+            </div>
+          </>
+        )}
+
         <h3 className="titre-section">Comparaison des scénarios</h3>
+        <p className="hint">Valeurs projetées en fin d’horizon, {s.derniere} ; aucune n’est observée.</p>
         <div className="table-scroll">
           <table className="compare-table">
             <thead>
@@ -165,13 +301,16 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
               {lignesScenarios(p).map((l, k) => {
                 const remScenario = ligne(p, `rem_${ORDRE_SCENARIOS[k]}`)
                 const n = remScenario ? renvoi(raisons, remScenario, p.annees.length - 1) : null
+                const inconnu = scenario(p, ORDRE_SCENARIOS[k])?.fiabilite === 'non_calculable'
                 return (
                   <tr key={String(l[0])}>
                     <th scope="row">{l[0]}</th>
                     {l.slice(1).map((v, i) => (
                       <td key={i} className="num">
                         {v === null
-                          ? `Non disponible${n ? ` (${n})` : ''}`
+                          ? inconnu
+                            ? 'Non calculable'
+                            : `Non disponible${n ? ` (${n})` : ''}`
                           : typeof v === 'number'
                             ? i >= 3
                               ? fmtDec(v, 1)
@@ -214,7 +353,11 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
             />
           </figure>
           <figure className="stack">
-            <figcaption className="hint">Recrutements annuels de chaque scénario.</figcaption>
+            <figcaption className="hint">
+              Recrutements annuels de chaque scénario.
+              {p.retraitesFiabilite?.statut === 'non_calculable' &&
+                ' S-min et S-maintien ne sont pas tracés : retraites non calculables. S-besoin et Sous plafond sont des simulations conditionnelles.'}
+            </figcaption>
             <Colonnes titre="Recrutements par scénario" series={seriesScenarios} donnees={pointsRecrutements(p)} />
           </figure>
           <figure className="stack">
@@ -228,7 +371,7 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
               series={[{ cle: 'reference', label: 'Référence', couleur: 'var(--violet)' }, ...seriesScenarios]}
               donnees={rem}
               vide={`REM non calculable pour les années projetées${
-                raisons.length ? ` : voir (${raisons.map((_, i) => i + 1).join(', ')}) ci-dessus` : ''
+                renvoisRem.length ? ` : voir (${renvoisRem.join(', ')}) ci-dessus` : ''
               }.`}
             />
             {rem.length > 0 && rem.length < p.annees.length && (
@@ -273,15 +416,19 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
                           return (
                             <td
                               key={i}
-                              className="num"
-                              title={v === null ? (l.raisons?.[i] ?? 'Sans objet pour cette colonne') : undefined}
+                              className={`num nature-${natureCase(l, i)}`}
+                              title={
+                                v === null
+                                  ? (l.raisons?.[i] ?? 'Sans objet pour cette colonne')
+                                  : LIBELLE_NATURE[natureCase(l, i)]
+                              }
                             >
                               {n ? `Non disponible (${n})` : cellule(l, v)}
                             </td>
                           )
                         })}
-                        <td>
-                          <Pill tone={TON_NATURE[l.nature]}>{LIBELLE_NATURE[l.nature]}</Pill>
+                        <td className="colonne-nature">
+                          <small>{libelleNatures(p, l)}</small>
                         </td>
                       </tr>
                     ))}
@@ -289,6 +436,101 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
                 ))}
               </table>
             </div>
+
+            <p className="hint">
+              Nature des valeurs : la base est observée ; les années N+1 à N+5 sont projetées (en italique), sauf les
+              hypothèses retenues et les actes enregistrés (quota retenu, nominations mises en œuvre). Survolez une case
+              pour voir sa nature.
+            </p>
+
+            {audit && (
+              <>
+                <h3 className="titre-section">Audit des départs à la retraite</h3>
+                <div className="table-scroll">
+                  <table className="compare-table">
+                    <thead>
+                      <tr>
+                        {ENTETES_AUDIT_RETRAITES.map((e, i) => (
+                          <th key={e} scope="col" className={i > 0 ? 'num' : undefined}>
+                            {e}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lignesAuditRetraites(p).map(l => (
+                        <tr key={String(l[0])}>
+                          <th scope="row">{l[0]}</th>
+                          {l.slice(1).map((v, i) => (
+                            <td key={i} className="num">
+                              {v === null ? TIRET : typeof v === 'string' ? v : i >= 3 ? `${fmtDec(v, 1)} %` : fmt(v)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="situation-block">
+                  {controlesAuditRetraites(p).map(([libelle, v]) => (
+                    <Ligne key={libelle} libelle={libelle} valeur={typeof v === 'number' ? fmt(v) : v} />
+                  ))}
+                </div>
+                <p className="hint">
+                  La liste nominative des agents partants reste réservée aux utilisateurs habilités : page « Départs à
+                  la retraite » de {n1.replace(/ \(.*\)$/, '')} à N+5.
+                </p>
+              </>
+            )}
+
+            {rappro && rappro.ecoles.length > 0 && (
+              <>
+                <h3 className="titre-section">Rapprochement école par école</h3>
+                <p className="hint">
+                  Écoles présentant une anomalie d’abord.
+                  {rappro.ecoles.length > MAX_ECOLES_ECRAN &&
+                    ` ${fmt(MAX_ECOLES_ECRAN)} premières écoles sur ${fmt(rappro.ecoles.length)} ; l’export Excel les contient toutes.`}
+                </p>
+                <div className="table-scroll">
+                  <table className="compare-table">
+                    <thead>
+                      <tr>
+                        {ENTETES_RAPPROCHEMENT.map((e, i) => (
+                          <th key={e} scope="col" className={i > 1 && i < 12 ? 'num' : undefined}>
+                            {e}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lignesRapprochement(p)
+                        .slice(0, MAX_ECOLES_ECRAN)
+                        .map((l, k) => (
+                          <tr key={rappro.ecoles[k]?.idEcole ?? k}>
+                            <th scope="row">{l[0]}</th>
+                            {l.slice(1).map((v, i) => (
+                              <td key={i} className={i > 0 && i < 11 ? 'num' : undefined}>
+                                {typeof v === 'number' ? fmt(v) : v}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            {p.contexte && (
+              <>
+                <h3 className="titre-section">Provenance et périmètre</h3>
+                <div className="situation-block">
+                  {lignesContexte(p).map(([libelle, v]) => (
+                    <Ligne key={libelle} libelle={libelle} valeur={typeof v === 'number' ? fmt(v) : v} />
+                  ))}
+                </div>
+              </>
+            )}
 
             <div className="grid-2">
               <div>

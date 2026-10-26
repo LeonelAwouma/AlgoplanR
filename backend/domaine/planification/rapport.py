@@ -424,6 +424,54 @@ def limites(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], hyp: d
 
 # --- Assemblage ----------------------------------------------------------------------------------------------
 
+def qualifier_retraites(out: dict, fiab: dict) -> dict:
+    """Rapport DRH quand le fichier nominatif est absent : les retraites et les recrutements S-min et S-maintien (qui
+    ne sont que des retraites ou des départs à remplacer) sont inconnus, jamais des zéros. S-besoin et sous plafond
+    restent calculés, marqués conditionnels ; les textes sont ceux du prévisionnel (une seule source de vérité)."""
+    from .previsionnel import MESSAGE_SIMULATION_CONDITIONNELLE, RETRAITES_NON_CALCULABLES
+    out["retraites_fiabilite"] = fiab
+    if fiab["statut"] == "complet":
+        return out
+    # La part des retraites entre dans le classement des régions : priorités provisoires tant qu'elle est inconnue
+    # ou incomplète.
+    for f in out["priorites"]:
+        f["priorite_provisoire"] = True
+    if fiab["statut"] != RETRAITES_NON_CALCULABLES:
+        out["limites"] = [fiab["message"], *out["limites"]]
+        return out
+    r = out["retraites_regions"]
+    for l in [*r["lignes"], r["national"]]:
+        l["annees"], l["total"] = [None] * len(l["annees"]), None
+    inconnues = {"Retraites (quota incompressible)"} | {
+        f"{prefixe} {LIBELLES_SCENARIOS[s]}" for s in ("min", "maintien")
+        for prefixe in ("Recrutement", "Taux d'encadrement obtenu –")}
+    conditionnelles = {l["libelle"] for l in out["national"]["lignes"]
+                       if l["libelle"].startswith(("Enseignants en poste", "Enseignants disponibles", "Recrutement",
+                                                   "Taux d'encadrement obtenu"))} - inconnues
+    for l in out["national"]["lignes"]:
+        if l["libelle"] in inconnues:
+            l["valeurs"] = [v if i == 0 and l["libelle"].startswith("Taux") else None
+                            for i, v in enumerate(l["valeurs"])]
+            l["fiabilite"] = "non_calculable"
+        elif l["libelle"] in conditionnelles:
+            l["fiabilite"] = "conditionnel"
+    out["national"]["rem_final"]["min"] = out["national"]["rem_final"]["maintien"] = None
+    red = out["redeploiement"]
+    for l in [*red["lignes"], red["national"]]:
+        l["retraites"] = None
+    for f in out["priorites"]:
+        f["part_retraites"] = None
+        f["retraites"] = [None] * len(f["retraites"])
+        f["recrutements"] = {**f["recrutements"], "min": None, "maintien": None}
+    sr = out["scenarios_regions"]
+    for l in [*sr["lignes"], sr["national"]]:
+        l["min"] = l["maintien"] = l["rem_final"]["min"] = None
+    sr["fiabilite"] = {"min": "non_calculable", "maintien": "non_calculable", "besoin": "conditionnel",
+                       "plafond": "conditionnel"}
+    out["limites"] = [fiab["message"], MESSAGE_SIMULATION_CONDITIONNELLE, *out["limites"]]
+    return out
+
+
 def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], hyp: dict, horizon: int, *,
                ressources: Optional[Dict[str, int]] = None, seuil_cohorte: float = 5.0,
                agents_age_atteint: int = 0) -> dict:

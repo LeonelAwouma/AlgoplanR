@@ -110,9 +110,29 @@ def _pct(a: float, b: float) -> Optional[int]:
     return round(a / b * 100) if b > 0 else None
 
 
-def indicateurs_suivi(n1: dict) -> List[dict]:
+def indicateurs_suivi(n1: dict, nominatif: bool = True) -> List[dict]:
     """Les cinq indicateurs de suivi, d'après la première année (N+1) d'un tableau suivi."""
     nommes = n1["nominations_prevues"] + n1["nominations_realisees"]
+    if not nominatif:
+        # Sans fichier nominatif, ni redéploiement ni nomination individuelle ne peut être enregistré : « 0 prévu »
+        # ne serait pas un constat mais une impossibilité. Ces indicateurs sont donc non calculables (jamais 0).
+        raison = "Non calculable : aucun mouvement ni nomination individuelle sans fichier nominatif des enseignants."
+        return [
+            {"code": "couverture_besoin", "libelle": "Couverture du besoin de N+1 par les redéploiements",
+             "valeur": None, "unite": "pourcentage", "detail": raison},
+            {"code": "mobilisation_vivier", "libelle": "Mobilisation du vivier", "valeur": None,
+             "unite": "pourcentage",
+             "detail": f"{raison} Estimation du vivier : {n1['ressources_vivier']} poste(s) excédentaire(s) "
+                       "d'après le stock déclaré des écoles."},
+            {"code": "realisation_nominations", "libelle": "Réalisation des nominations", "valeur": None,
+             "unite": "pourcentage", "detail": raison},
+            {"code": "ecart_prevu_realise", "libelle": "Écart entre mouvements prévus et réalisés", "valeur": None,
+             "unite": "nombre", "detail": raison},
+            {"code": "besoin_residuel", "libelle": "Besoin restant en N+1", "valeur": n1["besoin_restant"],
+             "unite": "nombre",
+             "detail": "Estimation conditionnelle : après le vivier estimé d'après le stock déclaré et les quotas "
+                       "retenus."},
+        ]
     return [
         {"code": "couverture_besoin", "libelle": "Couverture du besoin de N+1 par les redéploiements",
          "valeur": _pct(n1["deploiements_prevus"], n1["deploiements_prevus"] + n1["besoin"]),

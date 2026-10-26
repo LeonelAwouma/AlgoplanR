@@ -17,8 +17,16 @@ class ImportFichierSerializer(serializers.Serializer):
 class CreationJeuSerializer(serializers.Serializer):
     nom = serializers.CharField(required=False, allow_blank=True)
     fichier_etablissements = serializers.UUIDField()
-    fichier_enseignants = serializers.UUIDField()
+    fichier_enseignants = serializers.UUIDField(
+        required=False, allow_null=True,
+        help_text="Facultatif : sans fichier nominatif, le jeu est créé avec les établissements seuls")
     annee_scolaire = serializers.CharField(
-        required=False, allow_blank=True, help_text="Rentrée que prépare le jeu, « AAAA-AAAA » (année en cours si omise)")
+        required=False, allow_blank=True, help_text="Année scolaire des données importées, « AAAA-AAAA » (année en cours si omise)")
+    sens_annee_scolaire = serializers.ChoiceField(
+        choices=["donnees", "rentree_preparee", "non_confirme"], required=False,
+        help_text="Sens de l'année saisie : année des données (par défaut) ou rentrée préparée (données de l'année "
+                  "précédente)")
+    donnees_fictives = serializers.BooleanField(
+        required=False, default=False, help_text="Jeu de test fictif : un bandeau l'indique dans les vues et les exports")
     fichier_prince = serializers.UUIDField(
         required=False, help_text="Faits du Prince (DRH) : appliqués avant l'algorithme, au premier calcul")

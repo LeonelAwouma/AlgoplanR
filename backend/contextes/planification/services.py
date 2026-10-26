@@ -20,12 +20,14 @@ from contextes.audit.services import journaliser
 from contextes.commun.erreurs import RefusMetier
 from contextes.simulation import services as sim
 from domaine.commun.texte import cle_tri_fr, norm
+from domaine.donnees.annee_scolaire import SENS_DONNEES, annee_des_donnees
 from domaine.donnees.modeles import Enseignant
 from domaine.planification import parametres as par
 from domaine.planification import previsionnel as prev
 from domaine.planification import rapport as rap
-from domaine.planification.projection import (SCENARIOS, DepartRetraite, ProjectionEcole, calculer_annees,
-                                              fiabilite_indicateurs, ligne_fiabilite, projeter_ecoles)
+from domaine.planification.projection import (SCENARIOS, DepartRetraite, ProjectionEcole, age_exploitable,
+                                              calculer_annees, decalage_ages, fiabilite_indicateurs, ligne_fiabilite,
+                                              matricules_uniques, projeter_ecoles)
 from domaine.planification.referentiel_drh import region_drh
 from domaine.planification.suivi import appliquer_suivi, dans, indicateurs_suivi
 
@@ -183,6 +185,21 @@ class Contexte:
     quotas: List[dict] = field(default_factory=list)
 
 
+def annee_base_jeu(jeu) -> str:
+    """Année des données observées d'un jeu (la base des projections), d'après l'année saisie et son sens.
+
+    Un jeu dont le sens n'a pas pu être établi (« non_confirme ») garde le calendrier historique de l'application
+    (année saisie = rentrée préparée) : aucune simulation existante n'est décalée en silence, et un avertissement
+    demande de confirmer le sens. L'année enregistrée n'est jamais modifiée."""
+    return annee_des_donnees(getattr(jeu, "annee_scolaire", ""), getattr(jeu, "sens_annee_scolaire", SENS_DONNEES))
+
+
+def donnees_fictives(jeu) -> bool:
+    """Origine fictive vérifiable : jeu de démonstration généré par AlgoPlanR, ou marqueur explicite enregistré.
+    Jamais déduite de la taille ni du nom du jeu."""
+    return getattr(jeu, "source", "") == "demonstration" or bool(getattr(jeu, "donnees_fictives", False))
+
+
 _PROJECTIONS: "OrderedDict[tuple, tuple]" = OrderedDict()
 _MAX = 6
 # Les écritures de la planification (quotas calculés, premier instantané) sont rares et sérialisées : plusieurs
@@ -205,8 +222,9 @@ def contexte(jeu, scenario_id: Optional[str] = None, *, avec_etat: bool = True) 
         if sc is None:
             raise Http404("Ce scénario n'existe pas")
     res = sim.charger_resultat(sc)
+    base = annee_base_jeu(jeu)
     cle = (str(jeu.id), diag.empreinte_jeu(jeu), meta["version"], str(meta["modifiees_le"]), sc.pk,
-           str(sc.resultat.calcule_le))
+           str(sc.resultat.calcule_le), base)
     if cle in _PROJECTIONS:
         _PROJECTIONS.move_to_end(cle)
         ecoles, departs = _PROJECTIONS[cle]
@@ -215,7 +233,8 @@ def contexte(jeu, scenario_id: Optional[str] = None, *, avec_etat: bool = True) 
         # le départ et l'arrivée de chaque agent. Partir des bases après Prince les compterait deux fois.
         avant = prep.avant()
         ecoles, departs = projeter_ecoles(avant.ecoles, avant.enseignants.values(), prep.cfg, hyp,
-                                          affectations=res["affectations"])
+                                          affectations=res["affectations"],
+                                          decalage=decalage_ages(hyp, base))
         _PROJECTIONS[cle] = (ecoles, departs)
         while len(_PROJECTIONS) > _MAX:
             _PROJECTIONS.popitem(last=False)
@@ -259,13 +278,41 @@ def libelle(p: dict) -> str:
     return p.get("commune") or p.get("departement") or p.get("iaeb") or p.get("region") or "Cameroun"
 
 
+def retraites_fiabilite(ctx: Contexte, p: dict, ecoles: List[ProjectionEcole]) -> dict:
+    """État des retraites du périmètre, calculé par le serveur pour le suivi, le rapport et le prévisionnel : complètes,
+    partielles ou non calculables (fichier nominatif absent) — jamais un zéro par défaut."""
+    from contextes.diagnostic import services as diag
+    importes = list(diag.preparer(ctx.jeu).avant().enseignants.values())
+    ids_jeu = {e.id for e in ctx.ecoles}
+    hors = (sum(1 for m in {t.matricule: t for t in importes if t.ecole_attache not in ids_jeu})
+            if len(ecoles) == len(ctx.ecoles) else None)
+    rappro = prev.rapprochement_effectifs(ecoles, importes, hors_ecoles=hors)
+    fiab = prev.fiabilite_retraites(ecoles, rappro, {}, ctx.hyp, len(importes), ctx.jeu.nominatif_disponible)
+    return {"fiab": fiab, "rapprochement": rappro, "importes": importes, "hors": hors}
+
+
+#: Résultats qui ne se déduisent que des retraites individuelles : inconnus (None), jamais 0, sans fichier nominatif.
+CLES_RETRAITES_INCONNUES = ("departs_retraite", "retraites_identifiees", "retraites_non_imputables", "plancher_retraites",
+                            "plancher_applique", "depassement_plafond")
+
+
+def masquer_retraites(lignes: List[dict], nominatif: bool) -> List[dict]:
+    """Années publiées d'un jeu sans fichier nominatif : « aucun départ à la retraite » serait une donnée que
+    personne n'a observée. Les quotas restent calculés (conditionnels) ; seul ce qui dépend des retraites est inconnu."""
+    if nominatif:
+        return lignes
+    return [{**l, **{k: None for k in CLES_RETRAITES_INCONNUES if k in l}} for l in lignes]
+
+
 def tableau(ctx: Contexte, p: dict) -> dict:
     ecoles = ecoles_de(ctx, p)
-    fiab = ligne_fiabilite(libelle(p), ecoles, ctx.enseignants)
+    fiab = ligne_fiabilite(libelle(p), ecoles, ctx.enseignants, ctx.jeu.nominatif_disponible)
     return {"perimetre": libelle(p), "niveau": niveau_de(p), "sous_systeme": p.get("sous_systeme") or None,
             "scenario_id": str(ctx.scenario.pk), "version": ctx.etat.version if ctx.etat else 1,
-            "calcule_le": ctx.etat.calcule_le if ctx.etat else None, "annees": annees(ctx, p, ecoles),
-            "fiabilite": fiabilite_indicateurs(fiab, bool(p.get("sous_systeme")))}
+            "calcule_le": ctx.etat.calcule_le if ctx.etat else None,
+            "annees": masquer_retraites(annees(ctx, p, ecoles), ctx.jeu.nominatif_disponible),
+            "fiabilite": fiabilite_indicateurs(fiab, bool(p.get("sous_systeme"))),
+            "retraites_fiabilite": retraites_fiabilite(ctx, p, ecoles)["fiab"]}
 
 
 # --- Territoires ---------------------------------------------------------------------------------------------
@@ -338,10 +385,11 @@ def ventilation_sous_systemes(ctx: Contexte, p: dict) -> dict:
 
 
 def lignes_ecoles(ctx: Contexte, p: dict) -> List[dict]:
+    nominatif = ctx.jeu.nominatif_disponible
     return [{"id_ecole": e.id, "nom_ecole": e.nom, "region": e.region, "departement": e.departement,
              "commune": e.commune, "sous_systeme": None if e.sous_systeme == "non_renseigne" else e.sous_systeme,
              "cible": e.cible,
-             "annees": [{"annee": par.ANNEES_PLAN[k], "effectif": e.effectifs[k], "departs_retraite": e.retraites[k],
+             "annees": [{"annee": par.ANNEES_PLAN[k], "effectif": e.effectifs[k], "departs_retraite": e.retraites[k] if nominatif else None,
                          "besoin": e.besoins[k], "excedent": e.excedents[k]} for k in range(len(e.effectifs))]}
             for e in ecoles_de(ctx, p)]
 
@@ -358,10 +406,14 @@ def plan_departs(ctx: Contexte, p: dict) -> dict:
             if a["departs_attrition"] > 0:
                 attrition.append({"annee": a["annee"], "territoire": libelle(p), "sous_systeme": s,
                                   "departs": a["departs_attrition"]})
+    if not ctx.jeu.nominatif_disponible:
+        # Liste inconnue (None), pas vide : « aucun départ » serait une donnée que personne n'a observée.
+        return {"retraites": None, "retraites_calculables": False, "message": prev.MESSAGE_RETRAITES_NON_CALCULABLES,
+                "attrition": attrition}
     return {"retraites": [{"annee": par.ANNEES_PLAN[d.annee], "matricule": d.matricule, "nom": d.nom,
                            "id_ecole": d.id_ecole, "nom_ecole": d.nom_ecole, "date_naissance": None,
-                           "age_au_depart": d.age_au_depart} for d in retraites],
-            "attrition": attrition}
+                           "age_au_depart": d.age_au_depart, "deja_eligible": d.deja_eligible} for d in retraites],
+            "retraites_calculables": True, "message": None, "attrition": attrition}
 
 
 def _horizon_rapport(horizon) -> int:
@@ -389,27 +441,74 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
     ecoles = ecoles_de(ctx, p)
     ids = {e.id for e in ecoles}
     legal = ctx.hyp["retraite"]["age_legal"]
-    age_atteint = sum(1 for t in ctx.enseignants if t.ecole_attache in ids and t.age is not None and t.age >= legal)
+    decalage = decalage_ages(ctx.hyp, annee_base_jeu(ctx.jeu))
+    # Même compte que l'audit des retraites : matricules uniques, âge exploitable ramené au début de N+1.
+    uniques, _ = matricules_uniques([t for t in ctx.enseignants if t.ecole_attache in ids])
+    age_atteint = sum(1 for t in uniques if age_exploitable(t) is not None and age_exploitable(t) - decalage >= legal)
     ressources = {r: _supplementaires(ctx, {**p, "region": r}) for r in {e.region for e in ecoles}}
     out = rap.construire(ecoles, ctx.enseignants, ctx.hyp, _horizon_rapport(horizon), ressources=ressources,
                          seuil_cohorte=_seuil_cohorte(seuil_cohorte),
                          agents_age_atteint=age_atteint if ctx.hyp["drh"].get("CORR_60", True) else 0)
-    return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **out}
+    return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk),
+            **rap.qualifier_retraites(out, retraites_fiabilite(ctx, p, ecoles)["fiab"])}
 
 
 def previsionnel(ctx: Contexte, p: dict) -> dict:
     """Tableau prévisionnel complet (base, N+1 à N+5) : les quatre scénarios sont calculés sur le même périmètre que le
     tableau principal, dont la trajectoire sous plafond (quotas retenus inclus) fournit les groupes A à C."""
+    from django.utils import timezone
+
+    from contextes.diagnostic import services as diag
     from contextes.parametrage.services import config_jeu
     ecoles = ecoles_de(ctx, p)
+    # Rapprochement sur la liste nominative de l'import (même date que Enseignants_Actuels, avant les faits du Prince).
+    nominatif = retraites_fiabilite(ctx, p, ecoles)
+    importes, hors = nominatif["importes"], nominatif["hors"]
     supp = _supplementaires(ctx, p)
+    annee = annee_base_jeu(ctx.jeu)
+    besoin = config_jeu(ctx.jeu)["besoin"]
     traj = {s: calculer_annees(ecoles, ctx.hyp, ressources_supplementaires=supp, scenario=s) for s in SCENARIOS}
-    out = prev.construire(ecoles, ctx.enseignants, traj, annees(ctx, p, ecoles), ctx.hyp,
-                          annee_scolaire=getattr(ctx.jeu, "annee_scolaire", ""))
-    out["hypotheses"] = prev.hypotheses_methodologiques(ctx.hyp, config_jeu(ctx.jeu)["besoin"],
-                                                        getattr(ctx.jeu, "annee_scolaire", ""))
+    out = prev.construire(ecoles, ctx.enseignants, traj, annees(ctx, p, ecoles), ctx.hyp, annee_scolaire=annee,
+                          norme=besoin["norme_eleves_par_maitre"], contexte=contexte_jeu(ctx, p, ecoles),
+                          decalage=decalage_ages(ctx.hyp, annee), departs=[d for d in ctx.departs if dans(d.lieu, p)],
+                          enseignants_import=importes, hors_ecoles=hors,
+                          nominatif_disponible=ctx.jeu.nominatif_disponible)
+    # Date du calcul de la projection (état enregistré) et date d'édition du tableau.
+    out["contexte"]["calcule_le"] = ctx.etat.calcule_le if ctx.etat else timezone.now()
+    out["contexte"]["edite_le"] = timezone.now()
+    out["hypotheses"] = prev.hypotheses_methodologiques(ctx.hyp, besoin, annee)
     return {"perimetre": libelle(p), "niveau": niveau_de(p), "sous_systeme": p.get("sous_systeme") or None,
             "scenario_id": str(ctx.scenario.pk), "base_calcul": base_de_calcul(ctx.jeu), **out}
+
+
+def contexte_jeu(ctx: Contexte, p: dict, ecoles: List[ProjectionEcole]) -> dict:
+    """Provenance d'un tableau : jeu, année, périmètre réel et complétude, pour qu'un titre « Cameroun » ne fasse
+    jamais croire à une couverture nationale qu'il n'a pas."""
+    jeu = ctx.jeu
+    ids = {e.id for e in ecoles}
+    incompletes = sum(1 for e in ecoles if not e.eleves_connus or e.minimum_provisoire or e.bmax_incertain)
+    return {
+        "jeu_nom": jeu.nom, "jeu_source": jeu.source, "jeu_portee": jeu.portee, "jeu_region": jeu.region,
+        # Année saisie à la création, son sens, et année des données qui en découle (la base des projections).
+        "annee_scolaire": jeu.annee_scolaire, "annee_saisie": jeu.annee_scolaire,
+        "sens_annee_scolaire": getattr(jeu, "sens_annee_scolaire", SENS_DONNEES),
+        "sens_annee_origine": getattr(jeu, "sens_annee_origine", "creation"), "annee_donnees": annee_base_jeu(jeu),
+        "donnees_fictives": donnees_fictives(jeu),
+        "fichiers_source": {f.type: f.nom_fichier for f in jeu.fichiers.order_by("cree_le")},
+        "perimetre": libelle(p), "niveau": niveau_de(p), "perimetre_filtre": bool(p),
+        "ecoles_perimetre": len(ecoles), "ecoles_jeu": len(ctx.ecoles),
+        "personnels_stock_declare": sum(e.effectif_initial for e in ecoles),
+        # Inconnu (None) sans fichier nominatif : jamais « 0 enseignant » pour « fichier absent ».
+        "personnels_nominatifs": (len({t.matricule for t in ctx.enseignants if t.ecole_attache in ids})
+                                  if jeu.nominatif_disponible else None),
+        "nominatif_disponible": jeu.nominatif_disponible,
+        "mode_import": "complet" if jeu.nominatif_disponible else "etablissements_seuls",
+        "ecoles_donnees_incompletes": incompletes,
+        "ecoles_eleves_inconnus": sum(1 for e in ecoles if not e.eleves_connus),
+        "ecoles_minimum_provisoire": sum(1 for e in ecoles if e.minimum_provisoire),
+        "ecoles_salles_flux_inconnu": sum(1 for e in ecoles if e.bmax_incertain),
+        "version_planification": ctx.etat.version if ctx.etat else None,
+    }
 
 
 def alea(ctx: Contexte, p: dict) -> dict:
@@ -435,14 +534,15 @@ def listes_rapport(ctx: Contexte, p: dict, seuil_cohorte=5) -> dict:
 
 def fiabilite(ctx: Contexte, p: dict) -> dict:
     ecoles = ecoles_de(ctx, p)
-    return {"global": ligne_fiabilite(libelle(p), ecoles, ctx.enseignants),
-            "par_territoire": [ligne_fiabilite(t["nom"], liste, ctx.enseignants)
+    nominatif = ctx.jeu.nominatif_disponible
+    return {"global": ligne_fiabilite(libelle(p), ecoles, ctx.enseignants, nominatif),
+            "par_territoire": [ligne_fiabilite(t["nom"], liste, ctx.enseignants, nominatif)
                                for t, _, liste in groupes(ecoles, niveau_enfants(p))]}
 
 
 def indicateurs(ctx: Contexte, p: dict) -> dict:
     a = annees(ctx, p)
-    return {"perimetre": libelle(p), "indicateurs": indicateurs_suivi(a[0]) if a else []}
+    return {"perimetre": libelle(p), "indicateurs": indicateurs_suivi(a[0], ctx.jeu.nominatif_disponible) if a else []}
 
 
 def evolution(ctx: Contexte, p: dict) -> dict:
@@ -572,15 +672,77 @@ def ajuster_quota(jeu, annee: str, territoire: str, corps: dict, *, request, aut
     return _quota_dict(q)
 
 
+LIBELLES_RESERVES = {
+    "retraites_non_calculables": "Retraites non calculables (fichier nominatif des enseignants indisponible)",
+    "retraites_partielles": "Retraites partiellement identifiées",
+    "age_mesure_non_precisee": "Année de mesure des âges non précisée (retraites provisoires)",
+    "besoin_provisoire": "Besoin pédagogique provisoire (classes multigrades non renseignées)",
+    "depassement_plafond": "Quota supérieur au plafond : validation administrative ou budgétaire requise",
+    "annee_non_confirmee": "Sens de l'année scolaire du jeu non confirmé",
+}
+
+
+def reserves_validation_quotas(ctx: Contexte, annee: str, region: str = "") -> List[dict]:
+    """Ce qui rend les quotas d'une année incertains : la validation les fige en décision de recrutement, elle exige
+    donc que ces réserves soient reconnues. Les consultations, comparaisons et simulations n'en dépendent pas."""
+    p = {"region": region} if region else {}
+    ecoles = ecoles_de(ctx, p)
+    fiab = retraites_fiabilite(ctx, p, ecoles)["fiab"]
+    reserves = []
+
+    def ajouter(code, detail, **extra):
+        reserves.append({"code": code, "libelle": LIBELLES_RESERVES[code], "detail": detail, **extra})
+
+    if fiab["statut"] == prev.RETRAITES_NON_CALCULABLES:
+        ajouter("retraites_non_calculables", fiab["message"])
+    elif fiab["statut"] == prev.RETRAITES_PARTIELLES:
+        ajouter("retraites_partielles", fiab["message"])
+    if fiab["hypothese_age"] and fiab["statut"] != prev.RETRAITES_NON_CALCULABLES:
+        ajouter("age_mesure_non_precisee", "Âges supposés mesurés au début de N+1 : les retraites sont provisoires.")
+    provisoires = sum(1 for e in ecoles if e.statut_besoin == "provisoire")
+    if provisoires:
+        ajouter("besoin_provisoire", f"{provisoires} école(s) au besoin final provisoire : il sera recalculé lorsque "
+                                     "le nombre de classes multigrades sera renseigné.")
+    ligne = next((a for a in annees(ctx, p, ecoles, suivi=False) if a["annee"] == annee), None)
+    if ligne and (ligne.get("depassement_plafond") or 0) > 0:
+        ajouter("depassement_plafond", f"Plafond {ligne['plafond']}, retraites à remplacer "
+                f"{ligne.get('plancher_retraites')}, dépassement {ligne['depassement_plafond']}.",
+                reference_requise=True)
+    if getattr(ctx.jeu, "sens_annee_scolaire", "") == "non_confirme":
+        ajouter("annee_non_confirmee", "Le calendrier historique est conservé en attendant la confirmation du sens "
+                                       "de l'année saisie.")
+    return reserves
+
+
 @transaction.atomic
-def valider_quotas(jeu, annee: str, *, request, auteur: str) -> List[dict]:
+def valider_quotas(jeu, annee: str, *, request, auteur: str, ctx: Optional[Contexte] = None,
+                   reserves_reconnues: Optional[List[str]] = None, reference_administrative: str = "") -> List[dict]:
+    """Fige les quotas d'une année : une décision de recrutement. Chaque réserve qui pèse sur eux doit avoir été
+    reconnue explicitement, et un dépassement du plafond exige une référence de validation administrative ou
+    budgétaire ; les réserves reconnues sont journalisées avec la décision."""
     from contextes.acces.perimetre import region_imposee
 
     if annee not in par.ANNEES_PLAN:
         raise RefusMetier("Année du plan invalide", [f"Années possibles : {', '.join(par.ANNEES_PLAN)}"])
     imposee = region_imposee(request)
+    reserves = reserves_validation_quotas(ctx or contexte(jeu), annee, imposee or "")
+    reconnues = {str(r) for r in (reserves_reconnues or [])}
+    reference = str(reference_administrative or "").strip()
+    manquantes = [r for r in reserves if r["code"] not in reconnues]
+    sans_reference = [r for r in reserves if r.get("reference_requise") and r["code"] in reconnues and not reference]
+    if manquantes or sans_reference:
+        motifs = [f"{r['libelle']} : {r['detail']}" for r in manquantes]
+        motifs += [f"{r['libelle']} : référence de la validation administrative ou budgétaire à saisir"
+                   for r in sans_reference]
+        raise RefusMetier(
+            "Validation des quotas : réserves à reconnaître avant de figer la décision", motifs,
+            code="validation_reserves",
+            details={"reserves": [{**r, "reconnue": r["code"] in reconnues} for r in reserves],
+                     "reference_requise": any(r.get("reference_requise") for r in reserves)})
     maintenant = timezone.now()
     liste = [q for q in jeu.quotas.filter(annee=annee) if not imposee or norm(q.territoire) == norm(imposee)]
+    trace = ("Réserves reconnues : " + ", ".join(r["code"] for r in reserves)
+             + (f" ; référence : {reference}" if reference else "")) if reserves else None
     for q in liste:
         if q.statut == "valide":
             continue
@@ -588,9 +750,11 @@ def valider_quotas(jeu, annee: str, *, request, auteur: str) -> List[dict]:
         q.save(update_fields=["statut", "valide_le"])
         EvenementQuota.objects.create(jeu=jeu, annee=annee, code_territoire=q.code_territoire,
                                       sous_systeme=q.sous_systeme, evenement="validation", valeur=q.retenu,
-                                      auteur=auteur)
+                                      motif=trace, auteur=auteur)
     journaliser(jeu, "quota", "validation", f"Validation des quotas de {annee}", request=request, auteur=auteur,
-                objet=("quotas", annee), apres={"quotas": len(liste)})
+                objet=("quotas", annee),
+                apres={"quotas": len(liste), "reserves_reconnues": [r["code"] for r in reserves],
+                       **({"reference_administrative": reference} if reference else {})})
     return [_quota_dict(q) for q in liste]
 
 
@@ -617,11 +781,11 @@ def _cle_instantane(p: dict) -> Optional[str]:
 def _instantane(ctx: Contexte) -> Tuple[dict, dict]:
     national = tableau(ctx, {})
     tableaux = {"national": national, "regions": {}}
-    indic = {"national": indicateurs_suivi(national["annees"][0]) if national["annees"] else [], "regions": {}}
+    indic = {"national": indicateurs_suivi(national["annees"][0], ctx.jeu.nominatif_disponible) if national["annees"] else [], "regions": {}}
     for t, r, _ in groupes(ctx.ecoles, "region"):
         tb = tableau(ctx, r)
         tableaux["regions"][t["nom"]] = tb
-        indic["regions"][t["nom"]] = indicateurs_suivi(tb["annees"][0]) if tb["annees"] else []
+        indic["regions"][t["nom"]] = indicateurs_suivi(tb["annees"][0], ctx.jeu.nominatif_disponible) if tb["annees"] else []
     import json
     return json.loads(json.dumps(tableaux, default=str)), json.loads(json.dumps(indic, default=str))
 
@@ -716,5 +880,5 @@ def comparer(jeu, de: int, a: int, p: Optional[dict] = None) -> dict:
     for l1, l2 in zip(v1["tableau"]["annees"], v2["tableau"]["annees"]):
         for k in INDICATEURS:
             if l1.get(k) != l2.get(k):
-                ecarts.append({"annee": l1["annee"], "indicateur": k, "de": l1.get(k) or 0, "a": l2.get(k) or 0})
+                ecarts.append({"annee": l1["annee"], "indicateur": k, "de": l1.get(k), "a": l2.get(k)})
     return {"de": v1["version"], "a": v2["version"], "ecarts": ecarts}

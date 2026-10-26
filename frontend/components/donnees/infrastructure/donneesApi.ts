@@ -7,7 +7,7 @@
  *   GET    fichiers/colonnes/
  *   POST   fichiers/                              PATCH  fichiers/{fichier}/correspondances/
  *   GET    jeux/            POST jeux/            POST   jeux/demonstration/
- *   GET    jeux/{jeu}/      DELETE jeux/{jeu}/    GET    jeux/{jeu}/qualite/
+ *   GET    jeux/{jeu}/      PATCH jeux/{jeu}/     DELETE jeux/{jeu}/    GET jeux/{jeu}/qualite/
  *   GET    jeux/{jeu}/validation/                 POST   jeux/{jeu}/validation/
  *   GET    jeux/{jeu}/actualisations/             POST   jeux/{jeu}/actualisations/
  *   GET    jeux/{jeu}/actualisations/{actualisation}/ecarts/
@@ -26,6 +26,7 @@ import {
   type CorpsActualisation,
   type CorpsCorrespondances,
   type CorpsCreationJeu,
+  type CorpsModificationJeu,
   type CorpsEnvoiFichier,
   type CorpsValidationJeu,
   type DemandePage,
@@ -59,6 +60,7 @@ const ROUTES = {
   creerJeu: route<JeuCree, CorpsCreationJeu>()('POST', 'jeux/'),
   creerJeuDemonstration: route<JeuCree>()('POST', 'jeux/demonstration/'),
   lireJeu: route<JeuDeDonnees>()('GET', 'jeux/{jeu}/'),
+  modifierJeu: route<JeuDeDonnees, CorpsModificationJeu>()('PATCH', 'jeux/{jeu}/'),
   supprimerJeu: route<void>()('DELETE', 'jeux/{jeu}/'),
   lireQualite: route<QualiteJeu>()('GET', 'jeux/{jeu}/qualite/'),
   lireValidation: route<ValidationJeu>()('GET', 'jeux/{jeu}/validation/'),
@@ -121,7 +123,7 @@ export function listerJeux(signal?: AbortSignal): Promise<JeuDeDonnees[]> {
 }
 
 /**
- * Crée un jeu à partir des deux fichiers envoyés. Le serveur construit les
+ * Crée un jeu à partir du fichier des établissements et, s'il existe, de celui des enseignants. Le serveur construit les
  * entités, produit le rapport de qualité et calcule les scénarios de base.
  *
  * @throws ApiError 422 si une colonne requise n'est pas résolue.
@@ -137,6 +139,11 @@ export function creerJeuDemonstration(): Promise<JeuCree> {
 
 export function lireJeu(jeu: IdJeu, signal?: AbortSignal): Promise<JeuDeDonnees> {
   return appeler(ROUTES.lireJeu, { params: { jeu }, signal })
+}
+
+/** Confirme le sens de l'année du jeu ou déclare son origine fictive (journalisé par le serveur). */
+export function modifierJeu(jeu: IdJeu, corps: CorpsModificationJeu): Promise<JeuDeDonnees> {
+  return appeler(ROUTES.modifierJeu, { params: { jeu }, corps })
 }
 
 /** Supprime le jeu et tout ce qui en dépend (« Effacer les données »). */

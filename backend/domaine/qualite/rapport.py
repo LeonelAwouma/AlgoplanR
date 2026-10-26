@@ -62,14 +62,26 @@ def reconcilier_effectifs(lignes_etab: List[Dict[str, Any]], lignes_ens: List[Di
     }
 
 
-def controler(lignes_etab: List[Dict[str, Any]], lignes_ens: List[Dict[str, Any]], cfg: dict) -> dict:
-    """Retourne {valide, erreurs, avertissements, statistiques}. `erreurs` bloque la création du jeu."""
+MESSAGE_NOMINATIF_ABSENT = ("Aucun fichier nominatif des enseignants n'a été fourni : les retraites, les âges et "
+                            "anciennetés individuels, le rapprochement des agents et les affectations individuelles ne "
+                            "sont pas calculables. L'effectif déclaré (Enseignants_Actuels) reste un stock administratif, "
+                            "pas une liste d'enseignants.")
+
+
+def controler(lignes_etab: List[Dict[str, Any]], lignes_ens: List[Dict[str, Any]], cfg: dict, *,
+              nominatif: bool = True) -> dict:
+    """Retourne {valide, erreurs, avertissements, statistiques}. `erreurs` bloque la création du jeu.
+
+    `nominatif=False` : jeu d'établissements seuls. L'absence du fichier des enseignants est alors un fait signalé
+    (avertissement), non une erreur, et le nombre d'enseignants est inconnu (None), jamais 0."""
     erreurs: List[dict] = []
     avert: List[dict] = []
 
     if not lignes_etab:
         erreurs.append(_anomalie("ETAB_VIDE", "erreur", "Le fichier des établissements est vide"))
-    if not lignes_ens:
+    if not nominatif:
+        avert.append(_anomalie("NOMINATIF_ABSENT", "avertissement", MESSAGE_NOMINATIF_ABSENT))
+    elif not lignes_ens:
         erreurs.append(_anomalie("ENS_VIDE", "erreur", "Le fichier des enseignants est vide"))
 
     for col in C.COLONNES_ATTENDUES_ETAB:
@@ -226,9 +238,9 @@ def controler(lignes_etab: List[Dict[str, Any]], lignes_ens: List[Dict[str, Any]
             "L'effectif déclaré fait foi.", ecoles=r["ecoles_en_ecart"]))
 
     return {
-        "valide": not erreurs, "erreurs": erreurs, "avertissements": avert,
+        "valide": not erreurs, "erreurs": erreurs, "avertissements": avert, "nominatif_disponible": nominatif,
         "reconciliation_effectifs": reconciliation,
-        "statistiques": {"nb_etablissements": len(lignes_etab), "nb_enseignants": len(lignes_ens),
+        "statistiques": {"nb_etablissements": len(lignes_etab), "nb_enseignants": len(lignes_ens) if nominatif else None,
                          "nb_erreurs": len(erreurs), "nb_avertissements": len(avert),
                          "nb_ecoles_en_ecart_effectif": reconciliation["ecoles_en_ecart"] if reconciliation else None},
     }

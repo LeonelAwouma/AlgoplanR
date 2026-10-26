@@ -33,12 +33,19 @@ def test_cinq_groupes_et_annees_sans_annee_codee_en_dur(drh, jeu):
     assert [g["code"] for g in p["groupes"]] == ["A", "B", "C", "D", "E"]
     annee = get(drh, f"jeux/{jeu}/")["annee_scolaire"]
     debut = int(annee[:4])
-    # L'année du jeu est la rentrée qu'il prépare (N+1) ; la base est l'année qui précède, sans saut ni doublon.
-    assert p["annees"] == [f"Base ({debut - 1}-{debut})"] + [f"N+{k + 1} ({debut + k}-{debut + k + 1})" for k in range(5)]
-    assert p["annee_base"] == f"{debut - 1}-{debut}" and p["annee_scolaire_plan"] == annee
+    # La base est l'année du jeu ; N+1 est l'année scolaire suivante, sans saut ni doublon.
+    assert p["annees"] == [f"Base ({debut}-{debut + 1})"] + [f"N+{k + 1} ({debut + 1 + k}-{debut + 2 + k})"
+                                                             for k in range(5)]
+    assert p["annee_base"] == annee and p["annee_scolaire_plan"] == annee
     assert any(h["code"] == "annee_base" and h["a_valider"] for h in p["hypotheses"])
     for l in _lignes(p).values():
-        assert len(l["valeurs"]) == 6 and l["nature"] in ("observe", "estime", "hypothese", "provisoire")
+        assert len(l["valeurs"]) == 6 and len(l["natures"]) == 6
+        assert set(l["natures"]) <= {"observe", "projete", "estime", "hypothese", "provisoire", "non_disponible",
+                                    "sans_objet"}
+        # Une valeur future n'est jamais qualifiée d'observée ; seuls les actes enregistrés (quota retenu,
+        # nominations mises en œuvre) le sont, parce qu'ils ne sont pas calculés.
+        if l["cle"] not in ("quota_retenu", "nominations_realisees"):
+            assert "observe" not in l["natures"][1:], l["cle"]
 
 
 def test_coherence_avec_le_tableau_principal(drh, jeu):
@@ -142,8 +149,9 @@ def test_route_refusee_sans_session(client, jeu):
 
 def test_correspondance_des_annees_scolaires():
     from domaine.planification.previsionnel import annee_base, libelles_annees
-    assert libelles_annees("2026-2027", 5) == ["Base (2025-2026)", "N+1 (2026-2027)", "N+2 (2027-2028)",
-                                               "N+3 (2028-2029)", "N+4 (2029-2030)", "N+5 (2030-2031)"]
+    assert libelles_annees("2024-2025", 5) == ["Base (2024-2025)", "N+1 (2025-2026)", "N+2 (2026-2027)",
+                                               "N+3 (2027-2028)", "N+4 (2028-2029)", "N+5 (2029-2030)"]
+    assert annee_base("2024-2025") == "2024-2025"
     assert annee_base("") is None and libelles_annees("", 2) == ["Base", "N+1", "N+2"]
 
 
@@ -183,3 +191,56 @@ def test_avertissement_sur_les_personnels_de_la_cartographie(drh, jeu):
     assert "pas nécessairement tous des maîtres chargés de classe" in p["avertissement_personnels"]
     assert any(h["code"] == "personnels" and h["a_valider"] for h in p["hypotheses"])
     assert "pas nécessairement tous" in _lignes(p)["effectif_debut"]["detail"]
+
+
+def test_contexte_du_jeu_et_du_perimetre(drh, jeu):
+    p = get(drh, f"jeux/{jeu}/planification/previsionnel/")
+    c = p["contexte"]
+    j = get(drh, f"jeux/{jeu}/")
+    assert c["jeu_nom"] == j["nom"] and c["annee_scolaire"] == j["annee_scolaire"] == p["annee_base"]
+    assert c["ecoles_perimetre"] == p["ecoles"] and c["ecoles_jeu"] >= c["ecoles_perimetre"]
+    assert c["personnels_stock_declare"] == _lignes(p)["effectif_debut"]["valeurs"][0]
+    assert c["ecoles_donnees_incompletes"] >= c["ecoles_eleves_inconnus"]
+    assert c["calcule_le"] and c["edite_le"] and p["hypothese_transition"]
+
+
+def test_audit_des_retraites_coherent_avec_le_tableau(drh, jeu):
+    p = get(drh, f"jeux/{jeu}/planification/previsionnel/")
+    a = p["audit_retraites"]
+    l = _lignes(p)
+    retraites = l["retraites_identifiees"]["valeurs"][1:]
+    assert [x["departs"] for x in a["lignes"]] == retraites
+    # Identifiées = retirées du stock + non imputables (au-delà du stock déclaré de l'école).
+    assert retraites == [r + n for r, n in zip(l["departs_retraite"]["valeurs"][1:],
+                                               l["retraites_non_imputables"]["valeurs"][1:])]
+    for x in a["lignes"]:
+        assert x["deja_eligibles"] + x["atteignant_age_legal"] == x["departs"]
+    # Les agents ayant déjà l'âge légal partent tous en N+1 (CORR_60) ; aucun n'est recompté ensuite.
+    assert a["lignes"][0]["deja_eligibles"] == a["deja_eligibles_debut"]
+    assert all(x["deja_eligibles"] == 0 for x in a["lignes"][1:])
+    assert sum(retraites) <= a["personnels_nominatifs"] and a["doublons"] == 0
+
+
+def test_chronologie_identique_dans_les_deux_tableaux(drh, jeu):
+    p = get(drh, f"jeux/{jeu}/planification/previsionnel/")
+    t = get(drh, f"jeux/{jeu}/planification/")
+    debut = int(p["annee_base"][:4])
+    assert [a["annee"] for a in t["annees"]] == [f"N+{k + 1}" for k in range(5)]
+    assert p["annees"][1:] == [f"N+{k + 1} ({debut + 1 + k}-{debut + 2 + k})" for k in range(5)]
+
+
+def test_annee_de_mesure_des_ages_rajeunit_les_departs(drh, jeu):
+    """Des âges mesurés un an après la base sont ramenés au début de N+1 : les départs ne peuvent que reculer, et la
+    méthode le dit. Les données sources ne sont pas modifiées."""
+    from tests.test_planification import envoyer
+    avant = get(drh, f"jeux/{jeu}/planification/previsionnel/")["audit_retraites"]
+    h = get(drh, f"jeux/{jeu}/hypotheses/")
+    corps = {k: v for k, v in h.items() if k not in ("version", "modifiees_le", "modifiees_par", "drh")}
+    debut = int(get(drh, f"jeux/{jeu}/")["annee_scolaire"][:4])
+    corps["retraite"] = {**corps["retraite"], "annee_ages": f"{debut + 2}-{debut + 3}"}
+    nouv = envoyer(drh, "put", f"jeux/{jeu}/hypotheses/", {**corps, "motif": "Âges de 2026", "auteur": "Analyste"})
+    assert nouv["retraite"]["annee_ages"] == f"{debut + 2}-{debut + 3}"
+    apres = get(drh, f"jeux/{jeu}/planification/previsionnel/")["audit_retraites"]
+    assert apres["decalage_ages"] == 1 and "ramenés de 1 an" in apres["methode"]
+    assert apres["deja_eligibles_debut"] <= avant["deja_eligibles_debut"]
+    assert sum(x["departs"] for x in apres["lignes"]) <= sum(x["departs"] for x in avant["lignes"])

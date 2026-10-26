@@ -11,14 +11,48 @@ import type {
   PrevisionnelComplet,
   ResumeScenario,
   ScenarioRecrutement,
+  StatutRetraites,
 } from '../../shared/api'
 
 /** Nature d'une valeur, en mots. */
 export const LIBELLE_NATURE: Record<NatureValeur, string> = {
   observe: 'Observé',
+  projete: 'Projeté',
   estime: 'Estimé',
   hypothese: 'Hypothèse',
   provisoire: 'Provisoire',
+  conditionnel: 'Conditionnel',
+  decision: 'Décision enregistrée',
+  realise: 'Réalisé',
+  non_disponible: 'Non disponible',
+  sans_objet: 'Sans objet',
+}
+
+/** Nature d'une case (0 = base) : celle du serveur, à défaut celle de la ligne. */
+export function natureCase(l: LignePrevisionnel, colonne: number): NatureValeur {
+  return (
+    l.natures?.[colonne] ??
+    (l.valeurs[colonne] == null ? (l.raisons?.[colonne] ? 'non_disponible' : 'sans_objet') : l.nature)
+  )
+}
+
+/** Natures d'une ligne en mots, regroupées : « Observé (base) ; Projeté (N+2 à N+5) »… */
+export function libelleNatures(p: PrevisionnelComplet, l: LignePrevisionnel): string {
+  const groupes: { nature: NatureValeur; colonnes: string[] }[] = []
+  l.valeurs.forEach((_, i) => {
+    const n = natureCase(l, i)
+    const colonne = (p.annees[i] ?? '').replace(/ \(.*\)$/, '')
+    const dernier = groupes.at(-1)
+    if (dernier?.nature === n) dernier.colonnes.push(colonne)
+    else groupes.push({ nature: n, colonnes: [colonne] })
+  })
+  if (groupes.length === 1) return LIBELLE_NATURE[groupes[0].nature]
+  return groupes
+    .map(g => {
+      const c = g.colonnes.length > 1 ? `${g.colonnes[0]} à ${g.colonnes.at(-1)}` : g.colonnes[0]
+      return `${LIBELLE_NATURE[g.nature]} (${c})`
+    })
+    .join(' ; ')
 }
 
 /** Ordre de présentation des scénarios (rapport MINEDUB). */
@@ -84,8 +118,11 @@ export interface SyntheseDecideur {
   elevesBase: number | null
   elevesFin: number | null
   disponiblesFin: number | null
-  departs: number
-  retraites: number
+  /** `null` quand les retraites sont non calculables : un total partiel ne serait pas un nombre de départs. */
+  departs: number | null
+  retraites: number | null
+  /** Fiabilité des retraites, fixée par le serveur (`complet` si le serveur ne la fournit pas). */
+  statutRetraites: StatutRetraites
   recrutementsBesoin: number | null
   recrutementsPlafond: number | null
   remBase: number | null
@@ -97,14 +134,17 @@ export interface SyntheseDecideur {
 export function syntheseDecideur(p: PrevisionnelComplet): SyntheseDecideur {
   const n = p.annees.length - 1
   const somme = (cle: string) => (ligne(p, cle)?.valeurs.slice(1) ?? []).reduce<number>((a, v) => a + (v ?? 0), 0)
-  const retraites = somme('departs_retraite')
+  const statutRetraites = p.retraitesFiabilite?.statut ?? 'complet'
+  const inconnues = statutRetraites === 'non_calculable'
+  const retraites = inconnues ? null : somme('departs_retraite')
   return {
     derniere: p.annees[n] ?? '',
     elevesBase: valeur(p, 'eleves', 0),
     elevesFin: valeur(p, 'eleves', n),
     disponiblesFin: valeur(p, 'disponibles_fin', n),
-    departs: retraites + somme('departs_attrition'),
+    departs: retraites === null ? null : retraites + somme('departs_attrition'),
     retraites,
+    statutRetraites,
     recrutementsBesoin: scenario(p, 'besoin')?.recrutementsTotal ?? null,
     recrutementsPlafond: scenario(p, 'plafond')?.recrutementsTotal ?? null,
     remBase: valeur(p, 'rem_reel', 0),
@@ -116,8 +156,15 @@ export function syntheseDecideur(p: PrevisionnelComplet): SyntheseDecideur {
 
 /** Lignes à plat du tableau complet, dans l'ordre affiché : la base des exports Excel et Word. */
 export function lignesExport(p: PrevisionnelComplet): (string | number | null)[][] {
+  // Une case inconnue faute de retraites calculables est écrite « Non calculable » (jamais un zéro ni une case muette).
+  const raison = p.retraitesFiabilite?.statut === 'non_calculable' ? p.retraitesFiabilite.raison : null
   return p.groupes.flatMap(g =>
-    g.lignes.map(l => [`${g.code}. ${g.titre}`, l.libelle, ...l.valeurs, LIBELLE_NATURE[l.nature]]),
+    g.lignes.map(l => [
+      `${g.code}. ${g.titre}`,
+      l.libelle,
+      ...l.valeurs.map((v, i) => (v === null && raison && l.raisons?.[i] === raison ? NON_CALCULABLE : v)),
+      libelleNatures(p, l),
+    ]),
   )
 }
 
@@ -130,15 +177,20 @@ export function entetesExport(p: PrevisionnelComplet): string[] {
 export function lignesScenarios(p: PrevisionnelComplet): (string | number | null)[][] {
   return ORDRE_SCENARIOS.map(s => scenario(p, s))
     .filter((x): x is ResumeScenario => x !== undefined)
-    .map(x => [
-      x.libelle,
-      x.recrutementsTotal,
-      x.effectifFin[x.effectifFin.length - 1] ?? null,
-      x.disponiblesFin[x.disponiblesFin.length - 1] ?? null,
-      x.remFinal,
-      x.ecartFinal,
-      x.besoinRestantFinal,
-    ])
+    .map(x => {
+      const v = (valeur: number | null) =>
+        valeur === null && x.fiabilite === 'non_calculable' ? NON_CALCULABLE : valeur
+      return [
+        x.libelle,
+        v(x.recrutementsTotal),
+        v(x.effectifFin[x.effectifFin.length - 1] ?? null),
+        v(x.disponiblesFin[x.disponiblesFin.length - 1] ?? null),
+        v(x.remFinal),
+        v(x.ecartFinal),
+        v(x.besoinRestantFinal),
+        x.fiabiliteRaison ?? x.fiabiliteLibelle,
+      ]
+    })
 }
 
 export const ENTETES_SCENARIOS = [
@@ -149,6 +201,7 @@ export const ENTETES_SCENARIOS = [
   'REM obtenu',
   'Écart au REM de référence',
   'Besoin restant (C − U)',
+  'Fiabilité (retraites)',
 ]
 
 /** Une raison d'indisponibilité et les cellules qu'elle explique (« REM réel : N+2, N+3 »). */
@@ -193,4 +246,212 @@ export function lignesFiabilite(p: PrevisionnelComplet): [string, number][] {
     ['Écoles au besoin final estimé (regroupement multigrade supposé)', f.besoinEstime],
     ['Écoles au besoin final confirmé', f.besoinConfirme],
   ]
+}
+
+/** Date et heure en français (« 25/10/2026 22:40 »), vide si absente. */
+const dateFr = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : ''
+
+/**
+ * Provenance du tableau, en lignes « Rubrique / Valeur » : jeu, année, périmètre réel, écoles, personnels, données
+ * incomplètes et date de calcul. Un titre « Cameroun » ne fait jamais croire à une couverture qu'il n'a pas.
+ */
+export function lignesContexte(p: PrevisionnelComplet): [string, string | number][] {
+  const c = p.contexte
+  if (!c) return []
+  const couverture =
+    c.ecolesPerimetre === c.ecolesJeu
+      ? `toutes les écoles du jeu (${c.ecolesJeu.toLocaleString('fr-FR')})`
+      : `${c.ecolesPerimetre.toLocaleString('fr-FR')} écoles sur les ${c.ecolesJeu.toLocaleString('fr-FR')} du jeu`
+  return [
+    ['Jeu de données', c.jeuNom],
+    ['Origine du jeu', LIBELLE_SOURCE[c.jeuSource] ?? c.jeuSource],
+    ...(c.donneesFictives ? ([['Données fictives', p.texteDonneesFictives ?? 'Oui']] as [string, string][]) : []),
+    ['Année scolaire saisie à la création', c.anneeSaisie ?? c.anneeScolaire],
+    ['Sens de l’année saisie', LIBELLE_SENS[c.sensAnneeScolaire ?? 'donnees']],
+    ['Origine du sens', LIBELLE_ORIGINE_SENS[c.sensAnneeOrigine ?? 'creation']],
+    ['Année scolaire des données (base)', c.anneeDonnees ?? c.anneeScolaire],
+    ['Périmètre', `${c.perimetre} : ${couverture}`],
+    ['Écoles du périmètre', c.ecolesPerimetre],
+    ['Personnels rattachés administrativement (Enseignants_Actuels)', c.personnelsStockDeclare],
+    [
+      'Personnels du fichier nominatif (matricules distincts)',
+      c.personnelsNominatifs ?? 'Aucun fichier nominatif importé',
+    ],
+    ['Écoles aux données incomplètes', c.ecolesDonneesIncompletes],
+    ['dont effectif d’élèves inconnu', c.ecolesElevesInconnus],
+    ['dont minimum pédagogique provisoire', c.ecolesMinimumProvisoire],
+    ['dont salles simple / double flux non renseignées', c.ecolesSallesFluxInconnu],
+    ['Projection calculée le', dateFr(c.calculeLe)],
+    ['Tableau édité le', dateFr(c.editeLe)],
+  ]
+}
+
+const LIBELLE_SENS: Record<string, string> = {
+  donnees: 'année des données observées (base = année saisie)',
+  rentree_preparee: 'rentrée préparée (base = année précédente)',
+  non_confirme: 'non confirmé : calendrier historique conservé (base = année précédente), à confirmer',
+}
+
+const LIBELLE_ORIGINE_SENS: Record<string, string> = {
+  creation: 'déclaré à la création du jeu',
+  migration: 'établi par la migration d’après l’historique du jeu',
+  confirmation: 'confirmé ou corrigé par un utilisateur autorisé (journalisé)',
+}
+
+const LIBELLE_SOURCE: Record<string, string> = {
+  import: 'Fichiers importés',
+  demonstration: 'Données de démonstration (fictives)',
+  consolidation: 'Consolidation de jeux régionaux',
+}
+
+/** Une phrase de provenance pour les en-têtes (écran, Word). */
+export function phraseContexte(p: PrevisionnelComplet): string {
+  const c = p.contexte
+  if (!c) return ''
+  const source = c.jeuSource === 'demonstration' ? ' (données de démonstration fictives)' : ''
+  return (
+    `Jeu « ${c.jeuNom} »${source}, année scolaire saisie ${c.anneeSaisie ?? c.anneeScolaire}` +
+    (c.anneeDonnees && c.anneeDonnees !== (c.anneeSaisie ?? c.anneeScolaire)
+      ? `, base de calcul ${c.anneeDonnees}${c.sensAnneeScolaire === 'non_confirme' ? ' (sens à confirmer)' : ''}. `
+      : '. ') +
+    `Périmètre réel : ${c.ecolesPerimetre.toLocaleString('fr-FR')} écoles` +
+    (c.ecolesPerimetre === c.ecolesJeu ? '' : ` sur ${c.ecolesJeu.toLocaleString('fr-FR')}`) +
+    `, ${c.personnelsStockDeclare.toLocaleString('fr-FR')} personnels rattachés administrativement` +
+    (c.personnelsNominatifs === null
+      ? ' (aucun fichier nominatif des enseignants importé), '
+      : ` (${c.personnelsNominatifs.toLocaleString('fr-FR')} dans le fichier nominatif), `) +
+    `${c.ecolesDonneesIncompletes.toLocaleString('fr-FR')} école(s) aux données incomplètes.` +
+    (c.calculeLe ? ` Calculé le ${dateFr(c.calculeLe)}.` : '')
+  )
+}
+
+/** Texte d'une valeur de retraite inconnue : jamais un zéro. */
+export const NON_CALCULABLE = 'Non calculable'
+
+export const ENTETES_AUDIT_RETRAITES = [
+  'Année',
+  'Retraites identifiées (liste nominative)',
+  'Déjà à l’âge légal au début de N+1',
+  'Atteignant l’âge légal dans l’année',
+  'Part du stock déclaré (%)',
+  'Part du fichier nominatif (%)',
+]
+
+/** Lignes de l'audit des retraites, avec le libellé d'année du tableau (« N+1 (2025-2026) »). */
+export function lignesAuditRetraites(p: PrevisionnelComplet): (string | number | null)[][] {
+  const a = p.auditRetraites
+  if (!a) return []
+  // Retraites non calculables : jamais des zéros dans l'audit.
+  if (p.retraitesFiabilite?.statut === 'non_calculable') {
+    return a.lignes.map((x, i) => [p.annees[i + 1] ?? x.annee, ...Array<string>(5).fill(NON_CALCULABLE)])
+  }
+  return a.lignes.map((x, i) => [
+    p.annees[i + 1] ?? x.annee,
+    x.departs,
+    x.dejaEligibles,
+    x.atteignantAgeLegal,
+    x.tauxStockDeclare,
+    x.tauxPersonnelsNominatifs,
+  ])
+}
+
+/** Comptes de contrôle de l'audit des retraites (âges inexploitables, doublons, méthode). */
+export function controlesAuditRetraites(p: PrevisionnelComplet): [string, string | number][] {
+  const a = p.auditRetraites
+  if (!a) return []
+  return [
+    [
+      'Personnels du fichier nominatif (matricules distincts)',
+      a.personnelsNominatifs ?? 'Aucun fichier nominatif importé',
+    ],
+    ['Stock déclaré (Enseignants_Actuels)', a.stockDeclare],
+    [
+      'Agents sans âge exploitable (non comptés)',
+      p.retraitesFiabilite?.statut === 'non_calculable' ? NON_CALCULABLE : a.sansAge,
+    ],
+    ['Matricules en double écartés', p.retraitesFiabilite?.statut === 'non_calculable' ? NON_CALCULABLE : a.doublons],
+    [
+      'Agents ayant déjà l’âge légal au début de N+1',
+      p.retraitesFiabilite?.statut === 'non_calculable' ? NON_CALCULABLE : a.dejaEligiblesDebut,
+    ],
+    ['Année de mesure des âges', a.anneeAges ?? 'non précisée (même date que les effectifs)'],
+    ['Méthode', a.methode],
+  ]
+}
+
+export const ENTETES_RAPPROCHEMENT = [
+  'École',
+  'Région',
+  'Stock déclaré',
+  'Stock après le plan',
+  'Agents nominatifs',
+  'Écart (déclaré − nominatif)',
+  'Retraites N+1',
+  'Retraites sur l’horizon',
+  'Retirées du stock',
+  'Non imputables',
+  'Agents sans âge',
+  'Matricules en double',
+  'Anomalies',
+]
+
+export const LIBELLE_ANOMALIE: Record<string, string> = {
+  declare_superieur_nominatif: 'stock déclaré supérieur à la liste nominative',
+  nominatif_superieur_declare: 'liste nominative supérieure au stock déclaré',
+  retraites_superieures_au_stock: 'retraites supérieures au stock déclaré',
+  matricules_en_double: 'matricules en double',
+  agents_sans_age: 'agents sans âge',
+}
+
+/** Synthèse du rapprochement des effectifs : écoles concordantes, écarts positifs et négatifs, retraites. */
+export function syntheseRapprochement(p: PrevisionnelComplet): [string, number | string][] {
+  const r = p.rapprochement
+  if (!r) return []
+  const s = r.synthese
+  const inconnues = p.retraitesFiabilite?.statut === 'non_calculable'
+  // Sans fichier nominatif (valeurs `null` du serveur) : « Non calculable », jamais un zéro ni un écart artificiel.
+  const v = (x: number | null): number | string => (x === null ? NON_CALCULABLE : x)
+  const retraite = (x: number | null): number | string => (inconnues ? NON_CALCULABLE : v(x))
+  return [
+    ['Écoles rapprochées', s.ecoles],
+    ['Stock déclaré (Enseignants_Actuels)', s.stockDeclare],
+    ['Agents nominatifs rattachés (matricules distincts)', s.agentsNominatifs],
+    ['Écoles concordantes', v(s.ecolesConcordantes)],
+    ['Écoles où le stock déclaré dépasse la liste nominative', v(s.ecolesEcartPositif)],
+    ['Écart positif total', v(s.ecartPositif)],
+    ['Écoles où la liste nominative dépasse le stock déclaré', v(s.ecolesEcartNegatif)],
+    ['Écart négatif total', v(s.ecartNegatif)],
+    ['Agents rattachés à aucune école projetée', s.agentsHorsEcoles ?? 'non calculé (périmètre filtré)'],
+    ['Matricules en double', v(s.doublons)],
+    ['Agents sans âge exploitable', v(s.agentsSansAge)],
+    ['Retraites identifiées en N+1', retraite(s.retraitesN1)],
+    ['Retraites identifiées sur l’horizon', retraite(s.retraitesHorizon)],
+    ['dont retirées du stock déclaré', retraite(s.retraitesRetireesDuStock)],
+    ['dont non imputables (au-delà du stock de l’école)', retraite(s.retraitesNonImputables)],
+    ['Écoles aux retraites supérieures au stock', retraite(s.ecolesRetraitesSuperieuresAuStock)],
+  ]
+}
+
+/** Lignes du rapprochement école par école (anomalies d'abord), pour l'écran et les exports. */
+export function lignesRapprochement(p: PrevisionnelComplet): (string | number)[][] {
+  return (p.rapprochement?.ecoles ?? []).map(e => [
+    e.nomEcole,
+    e.region,
+    e.stockDeclare,
+    e.stockApresPlan,
+    e.agentsNominatifs,
+    e.ecart,
+    ...(p.retraitesFiabilite?.statut === 'non_calculable'
+      ? Array<string>(4).fill(NON_CALCULABLE)
+      : [e.retraitesN1, e.retraitesHorizon, e.retraitesRetireesDuStock, e.retraitesNonImputables]),
+    e.agentsSansAge,
+    e.doublons,
+    e.anomalies.map(a => LIBELLE_ANOMALIE[a] ?? a).join(' ; '),
+  ])
+}
+
+/** Avertissements de cohérence, le bandeau des données fictives d'abord (il figure déjà en tête). */
+export function avertissementsCoherence(p: PrevisionnelComplet) {
+  return (p.avertissements ?? []).filter(a => a.code !== 'donnees_fictives')
 }

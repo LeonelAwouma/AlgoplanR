@@ -173,10 +173,11 @@ export const conversionsDiagnostic: Record<string, Conversion> = {
   },
 
   'GET jeux/{jeu}/synthese/': async (r, acces, p): Promise<SyntheseDiagnostic> => {
-    const [{ selection, noeud }, diagnostics, complet] = await Promise.all([
+    const [{ selection, noeud }, diagnostics, complet, jeu] = await Promise.all([
       noeudDe(acces, p.jeu, r.query),
       source.diagnosticsFiltres(acces, p.jeu, r.query),
       resultatDemande(acces, p.jeu, valeur(r.query.scenario)),
+      acces.lire<{ nominatif_disponible?: boolean }>(`jeux/${p.jeu}/`),
     ])
     // Synthèse par sous-système (besoin, excédent, recrutement à prévoir) : même périmètre territorial que le
     // nœud ci-dessus, lue du serveur (`synthese_par_sous_systeme`), jamais recalculée ici.
@@ -192,7 +193,13 @@ export const conversionsDiagnostic: Record<string, Conversion> = {
       perimetre,
       totals: noeud.totals,
       syntheseTableauDeBord: syntheseTableauDeBord(noeud.totals, resultat, perimetre),
-      diagnosticTerritorial: diagnosticTerritorial(noeud.totals, noeud.totals.enseignantsEtat, resultat, perimetre),
+      diagnosticTerritorial: diagnosticTerritorial(
+        noeud.totals,
+        noeud.totals.enseignantsEtat,
+        resultat,
+        perimetre,
+        jeu.nominatif_disponible !== false,
+      ),
       pointsAttention: pointsAttention(diagnostics, noeud, null),
       territoiresMixtes: territoiresMixtes(noeud.children),
       syntheseTerritoriale: versSyntheseTerritoriale(brut.synthese_territoriale),

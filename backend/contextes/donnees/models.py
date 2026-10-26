@@ -15,8 +15,22 @@ class JeuDeDonnees(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nom = models.CharField(max_length=200)
     source = models.CharField(max_length=20, default="import")  # import | demonstration | consolidation
-    # Rentrée que prépare le jeu (« 2026-2027 »), saisie à la création : elle date les projections et les rapports.
+    # Année scolaire des données importées (« 2024-2025 »), saisie à la création : c'est la base des projections
+    # (N+1 est l'année suivante) et elle date les rapports.
     annee_scolaire = models.CharField(max_length=9, default=annee_scolaire_courante)
+    # Sens de `annee_scolaire` : « donnees » (année des données, base des projections), « rentree_preparee » (la
+    # rentrée que prépare le jeu : les données sont de l'année précédente, convention historique) ou « non_confirme »
+    # (sens impossible à établir : calendrier historique conservé, confirmation demandée). L'année elle-même n'est
+    # jamais réécrite.
+    sens_annee_scolaire = models.CharField(max_length=20, default="donnees", db_default="donnees")
+    # D'où vient ce sens : « creation » (choisi à la création), « migration » (établi d'après l'historique) ou
+    # « confirmation » (confirmé ou corrigé par un utilisateur autorisé).
+    sens_annee_origine = models.CharField(max_length=20, default="creation", db_default="creation")
+    # Fichier nominatif des enseignants : fourni (mode complet) ou absent (établissements seuls). L'absence est
+    # enregistrée explicitement ; elle n'est jamais déduite d'un nombre d'enseignants égal à 0.
+    nominatif_disponible = models.BooleanField(default=True, db_default=True)
+    # Données fictives déclarées (jeu de test importé) ; un jeu de démonstration (source) l'est toujours.
+    donnees_fictives = models.BooleanField(default=False, db_default=False)
     cree_le = models.DateTimeField(auto_now_add=True)
     portee = models.CharField(max_length=20, blank=True, default="", db_index=True)  # regional | national | national_herite
     region = models.CharField(max_length=30, null=True, blank=True, db_index=True)
@@ -44,6 +58,9 @@ class Actualisation(models.Model):
     realisee_par = models.CharField(max_length=150, blank=True, default="")
     fichier_etablissements = models.CharField(max_length=255, blank=True, default="")
     fichier_enseignants = models.CharField(max_length=255, blank=True, default="")
+    # Sort des données nominatives : « remplace » (nouveau fichier), « conserve » (aucun nouveau fichier : les
+    # enseignants enregistrés sont gardés), « supprime » (suppression explicite) ou « aucun » (jeu sans nominatif).
+    mode_nominatif = models.CharField(max_length=20, blank=True, default="", db_default="")
     ecarts = models.JSONField(default=dict)   # arrivees, departs, changements_ecole, decisions_invalidees
 
     class Meta:

@@ -45,6 +45,11 @@ export interface Hypotheses {
     ageLegal: number
     /** Date à laquelle l'âge est apprécié chaque année. */
     dateReference: 'rentree' | 'fin_annee_civile'
+    /**
+     * Année scolaire à laquelle les âges du fichier ont été mesurés (« 2026-2027 »). Vide : à la même date que les
+     * effectifs, retenus comme situation de début de N+1. Sinon les âges sont ramenés au début de N+1.
+     */
+    anneeAges?: string | null
     exceptions: ExceptionRetraite[]
   }
   attrition: Justification & {
@@ -132,7 +137,8 @@ export interface IndicateursAnnee extends Partial<DetailProjectionAnnee> {
   annee: AnneePlan
   /** Effectif enseignant disponible en début de période. */
   effectifDebut: number
-  departsRetraite: number
+  /** `null` : retraites non calculables (aucun fichier nominatif), jamais 0. */
+  departsRetraite: number | null
   departsAttrition: number
   /** Besoin prévisionnel : somme de max(0 ; K − effectif). */
   besoin: number
@@ -169,6 +175,8 @@ export interface TableauPlanification {
   calculeLe: string
   annees: IndicateursAnnee[]
   fiabilite: FiabiliteIndicateur[]
+  /** Fiabilité des retraites du périmètre (absente des versions enregistrées avant son introduction). */
+  retraitesFiabilite?: FiabiliteRetraites
 }
 
 /** Ventilation par territoire enfant (descente région → département → commune). */
@@ -191,7 +199,14 @@ export interface LignePlanificationEcole {
   commune: string
   sousSysteme: SousSysteme | null
   cible: number
-  annees: { annee: AnneePlan; effectif: number; departsRetraite: number; besoin: number; excedent: number }[]
+  annees: {
+    annee: AnneePlan
+    effectif: number
+    /** `null` : retraites non calculables (aucun fichier nominatif). */
+    departsRetraite: number | null
+    besoin: number
+    excedent: number
+  }[]
 }
 
 /** Départ à la retraite prévu, nominatif. */
@@ -203,6 +218,8 @@ export interface DepartRetraitePrevu {
   nomEtab: string
   dateNaissance: string | null
   ageAuDepart: number
+  /** Âge légal déjà atteint au début de N+1 : départ imputé à N+1 (CORR_60). */
+  dejaEligible?: boolean
 }
 
 /** Plan des départs : retraites nominatives et attrition estimée par territoire. */
@@ -222,9 +239,11 @@ export interface LigneTableauRapport {
   valeurs: (number | null)[]
   /** Vrai pour les lignes de taux d'encadrement (une décimale), faux pour les effectifs (entiers). */
   decimal: boolean
+  /** Ligne définie par les retraites (`non_calculable` : valeurs inconnues) ou qui les suppose nulles (`conditionnel`). */
+  fiabilite?: 'non_calculable' | 'conditionnel'
 }
 
-export interface RecrutementsRegion extends Record<ScenarioRecrutement, number> {
+export interface RecrutementsRegion extends Record<ScenarioRecrutement, number | null> {
   region: string
   remBase: number | null
   /** Degré d'aléa (1 − R²) de la région, `null` quand il n'est pas calculable. */
@@ -234,8 +253,9 @@ export interface RecrutementsRegion extends Record<ScenarioRecrutement, number> 
 
 export interface RetraitesRegion {
   region: string
-  annees: number[]
-  total: number
+  /** `null` : retraites non calculables (fichier nominatif absent), jamais un zéro. */
+  annees: (number | null)[]
+  total: number | null
 }
 
 export interface LigneRedeploiement {
@@ -249,7 +269,8 @@ export interface LigneRedeploiement {
   deficits: number
   redeployableArrondissement: number
   cohorte: number
-  retraites: number
+  /** `null` : retraites non calculables. */
+  retraites: number | null
 }
 
 export interface FichePrioriteRegion {
@@ -257,19 +278,23 @@ export interface FichePrioriteRegion {
   priorite: 1 | 2 | 3
   remBase: number | null
   /** Retraites de l'horizon en % du stock. */
-  partRetraites: number
+  partRetraites: number | null
   situation: string
   orientation: string
-  recrutements: Record<ScenarioRecrutement, number>
-  retraites: number[]
+  recrutements: Record<ScenarioRecrutement, number | null>
+  retraites: (number | null)[]
   problemes: { titre: string; detail: string }[]
   prioriteRapportDrh: number | null
+  /** La part des retraites est inconnue ou incomplète : la priorité est provisoire. */
+  prioriteProvisoire?: boolean
 }
 
 /** Tableaux du rapport DRH calculés sur les données du jeu (primaire seulement). */
 export interface RapportPrevisionnel {
   perimetre: string
   scenarioId: string
+  /** Fiabilité des retraites du périmètre : les recrutements des scénarios S-min et S-maintien en dépendent. */
+  retraitesFiabilite?: FiabiliteRetraites
   horizon: number
   annees: AnneePlan[]
   national: {
@@ -281,7 +306,11 @@ export interface RapportPrevisionnel {
     remIndisponible?: string | null
   }
   retraitesRegions: { lignes: RetraitesRegion[]; national: RetraitesRegion }
-  scenariosRegions: { lignes: RecrutementsRegion[]; national: RecrutementsRegion }
+  scenariosRegions: {
+    lignes: RecrutementsRegion[]
+    national: RecrutementsRegion
+    fiabilite?: Record<ScenarioRecrutement, FiabiliteScenario>
+  }
   redeploiement: { lignes: LigneRedeploiement[]; national: LigneRedeploiement; seuilCohorte: number }
   priorites: FichePrioriteRegion[]
   limites: string[]
@@ -297,7 +326,47 @@ export interface RapportPrevisionnel {
 // --- Tableau prévisionnel complet (Planification – Projection sur 5 ans) ---------------------------------
 
 /** Nature d'une valeur : observée dans les données, estimée par une formule, hypothèse, ou provisoire. */
-export type NatureValeur = 'observe' | 'estime' | 'hypothese' | 'provisoire'
+/**
+ * Qualification statistique d'une valeur : observée (source de l'année de base ou acte enregistré), projetée (calculée
+ * pour une année future), estimée, hypothèse (paramètre retenu), provisoire, non disponible (donnée manquante, avec sa raison) ou sans objet (base d'un flux).
+ */
+export type NatureValeur =
+  | 'observe'
+  | 'projete'
+  | 'estime'
+  | 'hypothese'
+  | 'provisoire'
+  | 'conditionnel'
+  | 'decision'
+  | 'realise'
+  | 'non_disponible'
+  | 'sans_objet'
+
+/**
+ * Fiabilité des retraites d'un périmètre, fixée par le serveur : `complet` (liste nominative exploitable, un zéro est
+ * alors un zéro établi), `partiel` (identifiées sur une partie de la population : résultats provisoires) ou
+ * `non_calculable` (fichier nominatif absent : jamais un zéro, jamais le taux de 1,08 %).
+ */
+export type StatutRetraites = 'complet' | 'partiel' | 'non_calculable'
+
+export interface FiabiliteRetraites {
+  statut: StatutRetraites
+  libelle: string
+  /** Population couverte : stock déclaré, agents nominatifs, agents avec un âge exploitable et leur part du stock. */
+  population: { stockDeclare: number; agentsNominatifs: number; agentsAvecAge: number; couverture: number | null }
+  hypotheseAge: boolean
+  retraitesIdentifiees: number
+  /** `true` quand « 0 retraite » est établi sur une population exploitable. */
+  zeroEtabli: boolean
+  raisons: string[]
+  raison: string | null
+  message: string | null
+  /** Texte de la simulation conditionnelle, présent quand les retraites sont non calculables. */
+  messageConditionnel?: string
+}
+
+/** Fiabilité d'un scénario : ce que ses résultats valent compte tenu des retraites. */
+export type FiabiliteScenario = 'complet' | 'provisoire' | 'conditionnel' | 'non_calculable'
 
 /** Ligne du tableau complet : base puis une valeur par année (`null` : sans objet ou non disponible). */
 export interface LignePrevisionnel {
@@ -305,24 +374,29 @@ export interface LignePrevisionnel {
   libelle: string
   valeurs: (number | null)[]
   nature: NatureValeur
+  /** Nature de chaque case (même longueur que `valeurs`) : une valeur future n'est jamais « observée ». */
+  natures?: NatureValeur[]
   decimal: boolean
   unite: 'nombre' | 'pourcentage'
   /** Définition ou mode de calcul, affiché en vue Analyste. */
   detail: string
   /** Pourquoi une valeur est absente (même longueur que `valeurs`, `null` quand la valeur existe). */
   raisons?: (string | null)[]
+  /** La ligne dépend des retraites : elle est inconnue, conditionnelle ou provisoire selon leur fiabilité. */
+  dependRetraites?: boolean
 }
 
 /** Résultat d'un scénario de recrutement sur l'horizon. */
 export interface ResumeScenario {
   scenario: ScenarioRecrutement
   libelle: string
-  recrutements: number[]
-  recrutementsTotal: number
+  /** `null` : inconnus (retraites non calculables), jamais des zéros. */
+  recrutements: (number | null)[]
+  recrutementsTotal: number | null
   /** Stock administratif en fin d'année. */
-  effectifFin: number[]
+  effectifFin: (number | null)[]
   /** Enseignants disponibles pour tenir une classe en fin d'année. */
-  disponiblesFin: number[]
+  disponiblesFin: (number | null)[]
   /** REM obtenu chaque année, `null` quand il n'est pas calculable. */
   rem: (number | null)[]
   ecartReference: (number | null)[]
@@ -331,6 +405,10 @@ export interface ResumeScenario {
   /** Enseignants qui manquent encore en fin d'horizon pour atteindre le REM de référence, `null` si non calculable. */
   besoinRestantFinal: number | null
   besoinRestantRaison: string | null
+  /** Fiabilité du scénario, fixée par le serveur (l'interface et les exports ne la reconstituent pas). */
+  fiabilite: FiabiliteScenario
+  fiabiliteLibelle: string
+  fiabiliteRaison: string | null
 }
 
 /** Indicateur du rapport MINEDUB sans donnée dans AlgoPlanR : jamais inventé, jamais ajouté aux totaux. */
@@ -348,6 +426,129 @@ export interface HypotheseMethodologique {
   aValider: boolean
 }
 
+/** Provenance d'un tableau : jeu, année, périmètre réel, complétude et date de calcul. */
+export interface ContextePrevisionnel {
+  jeuNom: string
+  jeuSource: string
+  jeuPortee: string
+  jeuRegion: string | null
+  anneeScolaire: string
+  /** Année saisie à la création, son sens et l'année des données qui en découle (base des projections). */
+  anneeSaisie?: string
+  sensAnneeScolaire?: 'donnees' | 'rentree_preparee' | 'non_confirme'
+  /** Comment le sens a été établi : à la création, par la migration des anciens jeux, ou par confirmation. */
+  sensAnneeOrigine?: 'creation' | 'migration' | 'confirmation'
+  anneeDonnees?: string
+  /** Origine fictive vérifiable (jeu de démonstration ou marqueur déclaré). */
+  donneesFictives?: boolean
+  fichiersSource: Record<string, string>
+  perimetre: string
+  niveau: NiveauTerritorial
+  perimetreFiltre: boolean
+  ecolesPerimetre: number
+  ecolesJeu: number
+  /** Σ Enseignants_Actuels : personnels rattachés administrativement (pas tous chargés de classe). */
+  personnelsStockDeclare: number
+  /** Matricules distincts du fichier des enseignants rattachés aux écoles du périmètre ; `null` sans fichier nominatif. */
+  personnelsNominatifs: number | null
+  ecolesDonneesIncompletes: number
+  ecolesElevesInconnus: number
+  ecolesMinimumProvisoire: number
+  ecolesSallesFluxInconnu: number
+  versionPlanification: number | null
+  calculeLe: string | null
+  editeLe: string
+}
+
+/** Audit des départs à la retraite : comptes par année et méthode nominative. */
+export interface AuditRetraites {
+  lignes: {
+    annee: string
+    departs: number
+    dejaEligibles: number
+    atteignantAgeLegal: number
+    tauxStockDeclare: number | null
+    tauxPersonnelsNominatifs: number | null
+  }[]
+  dejaEligiblesDebut: number
+  sansAge: number
+  doublons: number
+  personnelsNominatifs: number | null
+  stockDeclare: number
+  methode: string
+  decalageAges: number
+  anneeAges: string | null
+}
+
+/** Avertissement de cohérence affiché en tête de la projection et des exports (jamais un recalage silencieux). */
+export interface AvertissementCoherence {
+  code:
+    | 'donnees_fictives'
+    | 'sens_annee_non_confirme'
+    | 'sens_annee_historique'
+    | 'retraites_non_calculables'
+    | 'simulation_conditionnelle'
+    | 'retraites_partielles'
+    | 'zero_retraite_etabli'
+    | 'effectifs_discordants'
+    | 'retraites_non_imputables'
+    | 'agents_hors_ecoles'
+    | 'depassement_plafond'
+    | 'annee_ages_absente'
+    | 'agents_sans_age'
+  gravite: 'important' | 'information'
+  message: string
+  annee?: string
+}
+
+/** Rapprochement d'une école : stock déclaré (Enseignants_Actuels) et agents nominatifs rattachés. */
+export interface RapprochementEcole {
+  idEcole: string
+  nomEcole: string
+  region: string
+  stockDeclare: number
+  stockApresPlan: number
+  agentsNominatifs: number
+  /** Stock déclaré − agents nominatifs ; aucun des deux n'est corrigé. */
+  ecart: number
+  retraitesN1: number
+  retraitesHorizon: number
+  retraitesRetireesDuStock: number
+  /** Retraites identifiées au-delà du stock déclaré restant de l'école : ni retirées du stock, ni remplacées. */
+  retraitesNonImputables: number
+  agentsSansAge: number
+  doublons: number
+  anomalies: string[]
+}
+
+/** Rapprochement des effectifs du périmètre : synthèse et écoles (anomalies d'abord). */
+export interface RapprochementEffectifs {
+  synthese: {
+    ecoles: number
+    stockDeclare: number
+    stockApresPlan: number
+    agentsNominatifs: number
+    ecolesConcordantes: number | null
+    ecolesEcartPositif: number | null
+    ecartPositif: number | null
+    ecolesEcartNegatif: number | null
+    ecartNegatif: number | null
+    /** Agents rattachés à aucune école projetée ; `null` quand le périmètre est filtré. */
+    agentsHorsEcoles: number | null
+    doublons: number | null
+    agentsSansAge: number | null
+    retraitesN1: number | null
+    retraitesHorizon: number | null
+    retraitesRetireesDuStock: number | null
+    retraitesNonImputables: number | null
+    ecolesRetraitesSuperieuresAuStock: number | null
+    concordanceComplete: boolean | null
+  }
+  ecoles: RapprochementEcole[]
+  ecolesTronquees: boolean
+  methode: string
+}
+
 /** Tableau prévisionnel complet du périmètre (`GET jeux/{jeu}/planification/previsionnel/`). */
 export interface PrevisionnelComplet {
   perimetre: string
@@ -355,11 +556,25 @@ export interface PrevisionnelComplet {
   sousSysteme: SousSysteme | null
   scenarioId: string
   baseCalcul: BaseCalculPlanification
-  /** « Base (2025-2026) » puis « N+1 (2026-2027) »… : l'année du jeu est la rentrée N+1, la base l'année qui précède. */
+  /** « Base (2024-2025) » puis « N+1 (2025-2026) »… : la base est l'année du jeu, N+1 l'année scolaire suivante. */
   annees: string[]
   anneeScolairePlan: string | null
-  /** Année des effectifs de base (celle qui précède la rentrée du jeu), `null` si l'année du jeu est inconnue. */
+  /** Année de base : l'année scolaire des données du jeu, `null` si elle est inconnue. */
   anneeBase?: string | null
+  /** Passage de la base à N+1 : le stock observé est retenu comme situation de début de N+1. */
+  hypotheseTransition?: string
+  /** Provenance et périmètre réel du tableau. */
+  contexte?: ContextePrevisionnel
+  /** Départs à la retraite du périmètre, année par année, et méthode. */
+  auditRetraites?: AuditRetraites
+  /** Stock déclaré et liste nominative rapprochés école par école. */
+  rapprochement?: RapprochementEffectifs
+  /** Incohérences et réserves à afficher en tête de la projection et des exports. */
+  avertissements?: AvertissementCoherence[]
+  /** Fiabilité des retraites du périmètre, fixée par le serveur. */
+  retraitesFiabilite?: FiabiliteRetraites
+  /** Bandeau des données fictives (texte exact), `null` pour des données réelles. */
+  texteDonneesFictives?: string | null
   /** Les personnels de la cartographie ne sont pas nécessairement tous des maîtres chargés de classe. */
   avertissementPersonnels?: string
   groupes: { code: 'A' | 'B' | 'C' | 'D' | 'E'; titre: string; lignes: LignePrevisionnel[] }[]
@@ -539,6 +754,20 @@ export interface CorpsAjustementQuota {
 export interface CorpsValidationQuotas {
   annee: AnneePlan
   auteur: string
+  /** Codes des réserves reconnues (retraites non calculables, besoin provisoire, dépassement du plafond…). */
+  reservesReconnues?: string[]
+  /** Référence de la validation administrative ou budgétaire, exigée en cas de dépassement du plafond. */
+  referenceAdministrative?: string
+}
+
+/** Réserve qui pèse sur des quotas : leur validation (décision de recrutement) exige qu'elle soit reconnue. */
+export interface ReserveQuotas {
+  code: string
+  libelle: string
+  detail: string
+  reconnue?: boolean
+  /** Une référence de validation administrative ou budgétaire doit être saisie. */
+  referenceRequise?: boolean
 }
 
 export interface EvenementQuota {

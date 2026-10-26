@@ -31,7 +31,9 @@ def _fichier_dict(f: FichierImporte) -> dict:
 def _journal_creation(request, jeu, resume: str) -> None:
     from contextes.audit.services import journaliser
     journaliser(jeu, "import", "création", resume, request=request, objet=("jeu", jeu.id),
-                apres={"etablissements": jeu.etablissements.count(), "enseignants": jeu.enseignants.count()})
+                apres={"etablissements": jeu.etablissements.count(),
+                      "enseignants": jeu.enseignants.count() if jeu.nominatif_disponible else None,
+                      "nominatif_disponible": jeu.nominatif_disponible})
 
 
 def _oui(valeur) -> bool:
@@ -66,17 +68,19 @@ def fichier_correspondances(request, fichier):
 
 
 @extend_schema(methods=["POST"], request=CreationJeuSerializer, responses=OpenApiTypes.OBJECT,
-               summary="Créer un jeu depuis deux fichiers envoyés (délégué : jeu de sa région ; DRH : jeu national), "
-                       "calculer les scénarios de base")
+               summary="Créer un jeu depuis le fichier des établissements et, facultativement, celui des enseignants "
+                       "(délégué : jeu de sa région ; DRH : jeu national), calculer les scénarios de base")
 @extend_schema(methods=["GET"], responses=OpenApiTypes.OBJECT, summary="Jeux visibles par le compte connecté")
 @api_view(["GET", "POST"])
 def jeux(request):
     if request.method == "GET":
         return Response([services.resume_jeu(j) for j in jeux_visibles(request.user).select_related("cree_par")])
     d = request.data
-    ide, idn = d.get("fichier_etablissements"), d.get("fichier_enseignants")
-    if not ide or not idn:
-        raise RefusMetier("Fichiers manquants", ["fichier_etablissements et fichier_enseignants sont requis"])
+    # Le fichier des enseignants est facultatif : sans lui, le jeu est créé avec les établissements seuls.
+    ide, idn = d.get("fichier_etablissements"), d.get("fichier_enseignants") or None
+    if not ide:
+        raise RefusMetier("Fichier des établissements manquant", ["fichier_etablissements est requis"],
+                          code="etablissements_requis")
     # Fichier des faits du Prince (facultatif) : vérifié avant la création, appliqué avant le premier calcul.
     f_prince, lignes_prince = None, []
     if d.get("fichier_prince"):
@@ -86,7 +90,8 @@ def jeux(request):
             raise PermissionDenied("Code d'accès Effet de Prince manquant ou invalide")
         f_prince, lignes_prince = services.preparer_fichier_prince(request.user, d["fichier_prince"])
     jeu = services.creer_jeu(d.get("nom", ""), ide, idn, compte=request.user, fichier_prince=f_prince,
-                             annee_scolaire=d.get("annee_scolaire"))
+                             annee_scolaire=d.get("annee_scolaire"), sens_annee_scolaire=d.get("sens_annee_scolaire"),
+                             donnees_fictives=_oui(d.get("donnees_fictives")))
     bilan_prince = None
     if f_prince is not None:
         from contextes.audit.services import decision
@@ -96,8 +101,10 @@ def jeux(request):
                  declencheur="Import de faits du Prince", objet=("fait_prince", "import"), apres=bilan_prince)
     from contextes.simulation.services import creer_scenarios_base
     creer_scenarios_base(jeu)
-    _journal_creation(request, jeu, "Import des fichiers de la région" if request.user.est_delegue
-                      else "Import de la base nationale")
+    portee = "de la région" if request.user.est_delegue else "de la base nationale"
+    _journal_creation(request, jeu, f"Import {portee} : "
+                      + ("établissements et enseignants" if jeu.nominatif_disponible
+                         else "établissements seuls, sans fichier nominatif"))
     return Response({**services.resume_jeu(jeu), "qualite": jeu.rapport_qualite.contenu,
                      **({"prince": bilan_prince} if bilan_prince is not None else {})}, status=201)
 
@@ -112,7 +119,8 @@ def jeu_demonstration(request):
                                                     maximum=30000),
                                        entier_param(d.get("nb_enseignants"), "nb_enseignants", defaut=420, minimum=1,
                                                     maximum=100000), compte=request.user,
-                                       annee_scolaire=d.get("annee_scolaire"))
+                                       annee_scolaire=d.get("annee_scolaire"),
+                                       sens_annee_scolaire=d.get("sens_annee_scolaire"))
     from contextes.simulation.services import creer_scenarios_base
     creer_scenarios_base(jeu)
     _journal_creation(request, jeu, "Ouverture du jeu de démonstration")
@@ -121,9 +129,14 @@ def jeu_demonstration(request):
 
 @extend_schema(methods=["GET"], responses=OpenApiTypes.OBJECT, summary="Détail d'un jeu")
 @extend_schema(methods=["DELETE"], responses=None, summary="« Effacer les données » (cascade)")
-@api_view(["GET", "DELETE"])
+@extend_schema(methods=["PATCH"], request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT,
+               summary="Sens de l'année scolaire (donnees | rentree_preparee | non_confirme) et données fictives")
+@api_view(["GET", "PATCH", "DELETE"])
 def jeu_detail(request, jeu):
     j = jeu_autorise(request, jeu)
+    if request.method == "PATCH":
+        return Response(services.modifier_jeu(j, request.data if isinstance(request.data, dict) else {},
+                                              request=request))
     if request.method == "DELETE":
         from contextes.diagnostic.services import invalider_cache
         invalider_cache(j)
@@ -171,8 +184,10 @@ def etablissement_detail(request, jeu, ident):
                        "excedent_mobilisable": ecole["xe"], "salles_manquantes": ecole["se"],
                        "poids_poste": ecole["Up"], "vulnerabilite": ecole["Wp"],
                        "niveau_difficulte": ecole["niveau_difficulte"]},
-        "enseignants_en_poste": [e.matricule for e in prep.enseignants.values() if e.ecole_attache == ident],
-        "enseignants_du_vivier": fournisseurs,
+        # Inconnus (None) sans fichier nominatif : une liste vide dirait « aucun enseignant en poste ».
+        "enseignants_en_poste": ([e.matricule for e in prep.enseignants.values() if e.ecole_attache == ident]
+                                 if j.nominatif_disponible else None),
+        "enseignants_du_vivier": fournisseurs if j.nominatif_disponible else None,
     })
 
 
@@ -183,6 +198,7 @@ def etablissement_detail(request, jeu, ident):
 def enseignants(request, jeu):
     from contextes.diagnostic import services as diag
     j = jeu_autorise(request, jeu)
+    services.exiger_nominatif(j, "Liste des enseignants")
     q = request.query_params
     lignes = filtrer_lignes(diag.lignes_enseignants(diag.preparer(j)), perimetre_depuis(request),
                             "region_attache", "departement_attache",
@@ -206,6 +222,7 @@ def enseignant_detail(request, jeu, matricule):
     from django.http import Http404
     from contextes.diagnostic import services as diag
     j = jeu_autorise(request, jeu)
+    services.exiger_nominatif(j, "Fiche d'un enseignant")
     prep = diag.preparer(j)
     e = prep.enseignants.get(matricule)
     if e is None:
@@ -225,6 +242,8 @@ def enseignant_detail(request, jeu, matricule):
 def _recherche(request, jeu, cible):
     from contextes.diagnostic import services as diag
     j = jeu_autorise(request, jeu)
+    if cible == "enseignants":
+        services.exiger_nominatif(j, "Recherche d'un enseignant")
     q = request.query_params.get("q", "")
     lim = entier_param(request.query_params.get("limite"), "limite", defaut=10, minimum=1, maximum=200)
     items, cles = diag.index_recherche(diag.preparer(j), cible)
@@ -263,7 +282,8 @@ def validation(request, jeu):
 
 @extend_schema(methods=["GET"], responses=OpenApiTypes.OBJECT, summary="Actualisations du jeu, la plus récente d'abord")
 @extend_schema(methods=["POST"], request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT,
-               summary="Délégué : remplacer les données par deux fichiers envoyés {etablissements, enseignants, auteur}")
+               summary="Actualiser un jeu {etablissements, enseignants?, supprimer_nominatif?, auteur} : sans nouveau fichier "
+                       "d'enseignants, les enseignants enregistrés sont conservés")
 @api_view(["GET", "POST"])
 def actualisations(request, jeu):
     from contextes.audit.services import auteur_de
@@ -271,11 +291,13 @@ def actualisations(request, jeu):
     if request.method == "GET":
         return Response([services.resume_actualisation(a) for a in j.actualisations.all()])
     d = request.data if isinstance(request.data, dict) else {}
-    ide, idn = d.get("etablissements"), d.get("enseignants")
-    if not ide or not idn:
-        raise RefusMetier("Fichiers manquants", ["etablissements et enseignants (identifiants de fichiers) sont requis"])
+    ide, idn = d.get("etablissements"), d.get("enseignants") or None
+    if not ide:
+        raise RefusMetier("Fichier des établissements manquant", ["etablissements est requis"],
+                          code="etablissements_requis")
     act = services.actualiser(j, ide, idn, compte=request.user, request=request,
-                              auteur=auteur_de(request, d.get("auteur")))
+                              auteur=auteur_de(request, d.get("auteur")),
+                              supprimer_nominatif=_oui(d.get("supprimer_nominatif")))
     return Response(services.resume_actualisation(act), status=201)
 
 

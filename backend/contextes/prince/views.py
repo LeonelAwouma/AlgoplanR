@@ -13,6 +13,7 @@ from contextes.audit.services import decision
 from contextes.commun.erreurs import RefusMetier
 from contextes.commun.outils import SansNegociation, bool_param, perimetre_depuis, reponse_excel, reponse_paginee
 from contextes.donnees.lecteur import FichierIllisible, lire_classeur_numerote
+from contextes.donnees.services import exiger_nominatif
 
 from . import services
 from .models import FaitPrince
@@ -39,6 +40,7 @@ def faits(request, jeu):
     if request.method == "GET":
         return Response([_d(f) for f in j.faits_prince.all()])
     _protege(request)
+    exiger_nominatif(j, "Fait du Prince")
     d = request.data
     f, alertes = services.ajouter(j, str(d.get("id_ens", "")), str(d.get("id_etab", "")), d.get("motif", ""))
     decision(j, "fait_prince", "ajout", f"Fait du Prince : {f.id_ens} → {f.id_etab}", request=request,
@@ -52,8 +54,9 @@ def faits(request, jeu):
 def impact(request, jeu):
     d = request.data
     # Simple aperçu, rien n'est enregistré : une lecture suffit.
-    return Response(services.impact(jeu_autorise(request, jeu, ecriture=False), str(d.get("id_ens", "")),
-                                    str(d.get("id_etab", "")), d.get("motif", "")))
+    j = jeu_autorise(request, jeu, ecriture=False)
+    exiger_nominatif(j, "Aperçu d'un fait du Prince")
+    return Response(services.impact(j, str(d.get("id_ens", "")), str(d.get("id_etab", "")), d.get("motif", "")))
 
 
 @extend_schema(request={"multipart/form-data": OpenApiTypes.OBJECT}, responses=OpenApiTypes.OBJECT,
@@ -64,6 +67,7 @@ def impact(request, jeu):
 def importer(request, jeu):
     apercu = bool_param(request, "apercu")
     j = jeu_autorise(request, jeu, ecriture=not apercu)
+    exiger_nominatif(j, "Import de faits du Prince")
     if not apercu:
         _protege(request)
     up = request.FILES.get("fichier")
@@ -116,6 +120,8 @@ BASES = [OpenApiParameter("concernes", bool), OpenApiParameter("q", str), OpenAp
 @permission_classes([EstDrh])
 def bases(request, jeu, nom):
     j = jeu_autorise(request, jeu, ecriture=False)
+    if nom == "enseignants":
+        exiger_nominatif(j, "Base des enseignants après Prince")
     lignes = services.lignes_bases(j, nom, perimetre_depuis(request), concernes=bool_param(request, "concernes"),
                                    q=request.query_params.get("q", ""))
     return Response(reponse_paginee(request, lignes))
@@ -129,6 +135,8 @@ def bases(request, jeu, nom):
 @permission_classes([EstDrh])
 def bases_export(request, jeu, nom):
     j = jeu_autorise(request, jeu, ecriture=False)
+    if nom == "enseignants":
+        exiger_nominatif(j, "Base des enseignants après Prince")
     octets, fichier = services.classeur(j, nom, perimetre_depuis(request), concernes=bool_param(request, "concernes"))
     return reponse_excel(octets, fichier)
 

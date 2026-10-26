@@ -24,16 +24,27 @@ import {
 import type { PrevisionnelComplet } from '../../shared/api'
 import { MENTION_SIMULATION } from '../../shared/kernel'
 import { telechargerFichier } from '../../shared/exports/export-csv'
-import { exporterXLSX, type FeuilleXlsx } from '../../shared/exports/export-xlsx'
+import { exporterXLSX, type FeuilleXlsx, type FormatColonne } from '../../shared/exports/export-xlsx'
 import {
+  ENTETES_AUDIT_RETRAITES,
+  ENTETES_RAPPROCHEMENT,
   ENTETES_SCENARIOS,
   LIBELLE_NATURE,
+  avertissementsCoherence,
+  controlesAuditRetraites,
   entetesExport,
+  libelleNatures,
+  lignesAuditRetraites,
+  lignesContexte,
   lignesExport,
   lignesFiabilite,
+  lignesRapprochement,
   lignesScenarios,
+  natureCase,
+  phraseContexte,
   raisonsIndisponibles,
   renvoi,
+  syntheseRapprochement,
 } from '../domain/previsionnel'
 
 const TYPE_MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -62,18 +73,83 @@ export function lignesMinimumPedagogique(p: PrevisionnelComplet): (string | numb
   ]
 }
 
-/** Les feuilles du classeur : tableau complet, scénarios, hypothèses, données non disponibles, minimum pédagogique. */
+/** Format d'une colonne d'après ses seuls nombres : un texte (« Non calculable ») n'en fait pas une colonne de texte. */
+function formatNumerique(valeurs: readonly (string | number | null)[]): FormatColonne {
+  const nombres = valeurs.filter((v): v is number => typeof v === 'number')
+  return nombres.some(v => !Number.isInteger(v)) ? 'decimal' : 'entier'
+}
+
+/**
+ * Les feuilles du classeur : contexte, tableau complet, natures des valeurs, scénarios, audit des retraites,
+ * hypothèses, données non disponibles, minimum pédagogique, avertissements.
+ */
 export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
   const lignes = p.groupes.flatMap(g => g.lignes)
   // Une case vide du classeur n'est jamais muette : la raison de l'absence est dans la dernière colonne.
   const raisonsLigne = lignes.map(l => [...new Set((l.raisons ?? []).filter((r): r is string => !!r))].join(' ; '))
   return [
     {
+      nom: 'Contexte',
+      entetes: ['Rubrique', 'Valeur'],
+      lignes: [
+        ...(p.texteDonneesFictives ? [['DONNÉES FICTIVES', p.texteDonneesFictives]] : []),
+        ...lignesContexte(p),
+        ['Passage de la base à N+1', p.hypotheseTransition ?? ''],
+        ['Avertissement', MENTION_SIMULATION],
+      ],
+      // Format explicite : les nombres restent des nombres, les textes des textes.
+      formats: ['texte', 'entier'],
+    },
+    {
       nom: 'Tableau complet',
       entetes: [...entetesExport(p), 'Définition', 'Raison des valeurs non disponibles'],
       lignes: lignesExport(p).map((l, i) => [...l, lignes[i]?.detail ?? '', raisonsLigne[i] ?? '']),
+      // Les nombres restent des nombres même si une case porte « Non calculable » (retraites inconnues).
+      formats: [
+        'texte',
+        'texte',
+        ...p.annees.map((_, c) => formatNumerique(lignesExport(p).map(l => l[2 + c]))),
+        'texte',
+        'texte',
+        'texte',
+      ],
     },
-    { nom: 'Scénarios', entetes: ENTETES_SCENARIOS, lignes: lignesScenarios(p) },
+    {
+      // Qualification de chaque case : une valeur future n'est jamais « observée ».
+      nom: 'Nature des valeurs',
+      entetes: ['Groupe', 'Indicateur', ...p.annees],
+      lignes: p.groupes.flatMap(g =>
+        g.lignes.map(l => [
+          `${g.code}. ${g.titre}`,
+          l.libelle,
+          ...l.valeurs.map((_, i) => LIBELLE_NATURE[natureCase(l, i)]),
+        ]),
+      ),
+    },
+    {
+      nom: 'Scénarios',
+      entetes: ENTETES_SCENARIOS,
+      lignes: lignesScenarios(p),
+      formats: ['texte', ...[1, 2, 3, 4, 5, 6].map(c => formatNumerique(lignesScenarios(p).map(l => l[c]))), 'texte'],
+    },
+    {
+      nom: 'Synthèse rapprochement',
+      entetes: ['Contrôle', 'Valeur'],
+      lignes: [...syntheseRapprochement(p), ...(p.rapprochement ? [['Méthode', p.rapprochement.methode]] : [])],
+      formats: ['texte', 'entier'],
+    },
+    {
+      nom: 'Rapprochement des effectifs',
+      entetes: ENTETES_RAPPROCHEMENT,
+      lignes: lignesRapprochement(p),
+      formats: ['texte', 'texte', ...Array<'entier'>(10).fill('entier'), 'texte'],
+    },
+    {
+      nom: 'Audit des retraites',
+      entetes: ENTETES_AUDIT_RETRAITES,
+      lignes: [...lignesAuditRetraites(p), [], ...controlesAuditRetraites(p)],
+      formats: ['texte', 'entier', 'entier', 'entier', 'decimal', 'decimal'],
+    },
     {
       nom: 'Hypothèses',
       entetes: ['Hypothèse', 'Valeur retenue', 'À valider administrativement'],
@@ -94,6 +170,11 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
       nom: 'Avertissements',
       entetes: ['Sujet', 'Avertissement'],
       lignes: [
+        ...(p.texteDonneesFictives ? [['Données fictives', p.texteDonneesFictives]] : []),
+        ...avertissementsCoherence(p).map(a => [
+          `Cohérence${a.gravite === 'important' ? ' (important)' : ''}`,
+          a.message,
+        ]),
         ...(p.messageMinimumProvisoire ? [['Classes multigrades', p.messageMinimumProvisoire]] : []),
         ...(p.avertissementPersonnels ? [['Personnels enseignants', p.avertissementPersonnels]] : []),
         ...raisonsIndisponibles(p).map(r => [`Non disponible : ${r.cellules.join(' ; ')}`, r.raison]),
@@ -151,13 +232,30 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
         properties: { page: { size: { orientation: PageOrientation.LANDSCAPE } } },
         children: [
           new Paragraph({ text: `Projection sur 5 ans — ${p.perimetre}`, heading: HeadingLevel.TITLE }),
+          ...(p.texteDonneesFictives
+            ? [
+                new Paragraph({
+                  spacing: { after: 200 },
+                  children: [new TextRun({ text: p.texteDonneesFictives, bold: true, color: 'B42318', size: 28 })],
+                }),
+              ]
+            : []),
           new Paragraph({
             children: [new TextRun({ text: MENTION_SIMULATION, italics: true })],
             spacing: { after: 200 },
           }),
+          ...(p.contexte
+            ? [
+                new Paragraph({
+                  spacing: { after: 120 },
+                  children: [new TextRun({ text: phraseContexte(p), bold: true })],
+                }),
+              ]
+            : []),
           new Paragraph({
             text: `REM de référence : ${texte(p.remReference)} élèves par enseignant. ${p.ecoles.toLocaleString('fr-FR')} écoles dans le périmètre.`,
           }),
+          ...(p.hypotheseTransition ? [new Paragraph({ spacing: { before: 120 }, text: p.hypotheseTransition })] : []),
           ...(p.messageMinimumProvisoire
             ? [
                 new Paragraph({
@@ -183,6 +281,18 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
                 }),
               ]
             : []),
+          ...(avertissementsCoherence(p).length
+            ? [
+                titre('Avertissements de cohérence'),
+                ...avertissementsCoherence(p).map(
+                  a =>
+                    new Paragraph({
+                      spacing: { before: 80 },
+                      children: [new TextRun({ text: a.message, bold: a.gravite === 'important' })],
+                    }),
+                ),
+              ]
+            : []),
           ...p.groupes.flatMap(g => [
             titre(`${g.code}. ${g.titre}`),
             tableau(
@@ -194,7 +304,7 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
                   // Sans raison, une case vide est « sans objet » (la base n'a pas de départs), jamais « 0 ».
                   return n ? `${NON_DISPONIBLE} (${n})` : (v ?? '—')
                 }),
-                LIBELLE_NATURE[l.nature],
+                libelleNatures(p, l),
               ]),
             ),
           ]),
@@ -215,6 +325,31 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
             : []),
           titre('Comparaison des scénarios'),
           tableau(ENTETES_SCENARIOS, lignesScenarios(p)),
+          ...(p.auditRetraites
+            ? [
+                titre('Audit des départs à la retraite'),
+                tableau(ENTETES_AUDIT_RETRAITES, lignesAuditRetraites(p)),
+                new Paragraph({ text: '' }),
+                tableau(['Contrôle', 'Valeur'], controlesAuditRetraites(p)),
+              ]
+            : []),
+          ...(p.rapprochement
+            ? [
+                titre('Rapprochement des effectifs'),
+                new Paragraph({ spacing: { after: 120 }, text: p.rapprochement.methode }),
+                tableau(['Contrôle', 'Valeur'], syntheseRapprochement(p)),
+                new Paragraph({ text: '' }),
+                tableau(ENTETES_RAPPROCHEMENT, lignesRapprochement(p).slice(0, 100)),
+                ...(p.rapprochement.ecoles.length > 100
+                  ? [
+                      new Paragraph({
+                        text: `100 premières écoles sur ${p.rapprochement.ecoles.length.toLocaleString('fr-FR')} (anomalies d’abord) ; le classeur Excel les contient toutes.`,
+                      }),
+                    ]
+                  : []),
+              ]
+            : []),
+          ...(p.contexte ? [titre('Provenance et périmètre'), tableau(['Rubrique', 'Valeur'], lignesContexte(p))] : []),
           titre('Minimum pédagogique et fiabilité du besoin'),
           tableau(['Indicateur', 'Valeur'], lignesMinimumPedagogique(p)),
           titre('Données non disponibles'),

@@ -98,7 +98,10 @@ def test_tableau_et_ventilations(c, jeu):
     ecoles = get(c, f"jeux/{jeu}/planification/ecoles/", taille=5)
     assert ecoles["count"] > 0 and len(ecoles["resultats"][0]["annees"]) == 5
     dep = get(c, f"jeux/{jeu}/planification/departs/")
-    assert len(dep["retraites"]) == sum(a["departs_retraite"] for a in t["annees"])
+    # Le plan liste toutes les retraites identifiées ; le stock ne perd que celles qui y sont imputables (les autres,
+    # au-delà du stock déclaré de leur école, sont comptées à part).
+    assert len(dep["retraites"]) == sum(a["retraites_identifiees"] for a in t["annees"]) \
+        == sum(a["departs_retraite"] + a["retraites_non_imputables"] for a in t["annees"])
     fia = get(c, f"jeux/{jeu}/planification/fiabilite/")
     assert fia["global"]["ecoles"] == ecoles["count"] and fia["par_territoire"]
     ind = get(c, f"jeux/{jeu}/indicateurs/")
@@ -135,7 +138,15 @@ def test_quotas_versions(c, jeu):
     assert aj["statut"] == "ajuste" and aj["retenu"] == q["calcule"] + 3
     t = get(c, f"jeux/{jeu}/planification/", region=q["territoire"], sous_systeme=q["sous_systeme"])
     assert t["annees"][0]["quota_retenu"] == q["calcule"] + 3
-    valides = envoyer(c, "post", f"jeux/{jeu}/quotas/valider/", {"annee": "N+1", "auteur": "DRH"})
+    # Décision de recrutement : les réserves qui pèsent sur les quotas doivent être reconnues avant de les figer.
+    refus = envoyer(c, "post", f"jeux/{jeu}/quotas/valider/", {"annee": "N+1", "auteur": "DRH"}, 422)
+    assert refus["code"] == "validation_reserves" and refus["details"]["reserves"]
+    codes = [r["code"] for r in refus["details"]["reserves"]]
+    assert "age_mesure_non_precisee" in codes and not any(r["reconnue"] for r in refus["details"]["reserves"])
+    assert get(c, f"jeux/{jeu}/quotas/", annee="N+1")[0]["statut"] == "ajuste"           # rien n'a été figé
+    valides = envoyer(c, "post", f"jeux/{jeu}/quotas/valider/",
+                      {"annee": "N+1", "auteur": "DRH", "reserves_reconnues": codes,
+                       "reference_administrative": "Note budgétaire 2027/12"})
     assert valides and all(x["statut"] == "valide" for x in valides)
     envoyer(c, "put", url, {"sous_systeme": q["sous_systeme"], "retenu": 0, "motif": "x"}, 409)
     hist = get(c, f"jeux/{jeu}/quotas/historique/", annee="N+1")

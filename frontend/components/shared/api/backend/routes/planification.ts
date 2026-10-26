@@ -24,6 +24,7 @@ import type {
   EvolutionIndicateurs,
   FiabiliteDonnees,
   FiabiliteIndicateur,
+  FiabiliteRetraites,
   Hypotheses,
   IndicateursAnnee,
   IndicateursSuivi,
@@ -72,7 +73,7 @@ export function queryServeur(query: ParametresRequete): ParametresRequete {
 interface AnneeDjango {
   annee: AnneePlan
   effectif_debut: number
-  departs_retraite: number
+  departs_retraite: number | null
   departs_attrition: number
   besoin: number
   ressources_vivier: number
@@ -101,6 +102,7 @@ interface TableauDjango {
   calcule_le: string | null
   annees: AnneeDjango[]
   fiabilite: { indicateur: string; niveau: FiabiliteIndicateur['niveau']; detail: string }[]
+  retraites_fiabilite?: unknown
 }
 
 interface TerritoireDjango {
@@ -129,6 +131,7 @@ interface HypothesesDjango {
     justification: string
     age_legal: number
     date_reference: Hypotheses['retraite']['dateReference']
+    annee_ages?: string | null
     exceptions: { critere: 'statut' | 'categorie'; valeur: string; age_legal: number }[]
   }
   attrition: {
@@ -221,6 +224,7 @@ export function versTableau(t: TableauDjango): TableauPlanification {
       niveau: f.niveau,
       detail: f.detail,
     })),
+    ...(t.retraites_fiabilite ? { retraitesFiabilite: camelProfond<FiabiliteRetraites>(t.retraites_fiabilite) } : {}),
   }
 }
 
@@ -256,6 +260,7 @@ export function versHypotheses(h: HypothesesDjango): Hypotheses {
       justification: h.retraite.justification,
       ageLegal: h.retraite.age_legal,
       dateReference: h.retraite.date_reference,
+      anneeAges: h.retraite.annee_ages ?? null,
       exceptions: h.retraite.exceptions.map(e => ({ critere: e.critere, valeur: e.valeur, ageLegal: e.age_legal })),
     },
     attrition: {
@@ -303,6 +308,7 @@ export function versCorpsHypotheses(c: CorpsHypotheses): Record<string, unknown>
       justification: c.retraite.justification,
       age_legal: c.retraite.ageLegal,
       date_reference: c.retraite.dateReference,
+      annee_ages: c.retraite.anneeAges?.trim() || null,
       exceptions: c.retraite.exceptions.map(e => ({ critere: e.critere, valeur: e.valeur, age_legal: e.ageLegal })),
     },
     attrition: {
@@ -463,7 +469,13 @@ export const conversionsPlanification: Record<string, Conversion> = {
       commune: string
       sous_systeme: SousSysteme | null
       cible: number
-      annees: { annee: AnneePlan; effectif: number; departs_retraite: number; besoin: number; excedent: number }[]
+      annees: {
+        annee: AnneePlan
+        effectif: number
+        departs_retraite: number | null
+        besoin: number
+        excedent: number
+      }[]
     }>(`${P(p.jeu)}ecoles/`, queryServeur(r.query))
     const ecoles: LignePlanificationEcole[] = lignes.map(e => ({
       schoolId: e.id_ecole,
@@ -493,6 +505,7 @@ export const conversionsPlanification: Record<string, Conversion> = {
         nom_ecole: string
         date_naissance: string | null
         age_au_depart: number
+        deja_eligible?: boolean
       }[]
       attrition: { annee: AnneePlan; territoire: string; sous_systeme: CleSousSysteme; departs: number }[]
     }>(acces, `${P(p.jeu)}departs/`, r.query)
@@ -505,6 +518,7 @@ export const conversionsPlanification: Record<string, Conversion> = {
         nomEtab: x.nom_ecole,
         dateNaissance: x.date_naissance,
         ageAuDepart: x.age_au_depart,
+        dejaEligible: x.deja_eligible ?? false,
       })),
       attrition: d.attrition.map(a => ({
         annee: a.annee,
@@ -575,10 +589,17 @@ export const conversionsPlanification: Record<string, Conversion> = {
       ),
     )
   },
-  'POST jeux/{jeu}/quotas/valider/': async (r, acces, p) =>
-    (await acces.ecrire<QuotaDjango[]>('POST', `jeux/${p.jeu}/quotas/valider/`, r.corps as CorpsValidationQuotas)).map(
-      versQuota,
-    ),
+  'POST jeux/{jeu}/quotas/valider/': async (r, acces, p) => {
+    const c = r.corps as CorpsValidationQuotas
+    return (
+      await acces.ecrire<QuotaDjango[]>('POST', `jeux/${p.jeu}/quotas/valider/`, {
+        annee: c.annee,
+        auteur: c.auteur,
+        ...(c.reservesReconnues ? { reserves_reconnues: c.reservesReconnues } : {}),
+        ...(c.referenceAdministrative ? { reference_administrative: c.referenceAdministrative } : {}),
+      })
+    ).map(versQuota)
+  },
   'GET jeux/{jeu}/quotas/historique/': async (r, acces, p): Promise<EvenementQuota[]> =>
     (
       await lire<

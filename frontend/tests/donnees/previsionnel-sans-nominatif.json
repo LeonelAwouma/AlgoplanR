@@ -1,0 +1,1752 @@
+{
+ "perimetre": "Cameroun",
+ "niveau": "national",
+ "sous_systeme": null,
+ "scenario_id": "6",
+ "base_calcul": {
+  "type": "scenario_par_defaut",
+  "scenario_id": "6",
+  "scenario_nom": "Mobilité régionale (référence)",
+  "provisoire": true
+ },
+ "annees": [
+  "Base (2026-2027)",
+  "N+1 (2027-2028)",
+  "N+2 (2028-2029)",
+  "N+3 (2029-2030)",
+  "N+4 (2030-2031)",
+  "N+5 (2031-2032)"
+ ],
+ "annee_scolaire_plan": "2026-2027",
+ "groupes": [
+  {
+   "code": "A",
+   "titre": "Population scolaire",
+   "lignes": [
+    {
+     "cle": "eleves",
+     "libelle": "Effectifs d'élèves (écoles à effectif connu)",
+     "valeurs": [
+      5420,
+      5566,
+      5717,
+      5871,
+      6029,
+      6192
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Base : effectifs importés (observés) ; années suivantes : projection N(t+1) = N(t) × (1 + croissance), arrondie à l'unité à l'affichage seulement.",
+     "depend_retraites": false
+    },
+    {
+     "cle": "croissance",
+     "libelle": "Taux de croissance annuel des élèves",
+     "valeurs": [
+      null,
+      2.7,
+      2.7,
+      2.7,
+      2.7,
+      2.7
+     ],
+     "nature": "hypothese",
+     "natures": [
+      "sans_objet",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese"
+     ],
+     "decimal": true,
+     "unite": "pourcentage",
+     "detail": "Hypothèse G_PRI_PCT (2,7 % par défaut), appliquée à chaque école dont l'effectif est connu.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": false
+    },
+    {
+     "cle": "ecoles_eleves_inconnus",
+     "libelle": "Écoles dont l'effectif d'élèves est inconnu",
+     "valeurs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Aucun effectif n'est inventé pour ces écoles : elles ne comptent ni dans les élèves projetés ni dans le taux d'encadrement.",
+     "depend_retraites": false
+    }
+   ]
+  },
+  {
+   "code": "B",
+   "titre": "Ressources humaines",
+   "lignes": [
+    {
+     "cle": "effectif_debut",
+     "libelle": "Personnels enseignants en début d'année (stock administratif)",
+     "valeurs": [
+      174,
+      174,
+      170,
+      176,
+      183,
+      189
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "estime",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Base : Enseignants_Actuels (personnels rapprochés dans la cartographie, pas nécessairement tous chargés de classe). N+1 : stock observé retenu comme début de N+1, après les mouvements du scénario retenu (estimé). Dès N+2 : projeté, recrutements de l'année précédente supposés réalisés (quota retenu, sinon quota calculé). Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "depend_retraites": true
+    },
+    {
+     "cle": "departs_retraite",
+     "libelle": "Départs à la retraite retirés du stock",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Retraites identifiées nominativement d'après les âges connus (jamais par le taux de 1,08 %), retirées du stock déclaré de leur école sans dépasser ce qui y reste ; voir l'audit des retraites. Une retraite non calculable n'est jamais comptée comme zéro.",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "retraites_identifiees",
+     "libelle": "Retraites identifiées nominativement (liste des enseignants)",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Agents du fichier nominatif atteignant l'âge légal, matricules distincts, rattachés aux écoles du périmètre.",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "retraites_non_imputables",
+     "libelle": "dont non imputables au stock déclaré",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Retraites identifiées au-delà du stock déclaré restant de leur école (sources discordantes) : ni retirées du stock, ni remplacées par le plancher ; voir le rapprochement des effectifs.",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "departs_attrition",
+     "libelle": "Autres départs par attrition (hors retraite)",
+     "valeurs": [
+      null,
+      4,
+      4,
+      4,
+      4,
+      4
+     ],
+     "nature": "conditionnel",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Projetés par hypothèse statistique : taux d'autres départs (2,25 %) × stock de début. Les retraites n'y sont pas recomptées. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "directeurs_decharges",
+     "libelle": "Directeurs déchargés de classe (nouveaux)",
+     "valeurs": [
+      null,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Prises de fonction de l'année sans classe (DIR_NOM_AN × DIR_H_PRI_PCT, rapportés au périmètre).",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": false
+    },
+    {
+     "cle": "decharges_cumulees",
+     "libelle": "Décharges cumulées depuis la base",
+     "valeurs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Un directeur déchargé reste dans le stock ; il n'est retranché qu'une fois des enseignants disponibles.",
+     "depend_retraites": false
+    },
+    {
+     "cle": "effectif_fin",
+     "libelle": "Enseignants en fin d'année (stock administratif)",
+     "valeurs": [
+      null,
+      170,
+      176,
+      183,
+      189,
+      196
+     ],
+     "nature": "conditionnel",
+     "natures": [
+      "sans_objet",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "S(t+1) = S(t) − retraites − autres départs + recrutements supposés réalisés. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "disponibles_fin",
+     "libelle": "Enseignants disponibles pour tenir une classe (fin d'année)",
+     "valeurs": [
+      174,
+      170,
+      176,
+      183,
+      189,
+      196
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "U = S − décharges cumulées (base : U = S). Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "depend_retraites": true
+    }
+   ]
+  },
+  {
+   "code": "C",
+   "titre": "Besoins pédagogiques",
+   "lignes": [
+    {
+     "cle": "besoin_rem",
+     "libelle": "Enseignants nécessaires selon le REM de référence",
+     "valeurs": [
+      73,
+      75,
+      77,
+      79,
+      82,
+      84
+     ],
+     "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "⌈élèves ÷ 74,4⌉ : estimation par ratio, distincte de la somme des besoins des écoles.",
+     "depend_retraites": false
+    },
+    {
+     "cle": "somme_pe",
+     "libelle": "Besoin pédagogique lié aux élèves (Σ P)",
+     "valeurs": [
+      81,
+      81,
+      81,
+      81,
+      81,
+      81
+     ],
+     "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "P = max(1 ; ⌈(N − tolérance) ÷ 74,4⌉), école par école.",
+     "depend_retraites": false
+    },
+    {
+     "cle": "somme_me",
+     "libelle": "Minimum pédagogique (Σ m)",
+     "valeurs": [
+      165,
+      165,
+      165,
+      165,
+      165,
+      165
+     ],
+     "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "m = max(plancher ; G) ; G de secours (6) quand Classes_Multigrades n'est pas renseigné.",
+     "depend_retraites": false
+    },
+    {
+     "cle": "somme_de",
+     "libelle": "Dotation théorique (Σ D)",
+     "valeurs": [
+      167,
+      167,
+      167,
+      167,
+      167,
+      167
+     ],
+     "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "D = max(P ; m).",
+     "depend_retraites": false
+    },
+    {
+     "cle": "somme_ke",
+     "libelle": "Cible réalisable (Σ K)",
+     "valeurs": [
+      153,
+      153,
+      153,
+      153,
+      153,
+      153
+     ],
+     "nature": "estime",
+     "natures": [
+      "estime",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "K = min(D ; BMAX).",
+     "depend_retraites": false
+    },
+    {
+     "cle": "besoin_non_couvert",
+     "libelle": "Besoin non couvert (Σ b)",
+     "valeurs": [
+      33,
+      33,
+      33,
+      33,
+      33,
+      33
+     ],
+     "nature": "estime",
+     "natures": [
+      "estime",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "b = max(0 ; K − enseignants restants après les retraites), école par école. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "depend_retraites": true
+    },
+    {
+     "cle": "ressources_vivier",
+     "libelle": "Ressources mobilisables (vivier)",
+     "valeurs": [
+      null,
+      40,
+      0,
+      0,
+      0,
+      0
+     ],
+     "nature": "conditionnel",
+     "natures": [
+      "sans_objet",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "N+1 : excédents sûrs des écoles après leurs retraites de N+1 (un retraité n'est pas aussi une ressource), et personnes du vivier retenues. Les années suivantes : aucune ressource nouvelle. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "part_provisoire",
+     "libelle": "Part des écoles au minimum pédagogique provisoire",
+     "valeurs": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": true,
+     "unite": "pourcentage",
+     "detail": "Toutes les écoles renseignent leurs groupes pédagogiques.",
+     "depend_retraites": false
+    },
+    {
+     "cle": "part_besoin_incertain",
+     "libelle": "Part des écoles au besoin final incertain (provisoire ou estimé)",
+     "valeurs": [
+      13.3,
+      13.3,
+      13.3,
+      13.3,
+      13.3,
+      13.3
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": true,
+     "unite": "pourcentage",
+     "detail": "Écoles dont le besoin ou l'excédent change selon l'organisation pédagogique plausible, ou dont l'effectif d'élèves est inconnu. Une école au minimum provisoire dont le besoin est fixé par les élèves ou les salles n'y figure pas.",
+     "depend_retraites": false
+    }
+   ]
+  },
+  {
+   "code": "D",
+   "titre": "Scénarios de recrutement",
+   "lignes": [
+    {
+     "cle": "recrutement_min",
+     "libelle": "Recrutements projetés – S-min",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Remplace les seules retraites de l'année.",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "recrutement_maintien",
+     "libelle": "Recrutements projetés – S-maintien",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Remplace les retraites, les autres départs et les décharges de directeurs : U reste constant.",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "recrutement_besoin",
+     "libelle": "Recrutements projetés – S-besoin",
+     "valeurs": [
+      null,
+      0,
+      10,
+      11,
+      10,
+      11
+     ],
+     "nature": "conditionnel",
+     "natures": [
+      "sans_objet",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Besoin de recrutement calculé (avant plafond), jamais sous les retraites. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "recrutement_plafond",
+     "libelle": "Recrutements projetés – Sous plafond",
+     "valeurs": [
+      null,
+      0,
+      10,
+      11,
+      10,
+      11
+     ],
+     "nature": "conditionnel",
+     "natures": [
+      "sans_objet",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Quota calculé (sous plafond, plancher compris), supposé recruté tant que les quotas sont supposés réalisés ; ce n'est pas un recrutement réalisé. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "quota_avant_plafond",
+     "libelle": "Besoin de recrutement calculé (avant plafond)",
+     "valeurs": [
+      null,
+      0,
+      10,
+      11,
+      10,
+      11
+     ],
+     "nature": "conditionnel",
+     "natures": [
+      "sans_objet",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Besoin de l'année − déficit initial + rattrapage étalé − ressources du vivier, jamais négatif. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "plafond",
+     "libelle": "Plafond de recrutement du périmètre",
+     "valeurs": [
+      null,
+      12,
+      12,
+      12,
+      12,
+      12
+     ],
+     "nature": "hypothese",
+     "natures": [
+      "sans_objet",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "PLAF_PRI (3000 au national) × stock du périmètre ÷ 44232.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": false
+    },
+    {
+     "cle": "plancher_retraites",
+     "libelle": "Plancher : retraites de l'année (PLANCHER_RET)",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Le quota calculé ne descend jamais sous les retraites de l'année, même au-delà du plafond.",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "depassement_plafond",
+     "libelle": "Dépassement du plafond dû au remplacement des retraites",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Quota calculé − plafond, quand le plancher des retraites porte le quota au-delà du plafond.",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "quota_plafond_prioritaire",
+     "libelle": "Quota si le plafond primait (règle alternative, non appliquée)",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Q' = min(max(besoin calculé ; retraites) ; plafond), année par année sur la trajectoire du tableau : présenté pour la décision D1 (le plancher ou le plafond prime-t-il ?), sans effet sur les trajectoires.",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "quota_calcule",
+     "libelle": "Quota calculé (sous plafond, plancher compris)",
+     "valeurs": [
+      null,
+      0,
+      10,
+      11,
+      10,
+      11
+     ],
+     "nature": "conditionnel",
+     "natures": [
+      "sans_objet",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Q = max(min(besoin calculé ; plafond) ; retraites). Proposition de calcul, pas une décision. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "quota_retenu",
+     "libelle": "Quota retenu (décision administrative)",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Décision enregistrée sur la page « Quotas » ; vide tant qu'elle n'est pas prise.",
+     "raisons": [
+      null,
+      "Aucune décision administrative enregistrée pour cette année.",
+      "Aucune décision administrative enregistrée pour cette année.",
+      "Aucune décision administrative enregistrée pour cette année.",
+      "Aucune décision administrative enregistrée pour cette année.",
+      "Aucune décision administrative enregistrée pour cette année."
+     ],
+     "depend_retraites": false
+    },
+    {
+     "cle": "nominations_realisees",
+     "libelle": "Recrutements réalisés (nominations mises en œuvre)",
+     "valeurs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "non_disponible",
+     "natures": [
+      "sans_objet",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Seules les nominations mises en œuvre et enregistrées comptent : un quota calculé ou retenu n'est jamais compté comme réalisé.",
+     "raisons": [
+      null,
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
+      "Aucune nomination mise en œuvre n'est enregistrée pour cette année."
+     ],
+     "depend_retraites": false
+    }
+   ]
+  },
+  {
+   "code": "E",
+   "titre": "Taux d'encadrement",
+   "lignes": [
+    {
+     "cle": "rem_reel",
+     "libelle": "REM en début d'année (élèves par enseignant disponible)",
+     "valeurs": [
+      31.1,
+      32.0,
+      33.6,
+      33.4,
+      32.9,
+      32.8
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "projete",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Base : écoles à effectif connu (élèves et enseignants de ces seules écoles). Années : élèves de l'année ÷ enseignants disponibles au début de l'année, trajectoire du tableau. Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "rem_reference",
+     "libelle": "REM de référence",
+     "valeurs": [
+      74.4,
+      74.4,
+      74.4,
+      74.4,
+      74.4,
+      74.4
+     ],
+     "nature": "hypothese",
+     "natures": [
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese",
+      "hypothese"
+     ],
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "",
+     "depend_retraites": false
+    },
+    {
+     "cle": "rem_min",
+     "libelle": "REM projeté en fin d'année – S-min",
+     "valeurs": [
+      31.1,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "rem_maintien",
+     "libelle": "REM projeté en fin d'année – S-maintien",
+     "valeurs": [
+      31.1,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible",
+      "non_disponible"
+     ],
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
+     "raisons": [
+      null,
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+      "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "rem_besoin",
+     "libelle": "REM projeté en fin d'année – S-besoin",
+     "valeurs": [
+      31.1,
+      32.7,
+      32.5,
+      32.1,
+      31.9,
+      31.6
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios). Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "rem_plafond",
+     "libelle": "REM projeté en fin d'année – Sous plafond",
+     "valeurs": [
+      31.1,
+      32.7,
+      32.5,
+      32.1,
+      31.9,
+      31.6
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios). Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    },
+    {
+     "cle": "ecart_reference",
+     "libelle": "Écart au REM de référence (sous plafond, fin d'année)",
+     "valeurs": [
+      -43.3,
+      -41.7,
+      -41.9,
+      -42.3,
+      -42.5,
+      -42.8
+     ],
+     "nature": "observe",
+     "natures": [
+      "observe",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel",
+      "conditionnel"
+     ],
+     "decimal": true,
+     "unite": "nombre",
+     "detail": "REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant). Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "depend_retraites": true
+    }
+   ]
+  }
+ ],
+ "scenarios": [
+  {
+   "scenario": "min",
+   "libelle": "S-min",
+   "recrutements": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "recrutements_total": null,
+   "effectif_fin": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "disponibles_fin": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "rem": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "ecart_reference": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "rem_final": null,
+   "ecart_final": null,
+   "besoin_restant_final": null,
+   "besoin_restant_raison": "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+   "fiabilite": "non_calculable",
+   "fiabilite_libelle": "Non calculable",
+   "fiabilite_raison": "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+  },
+  {
+   "scenario": "maintien",
+   "libelle": "S-maintien",
+   "recrutements": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "recrutements_total": null,
+   "effectif_fin": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "disponibles_fin": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "rem": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "ecart_reference": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "rem_final": null,
+   "ecart_final": null,
+   "besoin_restant_final": null,
+   "besoin_restant_raison": "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+   "fiabilite": "non_calculable",
+   "fiabilite_libelle": "Non calculable",
+   "fiabilite_raison": "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+  },
+  {
+   "scenario": "besoin",
+   "libelle": "S-besoin",
+   "recrutements": [
+    0,
+    10,
+    11,
+    10,
+    11
+   ],
+   "recrutements_total": 42,
+   "effectif_fin": [
+    170,
+    176,
+    183,
+    189,
+    196
+   ],
+   "disponibles_fin": [
+    170,
+    176,
+    183,
+    189,
+    196
+   ],
+   "rem": [
+    32.7,
+    32.5,
+    32.1,
+    31.9,
+    31.6
+   ],
+   "ecart_reference": [
+    -41.7,
+    -41.9,
+    -42.3,
+    -42.5,
+    -42.8
+   ],
+   "rem_final": 31.6,
+   "ecart_final": -42.8,
+   "besoin_restant_final": 0,
+   "besoin_restant_raison": null,
+   "fiabilite": "conditionnel",
+   "fiabilite_libelle": "Simulation conditionnelle",
+   "fiabilite_raison": "Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites."
+  },
+  {
+   "scenario": "plafond",
+   "libelle": "Sous plafond",
+   "recrutements": [
+    0,
+    10,
+    11,
+    10,
+    11
+   ],
+   "recrutements_total": 42,
+   "effectif_fin": [
+    170,
+    176,
+    183,
+    189,
+    196
+   ],
+   "disponibles_fin": [
+    170,
+    176,
+    183,
+    189,
+    196
+   ],
+   "rem": [
+    32.7,
+    32.5,
+    32.1,
+    31.9,
+    31.6
+   ],
+   "ecart_reference": [
+    -41.7,
+    -41.9,
+    -42.3,
+    -42.5,
+    -42.8
+   ],
+   "rem_final": 31.6,
+   "ecart_final": -42.8,
+   "besoin_restant_final": 0,
+   "besoin_restant_raison": null,
+   "fiabilite": "conditionnel",
+   "fiabilite_libelle": "Simulation conditionnelle",
+   "fiabilite_raison": "Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites."
+  }
+ ],
+ "rem_reference": 74.4,
+ "rem_indisponible": null,
+ "annee_base": "2026-2027",
+ "hypothese_transition": "Le stock d'enseignants et les effectifs d'élèves observés à la base sont retenus comme situation de début de N+1 : les mouvements entre la date des données et la rentrée de N+1 ne sont pas connus et ne sont pas inventés.",
+ "contexte": {
+  "jeu_nom": "Sans fichier nominatif",
+  "jeu_source": "import",
+  "jeu_portee": "national",
+  "jeu_region": null,
+  "annee_scolaire": "2026-2027",
+  "annee_saisie": "2026-2027",
+  "sens_annee_scolaire": "donnees",
+  "sens_annee_origine": "creation",
+  "annee_donnees": "2026-2027",
+  "donnees_fictives": false,
+  "fichiers_source": {},
+  "perimetre": "Cameroun",
+  "niveau": "national",
+  "perimetre_filtre": false,
+  "ecoles_perimetre": 30,
+  "ecoles_jeu": 30,
+  "personnels_stock_declare": 174,
+  "personnels_nominatifs": 0,
+  "ecoles_donnees_incompletes": 0,
+  "ecoles_eleves_inconnus": 0,
+  "ecoles_minimum_provisoire": 0,
+  "ecoles_salles_flux_inconnu": 0,
+  "version_planification": 1,
+  "calcule_le": "2026-10-26T09:31:29.780830Z",
+  "edite_le": "2026-10-26T09:31:29.796688Z"
+ },
+ "audit_retraites": {
+  "lignes": [
+   {
+    "annee": "N+1",
+    "departs": 0,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 0,
+    "taux_stock_declare": 0.0,
+    "taux_personnels_nominatifs": null
+   },
+   {
+    "annee": "N+2",
+    "departs": 0,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 0,
+    "taux_stock_declare": 0.0,
+    "taux_personnels_nominatifs": null
+   },
+   {
+    "annee": "N+3",
+    "departs": 0,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 0,
+    "taux_stock_declare": 0.0,
+    "taux_personnels_nominatifs": null
+   },
+   {
+    "annee": "N+4",
+    "departs": 0,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 0,
+    "taux_stock_declare": 0.0,
+    "taux_personnels_nominatifs": null
+   },
+   {
+    "annee": "N+5",
+    "departs": 0,
+    "deja_eligibles": 0,
+    "atteignant_age_legal": 0,
+    "taux_stock_declare": 0.0,
+    "taux_personnels_nominatifs": null
+   }
+  ],
+  "deja_eligibles_debut": 0,
+  "sans_age": 0,
+  "doublons": 0,
+  "personnels_nominatifs": 0,
+  "stock_declare": 174,
+  "methode": "Nominative : départ compté l'année scolaire où l'agent a 60 ans révolus à la rentrée : un agent de 59 ans au début de N+1 part en N+2. Les 0 agent(s) ayant déjà cet âge au début de N+1 sont imputés à N+1 (CORR_60). Année de mesure des âges non précisée : âges supposés mesurés au début de N+1. Un agent sans âge exploitable n'est pas compté ; un matricule en double n'est compté qu'une fois. Le taux de 1,08 % du rapport n'est jamais utilisé.",
+  "decalage_ages": 0,
+  "annee_ages": null
+ },
+ "rapprochement": {
+  "synthese": {
+   "ecoles": 30,
+   "stock_declare": 174,
+   "stock_apres_plan": 174,
+   "agents_nominatifs": 0,
+   "ecoles_concordantes": null,
+   "ecoles_ecart_positif": null,
+   "ecart_positif": null,
+   "ecoles_ecart_negatif": null,
+   "ecart_negatif": null,
+   "agents_hors_ecoles": null,
+   "doublons": null,
+   "agents_sans_age": null,
+   "retraites_n1": null,
+   "retraites_horizon": null,
+   "retraites_retirees_du_stock": null,
+   "retraites_non_imputables": null,
+   "ecoles_retraites_superieures_au_stock": null,
+   "concordance_complete": null
+  },
+  "ecoles": [],
+  "ecoles_tronquees": false,
+  "methode": "Stock déclaré : Enseignants_Actuels du fichier des établissements (fixe le besoin et le stock S). Agents nominatifs : matricules distincts du fichier des enseignants rattachés à l'école. Écart = stock déclaré − agents nominatifs ; aucun des deux n'est corrigé. Les retraites sont identifiées sur la liste nominative et retirées du stock déclaré de l'école, sans jamais dépasser ce qui y reste : l'excédent est « non imputable », compté à part et non remplacé."
+ },
+ "retraites_fiabilite": {
+  "hypothese_age": true,
+  "population": {
+   "stock_declare": 174,
+   "agents_nominatifs": 0,
+   "agents_avec_age": 0,
+   "couverture": 0.0
+  },
+  "retraites_identifiees": 0,
+  "zero_etabli": false,
+  "message": "Retraites non calculables : le fichier nominatif des enseignants est indisponible. Les scénarios de recrutement qui dépendent des retraites sont incomplets.",
+  "statut": "non_calculable",
+  "libelle": "Retraites non calculables",
+  "raisons": [
+   "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+  ],
+  "raison": "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+  "message_conditionnel": "Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites."
+ },
+ "avertissements": [
+  {
+   "code": "retraites_non_calculables",
+   "gravite": "important",
+   "message": "Retraites non calculables : le fichier nominatif des enseignants est indisponible. Les scénarios de recrutement qui dépendent des retraites sont incomplets."
+  },
+  {
+   "code": "simulation_conditionnelle",
+   "gravite": "important",
+   "message": "Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites."
+  }
+ ],
+ "texte_donnees_fictives": null,
+ "avertissement_personnels": "Les effectifs enseignants sont ceux des personnels rapprochés dans la cartographie (Enseignants_Actuels). Ces personnels ne sont pas nécessairement tous des maîtres chargés de classe : leur statut n'est pas fourni par les fichiers importés.",
+ "ecoles": 30,
+ "ecoles_minimum_provisoire": 0,
+ "ecoles_eleves_inconnus": 0,
+ "fiabilite": {
+  "minimum_provisoire": 0,
+  "minimum_provisoire_sans_effet": 0,
+  "besoin_provisoire": 0,
+  "besoin_estime": 4,
+  "besoin_confirme": 26
+ },
+ "message_minimum_provisoire": null,
+ "minimum_pedagogique": {
+  "observe": 0,
+  "estime": 30,
+  "secours": 0,
+  "indetermine": 0
+ },
+ "besoins_par_statut": {
+  "confirme": 33,
+  "estime": 0,
+  "provisoire": 0
+ },
+ "non_disponibles": [
+  {
+   "indicateur": "Chargés de classe déclarés au SIGE",
+   "valeur": null,
+   "source_manquante": "Extraction SIGE des chargés de classe par école (non importée dans AlgoPlanR)."
+  },
+  {
+   "indicateur": "Agents hors cartographie",
+   "valeur": null,
+   "source_manquante": "Rapprochement SIGE ↔ fichier de cartographie des personnels (non disponible)."
+  },
+  {
+   "indicateur": "Écart de couverture SIGE − cartographie",
+   "valeur": null,
+   "source_manquante": "Les deux sources ci-dessus."
+  },
+  {
+   "indicateur": "Qualité réelle des personnels rattachés (chargés de classe ou non)",
+   "valeur": null,
+   "source_manquante": "Enseignants_Actuels compte les personnes rattachées à l'école ; leur qualité de maître chargé de classe n'est pas vérifiée."
+  }
+ ],
+ "hypotheses": [
+  {
+   "code": "rem_reference",
+   "libelle": "REM de référence (rapport MINEDUB d'octobre 2026)",
+   "valeur": "74,4 élèves par enseignant",
+   "a_valider": false
+  },
+  {
+   "code": "norme_historique",
+   "libelle": "Norme historique d'AlgoPlanR (avant octobre 2026)",
+   "valeur": "60 élèves par maître",
+   "a_valider": false
+  },
+  {
+   "code": "tolerance",
+   "libelle": "Tolérance pédagogique AlgoPlanR",
+   "valeur": "20 élèves",
+   "a_valider": false
+  },
+  {
+   "code": "plancher",
+   "libelle": "Plancher du minimum pédagogique",
+   "valeur": "3 enseignants",
+   "a_valider": true
+  },
+  {
+   "code": "groupes_secours",
+   "libelle": "Groupes de secours si Classes_Multigrades est absent",
+   "valeur": "6 groupes (école complète de six années supposée)",
+   "a_valider": true
+  },
+  {
+   "code": "regroupement",
+   "libelle": "Années réunies par classe multigrade (estimation G = 6 − M)",
+   "valeur": "2 années, sans chevauchement",
+   "a_valider": true
+  },
+  {
+   "code": "croissance",
+   "libelle": "Croissance annuelle des élèves",
+   "valeur": "2,7 %",
+   "a_valider": false
+  },
+  {
+   "code": "attrition",
+   "libelle": "Attrition totale / dont retraites / autres départs",
+   "valeur": "3,33 % / 1,08 % / 2,25 %",
+   "a_valider": false
+  },
+  {
+   "code": "directeurs",
+   "libelle": "Directeurs déchargés de classe",
+   "valeur": "856 prises de fonction par an, dont 15,4 % sans classe",
+   "a_valider": true
+  },
+  {
+   "code": "plafond",
+   "libelle": "Plafond annuel de recrutement (primaire national)",
+   "valeur": "3000 ; rattrapage sur 5 an(s)",
+   "a_valider": false
+  },
+  {
+   "code": "salles",
+   "libelle": "Salles sans mode de flux connu",
+   "valeur": "comptées en simple flux (BMAX approché)",
+   "a_valider": true
+  },
+  {
+   "code": "classes_ouvertes",
+   "libelle": "Classes_Ouvertes lu comme le nombre de groupes-classes",
+   "valeur": "non (désactivé tant que la définition de la colonne n'est pas validée)",
+   "a_valider": true
+  },
+  {
+   "code": "excedent_estime",
+   "libelle": "Excédent reposant sur des groupes estimés ou de secours",
+   "valeur": "soumis à validation administrative (aucune sortie automatique)",
+   "a_valider": true
+  },
+  {
+   "code": "personnels",
+   "libelle": "Enseignants_Actuels compté comme maîtres chargés de classe",
+   "valeur": "personnels rapprochés dans la cartographie, statut non vérifié",
+   "a_valider": true
+  },
+  {
+   "code": "annee_base",
+   "libelle": "Année de base (année scolaire des données du jeu)",
+   "valeur": "2026-2027 ; N+1 = année suivante",
+   "a_valider": true
+  },
+  {
+   "code": "transition",
+   "libelle": "Passage de la base à N+1",
+   "valeur": "Le stock d'enseignants et les effectifs d'élèves observés à la base sont retenus comme situation de début de N+1 : les mouvements entre la date des données et la rentrée de N+1 ne sont pas connus et ne sont pas inventés.",
+   "a_valider": true
+  },
+  {
+   "code": "annee_ages",
+   "libelle": "Année de mesure des âges (retraites)",
+   "valeur": "non précisée : âges supposés mesurés au début de N+1",
+   "a_valider": true
+  },
+  {
+   "code": "date_depart_retraite",
+   "libelle": "Âge légal de départ (60 ans) : date d'appréciation",
+   "valeur": "à la rentrée de l'année scolaire (règle active : un agent de 59 ans au début de N+1 part en N+2)",
+   "a_valider": true
+  },
+  {
+   "code": "plancher_retraites",
+   "libelle": "Plancher du quota : retraites de l'année (PLANCHER_RET)",
+   "valeur": "actif : Q = max(min(besoin calculé ; plafond) ; retraites)",
+   "a_valider": true
+  }
+ ]
+}
