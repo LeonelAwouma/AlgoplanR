@@ -123,6 +123,12 @@ export interface NavItem {
   exigeDonnees?: boolean
   /** L'entrée exige qu'une simulation ait été exécutée. */
   exigeSimulation?: boolean
+  /**
+   * L'entrée n'a de sens qu'avec le fichier nominatif des enseignants (agents identifiés, mobilité individuelle).
+   * Sans lui, elle reste fermée ; les écrans qui n'exigent qu'une simulation s'ouvrent, car la planification sur les
+   * écoles seules ne dépend d'aucune affectation individuelle.
+   */
+  exigeNominatif?: boolean
 }
 
 /** Un menu de l'application et les écrans qu'il regroupe. */
@@ -142,6 +148,8 @@ export interface Rubrique {
 export interface EtatJeu {
   donneesChargees: boolean
   simulationPrete: boolean
+  /** `false` : jeu créé en établissements seuls. Absent = fichier nominatif disponible. */
+  nominatifDisponible?: boolean
 }
 
 export const RUBRIQUES: Rubrique[] = [
@@ -261,6 +269,7 @@ export const RUBRIQUES: Rubrique[] = [
         sousTitre: 'Demandes, recevabilité, scores et issue',
         icon: ListOrdered,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
       {
         id: 'comparison',
@@ -268,6 +277,7 @@ export const RUBRIQUES: Rubrique[] = [
         sousTitre: 'Avant / après et scénarios',
         icon: ArrowRightLeft,
         exigeDonnees: true,
+        exigeNominatif: true,
       },
       {
         id: 'arbitrage',
@@ -275,6 +285,7 @@ export const RUBRIQUES: Rubrique[] = [
         sousTitre: 'Valider, rejeter ou corriger les propositions',
         icon: Gavel,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
       {
         id: 'vivier',
@@ -282,6 +293,7 @@ export const RUBRIQUES: Rubrique[] = [
         sousTitre: 'Personnes disponibles, rapprochement',
         icon: UsersRound,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
       {
         id: 'recrutes',
@@ -297,6 +309,7 @@ export const RUBRIQUES: Rubrique[] = [
         icon: UserRoundCheck,
         exigeSimulation: true,
         finale: true,
+        exigeNominatif: true,
       },
       {
         id: 'pool',
@@ -306,6 +319,7 @@ export const RUBRIQUES: Rubrique[] = [
         onglet: true,
         analysteSeulement: true,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
       {
         id: 'posts',
@@ -315,6 +329,7 @@ export const RUBRIQUES: Rubrique[] = [
         onglet: true,
         analysteSeulement: true,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
       {
         id: 'assignments',
@@ -324,6 +339,7 @@ export const RUBRIQUES: Rubrique[] = [
         onglet: true,
         analysteSeulement: true,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
       {
         id: 'unassigned',
@@ -332,6 +348,7 @@ export const RUBRIQUES: Rubrique[] = [
         onglet: true,
         analysteSeulement: true,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
       {
         id: 'logs',
@@ -340,6 +357,7 @@ export const RUBRIQUES: Rubrique[] = [
         onglet: true,
         analysteSeulement: true,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
     ],
   },
@@ -385,6 +403,7 @@ export const RUBRIQUES: Rubrique[] = [
         sousTitre: 'Prévus et réalisés, sans double comptage',
         icon: Shuffle,
         exigeSimulation: true,
+        exigeNominatif: true,
       },
       {
         id: 'indicateurs',
@@ -415,6 +434,7 @@ export const RUBRIQUES: Rubrique[] = [
         icon: FileText,
         exigeDonnees: true,
         finale: true,
+        exigeNominatif: true,
       },
     ],
   },
@@ -536,7 +556,19 @@ export function rubriquesVisibles(mode: ViewMode, role: RoleAcces): Rubrique[] {
 
 /** Vrai si l'écran peut être ouvert avec ce qui est prêt dans le jeu. */
 export function etapeAccessible(etape: NavItem, etat: EtatJeu): boolean {
-  return !(etape.exigeDonnees && !etat.donneesChargees) && !(etape.exigeSimulation && !etat.simulationPrete)
+  const sansNominatif = etat.nominatifDisponible === false
+  if (sansNominatif && etape.exigeNominatif) return false
+  // Sans fichier nominatif, aucune simulation de mobilité n'est exécutée : exiger son résultat fermerait la
+  // planification (projections, quotas, rapport prévisionnel) qui se calcule sur les écoles.
+  const exigeSimulation = etape.exigeSimulation && !sansNominatif
+  return !(etape.exigeDonnees && !etat.donneesChargees) && !(exigeSimulation && !etat.simulationPrete)
+}
+
+/** Pourquoi un écran est fermé : jeu en établissements seuls, ou données et simulation pas encore prêtes. */
+export function raisonInaccessible(etape: NavItem, etat: EtatJeu): string {
+  return etat.nominatifDisponible === false && etape.exigeNominatif
+    ? 'Indisponible : ce jeu n’a pas de fichier nominatif des enseignants (importez-le dans « Validation et actualisation »)'
+    : 'Disponible une fois les données importées et analysées'
 }
 
 /** Premier écran ouvrable d'un menu, `undefined` si aucun ne l'est encore. */

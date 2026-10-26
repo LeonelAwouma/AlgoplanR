@@ -1,10 +1,16 @@
 'use client'
 
 /**
- * Actualisation de l'exercice : deux nouveaux classeurs remplacent les
- * données, sans perdre les décisions qui restent valables. Le serveur
- * rapproche les enseignants par matricule et les écoles par code, puis relance
- * tous les calculs.
+ * Actualisation de l'exercice : de nouveaux classeurs remplacent les données,
+ * sans perdre les décisions qui restent valables. Le serveur rapproche les
+ * enseignants par matricule et les écoles par code, puis relance tous les
+ * calculs.
+ *
+ * Le fichier des établissements est obligatoire. Le sort des enseignants est
+ * toujours explicite : un nouveau fichier les remplace (ou les crée, pour
+ * passer d'un jeu « établissements seuls » à un jeu complet) ; sans nouveau
+ * fichier, ils sont conservés ; leur suppression est une action volontaire,
+ * confirmée et journalisée.
  */
 
 import { useState } from 'react'
@@ -16,7 +22,7 @@ import { Notice, Panel } from '@shared/ui/commun'
 import { ChampAuteur, useAuteur } from '@shared/ui/ChampAuteur'
 import { ErreurAction } from '@shared/ui/etats'
 
-import { useActualiserJeu, useCorrigerCorrespondances, useEnvoyerFichier } from '../../application/hooks'
+import { useActualiserJeu, useCorrigerCorrespondances, useEnvoyerFichier, useJeu } from '../../application/hooks'
 import { TYPES_FICHIER, colonnesRequisesManquantes } from '../../domain/correspondances'
 import { CarteFichier } from './CarteFichier'
 import { TableCorrespondance } from './TableCorrespondance'
@@ -26,6 +32,8 @@ export function ActualisationDonnees({ jeu }: { jeu: IdJeu }) {
   const envoi = useEnvoyerFichier()
   const correction = useCorrigerCorrespondances()
   const actualisation = useActualiserJeu(jeu)
+  const meta = useJeu(jeu)
+  const nominatif = meta.data?.nominatifDisponible ?? false
   const [auteur, setAuteur] = useAuteur()
 
   const [fichiers, setFichiers] = useState<Record<TypeFichier, FichierImporte | null>>({
@@ -34,6 +42,9 @@ export function ActualisationDonnees({ jeu }: { jeu: IdJeu }) {
   })
   const [erreurs, setErreurs] = useState<Partial<Record<TypeFichier, string>>>({})
   const [enLecture, setEnLecture] = useState<TypeFichier | null>(null)
+  // Suppression volontaire des données nominatives : jamais implicite, jamais par simple absence de fichier.
+  const [supprimerNominatif, setSupprimerNominatif] = useState(false)
+  const [suppressionConfirmee, setSuppressionConfirmee] = useState(false)
   const utilisateur = useUtilisateur()
   const region = utilisateur?.role === 'delegue' ? utilisateur.region : null
 
@@ -55,13 +66,37 @@ export function ActualisationDonnees({ jeu }: { jeu: IdJeu }) {
     const f = fichiers[t]
     return f ? colonnesRequisesManquantes(f.correspondances) : []
   })
-  const pret = !!etablissements && !!enseignants && manquantes.length === 0 && auteur.trim() !== ''
+  const suppression = supprimerNominatif && !enseignants
+  const pret =
+    !!etablissements && manquantes.length === 0 && auteur.trim() !== '' && (!suppression || suppressionConfirmee)
+
+  /** Ce que deviennent les enseignants enregistrés, annoncé avant l'actualisation. */
+  const sortDesEnseignants = enseignants
+    ? nominatif
+      ? 'Le nouveau fichier remplace les enseignants enregistrés.'
+      : 'Le nouveau fichier crée les enseignants : le jeu passe des établissements seuls au mode complet. Les indicateurs qui en dépendent sont recalculés et les anciennes projections deviennent obsolètes.'
+    : suppression
+      ? 'Les données nominatives du jeu seront supprimées (action volontaire, journalisée).'
+      : nominatif
+        ? 'Sans nouveau fichier, les enseignants enregistrés sont conservés.'
+        : 'Le jeu reste en établissements seuls : aucune donnée nominative n’est ajoutée.'
 
   function actualiser() {
-    if (!etablissements || !enseignants) return
+    if (!etablissements) return
     actualisation.mutate(
-      { etablissements: etablissements.id, enseignants: enseignants.id, auteur: auteur.trim() },
-      { onSuccess: () => setFichiers({ etablissements: null, enseignants: null }) },
+      {
+        etablissements: etablissements.id,
+        ...(enseignants ? { enseignants: enseignants.id } : {}),
+        ...(suppression ? { supprimerNominatif: true } : {}),
+        auteur: auteur.trim(),
+      },
+      {
+        onSuccess: () => {
+          setFichiers({ etablissements: null, enseignants: null })
+          setSupprimerNominatif(false)
+          setSuppressionConfirmee(false)
+        },
+      },
     )
   }
 
@@ -69,11 +104,12 @@ export function ActualisationDonnees({ jeu }: { jeu: IdJeu }) {
     <Panel
       kicker="Actualisation"
       title="Actualiser les données de l’exercice"
-      hint="Déposez les nouvelles versions des deux classeurs. Les faits du Prince, arbitrages et nominations qui restent valables sont conservés ; les autres sont signalés dans les écarts."
+      hint="Déposez la nouvelle version du fichier des établissements (obligatoire) et, si vous l’avez, celle du fichier des enseignants. Les faits du Prince, arbitrages et nominations qui restent valables sont conservés ; les autres sont signalés dans les écarts."
     >
       {region && (etablissements?.baseNationale || enseignants?.baseNationale) && (
         <Notice tone="info" title="Base nationale reconnue.">
-          Seules les écoles de la région {region} et les enseignants qui y sont rattachés seront retenus.
+          Seules les écoles de la région {region}
+          {enseignants ? ' et les enseignants qui y sont rattachés' : ''} seront retenues.
         </Notice>
       )}
       <div className="upload-cards">
@@ -113,6 +149,38 @@ export function ActualisationDonnees({ jeu }: { jeu: IdJeu }) {
             )
           })}
         </>
+      )}
+
+      {etablissements && (
+        <Notice tone={nominatif && !enseignants ? 'info' : 'neutral'} title="Sort des enseignants enregistrés.">
+          {sortDesEnseignants}
+        </Notice>
+      )}
+      {nominatif && !enseignants && (
+        <div className="field">
+          <label className="hint">
+            <input
+              type="checkbox"
+              checked={supprimerNominatif}
+              onChange={e => {
+                setSupprimerNominatif(e.target.checked)
+                setSuppressionConfirmee(false)
+              }}
+            />{' '}
+            Supprimer les données nominatives de ce jeu (action volontaire, distincte de l’absence de fichier).
+          </label>
+          {supprimerNominatif && (
+            <label className="hint">
+              <input
+                type="checkbox"
+                checked={suppressionConfirmee}
+                onChange={e => setSuppressionConfirmee(e.target.checked)}
+              />{' '}
+              Je confirme : retraites, âges et affectations individuelles deviendront non calculables et les projections
+              seront marquées obsolètes.
+            </label>
+          )}
+        </div>
       )}
 
       <div className="param-grid">

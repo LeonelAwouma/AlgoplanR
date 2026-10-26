@@ -10,6 +10,7 @@ from contextes.audit.services import auteur_de, journaliser
 from contextes.commun.erreurs import RefusMetier
 from contextes.commun.outils import reponse_paginee
 from contextes.donnees.lecteur import FichierIllisible, lire_classeur_numerote
+from contextes.donnees.services import exiger_nominatif
 from contextes.simulation import services as sim
 from domaine.commun.texte import nombre_ou_none, norm, texte
 from domaine.nominations import cycle
@@ -21,6 +22,13 @@ from .models import PersonneVivier
 OBJ = OpenApiTypes.OBJECT
 PAGE = [OpenApiParameter("page", int), OpenApiParameter("taille", int), OpenApiParameter("tri", str)]
 GEO = [OpenApiParameter("region", str), OpenApiParameter("departement", str)]
+
+
+def _oui(valeur) -> bool:
+    """Reconnaissance explicite (booléen ou « true », « 1 », « oui ») ; absente ou autre = non."""
+    if isinstance(valeur, bool):
+        return valeur
+    return str(valeur or "").strip().lower() in ("1", "true", "oui", "yes")
 
 
 def _corps(request) -> dict:
@@ -193,6 +201,7 @@ def nominations(request, jeu):
     j = jeu_autorise(request, jeu)
     reg = nom.registre(j)
     if request.method == "POST":
+        exiger_nominatif(j, "Nomination individuelle")
         d = _corps(request)
         motif = str(d.get("motif") or "").strip()
         if not motif:
@@ -219,6 +228,7 @@ def nominations(request, jeu):
 @api_view(["POST"])
 def generer(request, jeu):
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, "Propositions automatiques de nomination")
     d = _corps(request)
     region = region_imposee(request) or str(d.get("region") or "")
     reg = nom.registre(j)
@@ -234,6 +244,7 @@ def generer(request, jeu):
 @api_view(["POST"])
 def lot(request, jeu):
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, "Validation de nominations")
     d = _corps(request)
     action = d.get("action")
     if action not in ("valider", "rejeter"):
@@ -250,7 +261,8 @@ def lot(request, jeu):
             continue
         try:
             if action == "valider":
-                nom.changer_statut(reg, n, "validee", request=request, auteur=auteur, reference=d.get("reference"))
+                nom.changer_statut(reg, n, "validee", request=request, auteur=auteur, reference=d.get("reference"),
+                                   verification_sources=_oui(d.get("verification_sources")))
             else:
                 nom.changer_statut(reg, n, "rejetee", request=request, auteur=auteur, motif=d.get("motif"))
             bilan["traitees"] += 1
@@ -264,6 +276,7 @@ def lot(request, jeu):
 @api_view(["POST"])
 def importer(request, jeu):
     j = jeu_autorise(request, jeu)
+    exiger_nominatif(j, "Import de nominations")
     entetes, lignes, numeros = _lire_fichier(request)
     c_mat = _colonne(entetes, "matricule", "matricule_enseignant", "personne")
     c_poste = _colonne(entetes, "poste", "id_poste")
@@ -303,7 +316,8 @@ def importer(request, jeu):
                              request=request, auteur=auteur)
             ref = texte(l.get(c_ref)) if c_ref else ""
             if statut in ("validee", "mise_en_oeuvre"):
-                nom.changer_statut(reg, n, "validee", request=request, auteur=auteur, reference=ref)
+                nom.changer_statut(reg, n, "validee", request=request, auteur=auteur, reference=ref,
+                                   decision_externe=True)
             if statut == "mise_en_oeuvre":
                 nom.changer_statut(reg, n, "mise_en_oeuvre", request=request, auteur=auteur, reference=ref,
                                    date_effet=texte(l.get(c_date)) if c_date else None)
@@ -342,7 +356,7 @@ def _transition(vers: str, titre: str):
         d = _corps(request)
         nom.changer_statut(reg, n, vers, request=request, auteur=auteur_de(request, d.get("auteur")),
                            motif=d.get("motif"), reference=d.get("reference") or d.get("reference_acte"),
-                           date_effet=d.get("date_effet"))
+                           date_effet=d.get("date_effet"), verification_sources=_oui(d.get("verification_sources")))
         return Response(nom.nomination_dict(reg, n))
     vue.__name__ = f"nomination_{vers}"
     return vue
@@ -404,7 +418,8 @@ def realiser(request, jeu, mouvement):
     d = _corps(request)
     nom.realiser_mouvement(reg, m, date_effet=str(d.get("date_effet") or ""),
                            reference_acte=str(d.get("reference_acte") or ""), request=request,
-                           auteur=auteur_de(request, d.get("auteur")))
+                           auteur=auteur_de(request, d.get("auteur")),
+                           verification_sources=_oui(d.get("verification_sources")))
     return Response(_mouvement_public(_mvt(nom.registre(reg.jeu), mouvement)))
 
 

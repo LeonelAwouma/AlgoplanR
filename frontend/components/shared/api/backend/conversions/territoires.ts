@@ -28,6 +28,8 @@ export interface TotauxDjango {
   eleves_par_enseignant_etat: number | null
   eleves_par_classe: number | null
   classes_multigrades: number
+  /** Écoles au nombre de classes multigrades non renseigné (absent d'un ancien serveur : aucune). */
+  multigrades_non_renseignes?: number
 }
 
 export function versTotaux(t: TotauxDjango): TerritorialTotals {
@@ -48,7 +50,10 @@ export function versTotaux(t: TotauxDjango): TerritorialTotals {
     effectifTotalEleves: t.effectif_total_eleves,
     elevesParEnseignantEtat: t.eleves_par_enseignant_etat,
     elevesParClasse: t.eleves_par_classe,
-    classesMultigrades: t.classes_multigrades,
+    // Aucune école ne renseigne les classes multigrades : information inconnue (null), jamais « 0 classe ».
+    classesMultigrades:
+      t.nb_ecoles > 0 && (t.multigrades_non_renseignes ?? 0) >= t.nb_ecoles ? null : t.classes_multigrades,
+    ecolesMultigradesNonRenseignees: t.multigrades_non_renseignes ?? 0,
   }
 }
 

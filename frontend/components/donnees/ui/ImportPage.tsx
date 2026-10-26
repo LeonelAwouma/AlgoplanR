@@ -3,11 +3,14 @@
 /**
  * Import des données, en une seule action.
  *
- * L'utilisateur dépose ses deux classeurs, un par un ou en choisissant le
- * dossier qui les contient ; le serveur les lit et reconnaît
- * leurs colonnes dès l'envoi. Un clic lance ensuite l'analyse complète : le
- * serveur crée le jeu, contrôle la qualité, calcule le diagnostic et les trois
- * scénarios de référence, puis la vue d'ensemble s'ouvre.
+ * L'utilisateur dépose ses classeurs, un par un ou en choisissant le dossier
+ * qui les contient ; le serveur les lit et reconnaît leurs colonnes dès
+ * l'envoi. Le fichier des établissements est obligatoire, celui des
+ * enseignants facultatif : sans lui, l'analyse se fait sur les établissements
+ * seuls (mode annoncé avant la validation, jamais d'enseignant fictif). Un clic
+ * lance ensuite l'analyse : le serveur crée le jeu, contrôle la qualité,
+ * calcule le diagnostic et les trois scénarios de référence, puis la vue
+ * d'ensemble s'ouvre.
  *
  * L'utilisateur n'a la main que dans un seul cas : une information
  * indispensable introuvable dans ses fichiers. L'analyse s'arrête alors sur la
@@ -39,7 +42,7 @@ import {
   useEnvoyerFichier,
 } from '../application/hooks'
 import { lireEntetes } from '../application/lectureEntetes'
-import { TYPES_FICHIER, colonnesRequisesManquantes } from '../domain/correspondances'
+import { MESSAGE_ETABLISSEMENTS_SEULS, TYPES_FICHIER, colonnesRequisesManquantes } from '../domain/correspondances'
 import { estClasseur, repartir, type ClasseurLu } from '../domain/triDossier'
 import { CarteFichier } from './composants/CarteFichier'
 import { ChoixDossier, type BilanDossier } from './composants/ChoixDossier'
@@ -103,12 +106,18 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
   const [erreurDossier, setErreurDossier] = useState<string | null>(null)
 
   const enCours = creation.isPending
-  const complet = !!fichiers.etablissements && !!fichiers.enseignants
-  // Le menu du prince n'est proposé qu'au DRH, une fois les deux bases chargées.
+  // Seul le fichier des établissements est obligatoire ; celui des enseignants, absent, donne le mode « établissements seuls ».
+  const avecEtablissements = !!fichiers.etablissements
+  const complet = avecEtablissements && !!fichiers.enseignants
+  const etablissementsSeuls = avecEtablissements && !fichiers.enseignants
+  // Le menu du prince n'est proposé qu'au DRH, une fois les deux bases chargées : ses décisions portent sur des matricules.
   const proposePrince = estDrh && complet
   const princeAttendu = proposePrince && souhaitePrince === true
   const prete =
-    complet && !anneeInvalide && (!proposePrince || souhaitePrince !== null) && (!princeAttendu || !!fichierPrince)
+    avecEtablissements &&
+    !anneeInvalide &&
+    (!proposePrince || souhaitePrince !== null) &&
+    (!princeAttendu || !!fichierPrince)
 
   // Laisse le bilan visible un instant, puis ouvre le jeu créé : sur le Fait de Prince quand un fichier de décisions a
   // été joint (on y voit ce qu'elles changent aux bases), sinon sur le tableau de bord.
@@ -212,7 +221,7 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
   /** Enchaîne les étapes ; seule une colonne indispensable manquante interrompt l'analyse. */
   async function lancerAnalyse() {
     const { etablissements, enseignants } = fichiers
-    if (!etablissements || !enseignants || enCours) return
+    if (!etablissements || enCours) return
 
     setBlocage(null)
     setEchec(null)
@@ -223,15 +232,16 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
     marquer(
       'lecture',
       'faite',
-      `${fmt(etablissements.lignes)} établissements et ${fmt(enseignants.lignes)} enseignants lus` +
-        (region && (etablissements.baseNationale || enseignants.baseNationale)
+      `${fmt(etablissements.lignes)} établissements lus` +
+        (enseignants ? ` et ${fmt(enseignants.lignes)} enseignants lus` : ', sans fichier des enseignants') +
+        (region && (etablissements.baseNationale || enseignants?.baseNationale)
           ? ` dans la base nationale ; seule la région ${region} sera retenue.`
           : '.'),
     )
 
     const manquants = [
       ...colonnesRequisesManquantes(etablissements.correspondances),
-      ...colonnesRequisesManquantes(enseignants.correspondances),
+      ...(enseignants ? colonnesRequisesManquantes(enseignants.correspondances) : []),
       ...(princeAttendu && fichierPrince ? colonnesRequisesManquantes(fichierPrince.correspondances) : []),
     ]
     if (manquants.length > 0) {
@@ -241,7 +251,7 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
       )
       return
     }
-    const reconnues = [...etablissements.correspondances.matches, ...enseignants.correspondances.matches]
+    const reconnues = [...etablissements.correspondances.matches, ...(enseignants?.correspondances.matches ?? [])]
     marquer(
       'colonnes',
       'faite',
@@ -255,7 +265,8 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
     try {
       const cree = await creation.mutateAsync({
         etablissements: etablissements.id,
-        enseignants: enseignants.id,
+        // Aucun identifiant de fichier d'enseignants n'est envoyé quand il est absent.
+        ...(enseignants ? { enseignants: enseignants.id } : {}),
         ...(princeAttendu && fichierPrince ? { prince: fichierPrince.id } : {}),
         ...(anneeScolaire.trim() ? { anneeScolaire: anneeScolaire.trim() } : {}),
         // Sens enregistré explicitement : l'année saisie est celle des données (base des projections).
@@ -265,7 +276,12 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
       setQualite(cree.qualite)
       setBilanPrince(cree.prince ?? null)
       marquer('qualite', 'faite', `Qualité ${cree.qualite.score} sur 100 (${cree.qualite.appreciation.toLowerCase()}).`)
-      marquer('diagnostic', 'faite', `${fmt(cree.jeu.nbUnitesCalcul)} établissements analysés.`)
+      marquer(
+        'diagnostic',
+        'faite',
+        `${fmt(cree.jeu.nbUnitesCalcul)} établissements analysés` +
+          (cree.jeu.nominatifDisponible ? '.' : ' (établissements seuls : retraites individuelles non calculables).'),
+      )
       marquer('simulation', 'faite', 'Scénarios de référence calculés.')
       setJeuCree(cree.jeu.id)
     } catch (erreur) {
@@ -292,14 +308,16 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
       {!occupe &&
         (estDrh ? (
           <p className="import-consigne">
-            Choisissez le dossier de la base nationale, ou déposez le fichier national des établissements et celui des
-            enseignants, puis lancez l’analyse : le jeu national créé couvre toutes les régions.
+            Choisissez le dossier de la base nationale, ou déposez le fichier national des établissements (obligatoire)
+            et, si vous l’avez, celui des enseignants (facultatif), puis lancez l’analyse : le jeu national créé couvre
+            toutes les régions.
           </p>
         ) : (
           <p className="import-consigne">
-            Choisissez le dossier qui contient vos classeurs, ou déposez le fichier des établissements et celui des
-            enseignants (ceux de votre région, ou ceux de la base nationale : seule votre région est alors retenue),
-            puis lancez l’analyse : contrôle qualité, diagnostic et scénarios de référence s’enchaînent sur le serveur.
+            Choisissez le dossier qui contient vos classeurs, ou déposez le fichier des établissements (obligatoire) et,
+            si vous l’avez, celui des enseignants (facultatif) (ceux de votre région, ou ceux de la base nationale :
+            seule votre région est alors retenue), puis lancez l’analyse : contrôle qualité, diagnostic et scénarios de
+            référence s’enchaînent sur le serveur.
           </p>
         ))}
 
@@ -318,8 +336,9 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
 
       {region && (fichiers.etablissements?.baseNationale || fichiers.enseignants?.baseNationale) && !occupe && (
         <Notice tone="info" title="Base nationale reconnue.">
-          Seules les écoles de la région {region} et les enseignants qui y sont rattachés seront retenus ; les autres
-          régions sont écartées automatiquement.
+          Seules les écoles de la région {region}
+          {fichiers.enseignants ? ' et les enseignants qui y sont rattachés' : ''} seront retenues ; les autres régions
+          sont écartées automatiquement.
         </Notice>
       )}
 
@@ -369,6 +388,27 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
         </div>
       )}
 
+      {avecEtablissements && !occupe && (
+        <Notice
+          tone={etablissementsSeuls ? 'warn' : 'info'}
+          title={
+            etablissementsSeuls
+              ? `Mode d’import : établissements seuls (${fmt(fichiers.etablissements?.lignes ?? 0)} établissements).`
+              : `Mode d’import : établissements et enseignants (${fmt(fichiers.etablissements?.lignes ?? 0)} établissements, ${fmt(fichiers.enseignants?.lignes ?? 0)} lignes nominatives).`
+          }
+        >
+          {etablissementsSeuls ? (
+            <>
+              {MESSAGE_ETABLISSEMENTS_SEULS} Aucune donnée nominative n’est enregistrée : l’absence de fichier ne
+              signifie pas que les écoles n’ont pas d’enseignants, et les effectifs déclarés par école sont conservés.
+              {estDrh && ' Les faits du Prince, qui portent sur des matricules, ne sont pas disponibles dans ce mode.'}
+            </>
+          ) : (
+            'Retraites, âges, rapprochement nominatif et affectations individuelles seront calculés à partir du fichier des enseignants. Les contrôles de qualité signalent les rattachements douteux.'
+          )}
+        </Notice>
+      )}
+
       {proposePrince && !jeuCree && (
         <ChoixFaitsPrince
           souhaite={souhaitePrince}
@@ -404,8 +444,12 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
           ) : (
             <Play size={15} aria-hidden="true" />
           )}
-          {enCours ? 'Analyse en cours…' : 'Lancer l’analyse complète'}
-          <span className="btn-count">{TYPES_FICHIER.filter(t => fichiers[t]).length}/2</span>
+          {enCours
+            ? 'Analyse en cours…'
+            : etablissementsSeuls
+              ? 'Lancer l’analyse (établissements seuls)'
+              : 'Lancer l’analyse complète'}
+          <span className="btn-count">{TYPES_FICHIER.filter(t => fichiers[t]).length}</span>
         </button>
         <button type="button" className="btn" disabled={occupe} onClick={explorerDemonstration}>
           {demonstration.isPending ? (

@@ -274,7 +274,10 @@ export function lignesContexte(p: PrevisionnelComplet): [string, string | number
     ['Périmètre', `${c.perimetre} : ${couverture}`],
     ['Écoles du périmètre', c.ecolesPerimetre],
     ['Personnels rattachés administrativement (Enseignants_Actuels)', c.personnelsStockDeclare],
-    ['Personnels du fichier nominatif (matricules distincts)', c.personnelsNominatifs],
+    [
+      'Personnels du fichier nominatif (matricules distincts)',
+      c.personnelsNominatifs ?? 'Aucun fichier nominatif importé',
+    ],
     ['Écoles aux données incomplètes', c.ecolesDonneesIncompletes],
     ['dont effectif d’élèves inconnu', c.ecolesElevesInconnus],
     ['dont minimum pédagogique provisoire', c.ecolesMinimumProvisoire],
@@ -315,7 +318,9 @@ export function phraseContexte(p: PrevisionnelComplet): string {
     `Périmètre réel : ${c.ecolesPerimetre.toLocaleString('fr-FR')} écoles` +
     (c.ecolesPerimetre === c.ecolesJeu ? '' : ` sur ${c.ecolesJeu.toLocaleString('fr-FR')}`) +
     `, ${c.personnelsStockDeclare.toLocaleString('fr-FR')} personnels rattachés administrativement` +
-    ` (${c.personnelsNominatifs.toLocaleString('fr-FR')} dans le fichier nominatif), ` +
+    (c.personnelsNominatifs === null
+      ? ' (aucun fichier nominatif des enseignants importé), '
+      : ` (${c.personnelsNominatifs.toLocaleString('fr-FR')} dans le fichier nominatif), `) +
     `${c.ecolesDonneesIncompletes.toLocaleString('fr-FR')} école(s) aux données incomplètes.` +
     (c.calculeLe ? ` Calculé le ${dateFr(c.calculeLe)}.` : '')
   )
@@ -356,7 +361,10 @@ export function controlesAuditRetraites(p: PrevisionnelComplet): [string, string
   const a = p.auditRetraites
   if (!a) return []
   return [
-    ['Personnels du fichier nominatif (matricules distincts)', a.personnelsNominatifs],
+    [
+      'Personnels du fichier nominatif (matricules distincts)',
+      a.personnelsNominatifs ?? 'Aucun fichier nominatif importé',
+    ],
     ['Stock déclaré (Enseignants_Actuels)', a.stockDeclare],
     [
       'Agents sans âge exploitable (non comptés)',

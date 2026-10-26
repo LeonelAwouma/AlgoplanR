@@ -137,7 +137,8 @@ export interface IndicateursAnnee extends Partial<DetailProjectionAnnee> {
   annee: AnneePlan
   /** Effectif enseignant disponible en début de période. */
   effectifDebut: number
-  departsRetraite: number
+  /** `null` : retraites non calculables (aucun fichier nominatif), jamais 0. */
+  departsRetraite: number | null
   departsAttrition: number
   /** Besoin prévisionnel : somme de max(0 ; K − effectif). */
   besoin: number
@@ -198,7 +199,14 @@ export interface LignePlanificationEcole {
   commune: string
   sousSysteme: SousSysteme | null
   cible: number
-  annees: { annee: AnneePlan; effectif: number; departsRetraite: number; besoin: number; excedent: number }[]
+  annees: {
+    annee: AnneePlan
+    effectif: number
+    /** `null` : retraites non calculables (aucun fichier nominatif). */
+    departsRetraite: number | null
+    besoin: number
+    excedent: number
+  }[]
 }
 
 /** Départ à la retraite prévu, nominatif. */
@@ -441,8 +449,8 @@ export interface ContextePrevisionnel {
   ecolesJeu: number
   /** Σ Enseignants_Actuels : personnels rattachés administrativement (pas tous chargés de classe). */
   personnelsStockDeclare: number
-  /** Matricules distincts du fichier des enseignants rattachés aux écoles du périmètre. */
-  personnelsNominatifs: number
+  /** Matricules distincts du fichier des enseignants rattachés aux écoles du périmètre ; `null` sans fichier nominatif. */
+  personnelsNominatifs: number | null
   ecolesDonneesIncompletes: number
   ecolesElevesInconnus: number
   ecolesMinimumProvisoire: number
@@ -465,7 +473,7 @@ export interface AuditRetraites {
   dejaEligiblesDebut: number
   sansAge: number
   doublons: number
-  personnelsNominatifs: number
+  personnelsNominatifs: number | null
   stockDeclare: number
   methode: string
   decalageAges: number
@@ -746,6 +754,20 @@ export interface CorpsAjustementQuota {
 export interface CorpsValidationQuotas {
   annee: AnneePlan
   auteur: string
+  /** Codes des réserves reconnues (retraites non calculables, besoin provisoire, dépassement du plafond…). */
+  reservesReconnues?: string[]
+  /** Référence de la validation administrative ou budgétaire, exigée en cas de dépassement du plafond. */
+  referenceAdministrative?: string
+}
+
+/** Réserve qui pèse sur des quotas : leur validation (décision de recrutement) exige qu'elle soit reconnue. */
+export interface ReserveQuotas {
+  code: string
+  libelle: string
+  detail: string
+  reconnue?: boolean
+  /** Une référence de validation administrative ou budgétaire doit être saisie. */
+  referenceRequise?: boolean
 }
 
 export interface EvenementQuota {

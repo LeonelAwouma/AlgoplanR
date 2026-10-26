@@ -10,3 +10,6 @@ export * from './application/hooks'
 /** Composants d'interface partagés avec les autres contextes. */
 export { DataQualityPanel } from './ui/composants/DataQualityPanel'
 export { DetailBareme } from './ui/composants/DetailBareme'
+
+/** Message annonçant les limites d'un import en établissements seuls (sans fichier nominatif des enseignants). */
+export { MESSAGE_ETABLISSEMENTS_SEULS } from './domain/correspondances'

@@ -17,7 +17,9 @@ class ImportFichierSerializer(serializers.Serializer):
 class CreationJeuSerializer(serializers.Serializer):
     nom = serializers.CharField(required=False, allow_blank=True)
     fichier_etablissements = serializers.UUIDField()
-    fichier_enseignants = serializers.UUIDField()
+    fichier_enseignants = serializers.UUIDField(
+        required=False, allow_null=True,
+        help_text="Facultatif : sans fichier nominatif, le jeu est créé avec les établissements seuls")
     annee_scolaire = serializers.CharField(
         required=False, allow_blank=True, help_text="Année scolaire des données importées, « AAAA-AAAA » (année en cours si omise)")
     sens_annee_scolaire = serializers.ChoiceField(

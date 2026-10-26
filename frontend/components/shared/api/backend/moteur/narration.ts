@@ -103,11 +103,15 @@ export function diagnosticTerritorial(
   nbEnseignantsLus: number,
   resultat: SimulationResult | null,
   perimetre: string,
+  nominatif = true,
 ): Enonce[] {
   const enonces: Enonce[] = []
 
   enonces.push({
-    texte: `Les données analysées couvrent ${n(totals.ecolesAnalysees)} établissement${s(totals.ecolesAnalysees)} et ${n(nbEnseignantsLus)} enseignant${s(nbEnseignantsLus)} sur ${perimetre}.`,
+    // Sans fichier nominatif, le nombre d'enseignants est le stock déclaré des écoles, pas une liste d'agents lus.
+    texte: nominatif
+      ? `Les données analysées couvrent ${n(totals.ecolesAnalysees)} établissement${s(totals.ecolesAnalysees)} et ${n(nbEnseignantsLus)} enseignant${s(nbEnseignantsLus)} sur ${perimetre}.`
+      : `Les données analysées couvrent ${n(totals.ecolesAnalysees)} établissement${s(totals.ecolesAnalysees)} sur ${perimetre}, avec un stock déclaré de ${n(nbEnseignantsLus)} enseignant${s(nbEnseignantsLus)} (aucun fichier nominatif des enseignants n’a été importé).`,
     regle: 'ecolesAnalysees, enseignants lus',
   })
 
@@ -125,7 +129,7 @@ export function diagnosticTerritorial(
 
   if (totals.ecolesAvecExcedent > 0) {
     enonces.push({
-      texte: `${n(totals.ecolesAvecExcedent)} établissement${s(totals.ecolesAvecExcedent)} dispose${totals.ecolesAvecExcedent > 1 ? 'nt' : ''} d'un excédent mobilisable, pour un total de ${n(totals.excedentMobilisable)} enseignant${s(totals.excedentMobilisable)}.`,
+      texte: `${n(totals.ecolesAvecExcedent)} établissement${s(totals.ecolesAvecExcedent)} dispose${totals.ecolesAvecExcedent > 1 ? 'nt' : ''} d'un excédent ${nominatif ? 'mobilisable' : 'de stock déclaré'}, pour un total de ${n(totals.excedentMobilisable)} enseignant${s(totals.excedentMobilisable)}${nominatif ? '' : ' (estimation par école, sans liste nominative d’agents mobilisables)'}.`,
       regle: 'ecolesAvecExcedent > 0',
     })
   }

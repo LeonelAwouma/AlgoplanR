@@ -6,6 +6,7 @@
 import type {
   Actualisation,
   CorpsCorrespondances,
+  CorpsActualisation,
   CorpsCreationJeu,
   CorpsModificationJeu,
   CorpsEnvoiFichier,
@@ -85,6 +86,7 @@ interface ActualisationDjango {
   realisee_le: string
   realisee_par: string | null
   fichiers_source: Actualisation['fichiersSource']
+  mode_nominatif?: Actualisation['modeNominatif']
   resume: { arrivees: number; departs: number; changements_ecole: number; decisions_invalidees: number }
 }
 
@@ -94,6 +96,7 @@ function versActualisation(a: ActualisationDjango): Actualisation {
     realiseeLe: a.realisee_le,
     realiseePar: a.realisee_par,
     fichiersSource: a.fichiers_source,
+    modeNominatif: a.mode_nominatif ?? null,
     resume: {
       arrivees: a.resume.arrivees,
       departs: a.resume.departs,
@@ -133,7 +136,8 @@ export const conversionsDonnees: Record<string, Conversion> = {
       'jeux/',
       {
         fichier_etablissements: c.etablissements,
-        fichier_enseignants: c.enseignants,
+        // Pas de fichier nominatif : aucun identifiant n'est envoyé, le serveur crée le jeu en établissements seuls.
+        ...(c.enseignants ? { fichier_enseignants: c.enseignants } : {}),
         ...(c.prince ? { fichier_prince: c.prince } : {}),
         ...(c.anneeScolaire ? { annee_scolaire: c.anneeScolaire } : {}),
         // Un nouveau jeu enregistre toujours le sens de son année : par défaut, l'année des données.
@@ -175,8 +179,18 @@ export const conversionsDonnees: Record<string, Conversion> = {
     versValidation(await acces.ecrire('POST', `jeux/${p.jeu}/validation/`, r.corps)),
   'GET jeux/{jeu}/actualisations/': async (_, acces, p) =>
     (await acces.lire<ActualisationDjango[]>(`jeux/${p.jeu}/actualisations/`)).map(versActualisation),
-  'POST jeux/{jeu}/actualisations/': async (r, acces, p) =>
-    versActualisation(await acces.ecrire<ActualisationDjango>('POST', `jeux/${p.jeu}/actualisations/`, r.corps)),
+  'POST jeux/{jeu}/actualisations/': async (r, acces, p) => {
+    const c = r.corps as CorpsActualisation
+    return versActualisation(
+      await acces.ecrire<ActualisationDjango>('POST', `jeux/${p.jeu}/actualisations/`, {
+        etablissements: c.etablissements,
+        // Sans nouveau fichier, le serveur conserve les enseignants enregistrés (jamais de suppression silencieuse).
+        ...(c.enseignants ? { enseignants: c.enseignants } : {}),
+        ...(c.supprimerNominatif ? { supprimer_nominatif: true } : {}),
+        auteur: c.auteur,
+      }),
+    )
+  },
   'GET jeux/{jeu}/actualisations/{actualisation}/ecarts/': async (_, acces, p): Promise<EcartsActualisation> => {
     const e = await acces.lire<
       Omit<EcartsActualisation, 'changementsEcole' | 'decisionsInvalidees'> & {

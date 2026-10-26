@@ -73,7 +73,7 @@ export function queryServeur(query: ParametresRequete): ParametresRequete {
 interface AnneeDjango {
   annee: AnneePlan
   effectif_debut: number
-  departs_retraite: number
+  departs_retraite: number | null
   departs_attrition: number
   besoin: number
   ressources_vivier: number
@@ -469,7 +469,13 @@ export const conversionsPlanification: Record<string, Conversion> = {
       commune: string
       sous_systeme: SousSysteme | null
       cible: number
-      annees: { annee: AnneePlan; effectif: number; departs_retraite: number; besoin: number; excedent: number }[]
+      annees: {
+        annee: AnneePlan
+        effectif: number
+        departs_retraite: number | null
+        besoin: number
+        excedent: number
+      }[]
     }>(`${P(p.jeu)}ecoles/`, queryServeur(r.query))
     const ecoles: LignePlanificationEcole[] = lignes.map(e => ({
       schoolId: e.id_ecole,
@@ -583,10 +589,17 @@ export const conversionsPlanification: Record<string, Conversion> = {
       ),
     )
   },
-  'POST jeux/{jeu}/quotas/valider/': async (r, acces, p) =>
-    (await acces.ecrire<QuotaDjango[]>('POST', `jeux/${p.jeu}/quotas/valider/`, r.corps as CorpsValidationQuotas)).map(
-      versQuota,
-    ),
+  'POST jeux/{jeu}/quotas/valider/': async (r, acces, p) => {
+    const c = r.corps as CorpsValidationQuotas
+    return (
+      await acces.ecrire<QuotaDjango[]>('POST', `jeux/${p.jeu}/quotas/valider/`, {
+        annee: c.annee,
+        auteur: c.auteur,
+        ...(c.reservesReconnues ? { reserves_reconnues: c.reservesReconnues } : {}),
+        ...(c.referenceAdministrative ? { reference_administrative: c.referenceAdministrative } : {}),
+      })
+    ).map(versQuota)
+  },
   'GET jeux/{jeu}/quotas/historique/': async (r, acces, p): Promise<EvenementQuota[]> =>
     (
       await lire<

@@ -224,4 +224,4 @@ def resume_scenario(sc: Scenario) -> dict:
         calcule = None
     return {"id": sc.pk, "code": sc.code, "nom": sc.nom, "description": sc.description,
             "geographique": sc.geographique, "obsolete": obsolete, "parametres": sc.parametres,
-            "cree_le": sc.cree_le, "calcule_le": calcule}
+            "cree_le": sc.cree_le, "calcule_le": calcule, "nominatif_disponible": sc.jeu.nominatif_disponible}

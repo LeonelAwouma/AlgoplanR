@@ -60,7 +60,7 @@ function exporter(perimetre: string, lignes: LigneProjection[], retraitesInconnu
     lignes.map(l => [
       l.annee,
       l.effectifDebut,
-      retraitesInconnues ? 'Non calculable' : l.departsRetraite,
+      retraitesInconnues ? 'Non calculable' : (l.departsRetraite ?? 'Non calculable'),
       l.departsAttrition,
       l.directeursDecharges ?? '',
       l.recrutement ?? '',

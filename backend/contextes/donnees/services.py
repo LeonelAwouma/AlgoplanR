@@ -39,6 +39,10 @@ from .models import FichierImporte, JeuDeDonnees, RapportQualite
 
 TYPES = ("etablissements", "enseignants", "prince")
 MAX_LIGNES_RAPPORT = 200
+#: Liste d'une actualisation au-delà de laquelle le détail nominatif est tronqué (le décompte reste exact).
+MAX_ECARTS_DETAILLES = 1000
+MESSAGE_PRINCE_SANS_NOMINATIF = ("Les faits du Prince portent sur des matricules : ils ne peuvent pas être appliqués "
+                                 "sans fichier nominatif des enseignants.")
 
 
 def recevoir_fichier(type_fichier: str, upload, feuille: Optional[str] = None, *, compte=None,
@@ -135,7 +139,7 @@ def _refus_lignes(message: str, anomalies: List[dict], code: str, region: str, f
 class _Selection:
     """Lignes d'un fichier qui entrent dans le jeu : brutes (en-têtes sources), normalisées, numéros dans le
     classeur. Toutes les lignes, ou seulement celles de la région extraites de la base nationale."""
-    fichier: FichierImporte
+    fichier: Optional[FichierImporte]
     brutes: List[dict]
     normalisees: List[dict]
     numeros: List[int]
@@ -143,6 +147,11 @@ class _Selection:
     @classmethod
     def complete(cls, f: FichierImporte) -> "_Selection":
         return cls(f, f.lignes, _lignes_normalisees(f), f.numeros_lignes)
+
+    @classmethod
+    def absente(cls) -> "_Selection":
+        """Fichier des enseignants non fourni (établissements seuls) : aucune ligne, aucun enseignant inventé."""
+        return cls(None, [], [], [])
 
     def garder(self, indices: Sequence[int]) -> "_Selection":
         return _Selection(self.fichier, [self.brutes[i] for i in indices], [self.normalisees[i] for i in indices],
@@ -163,7 +172,7 @@ def _extraire_region(region: str, e: _Selection, n: _Selection) -> Tuple[_Select
     sont conservées : rien d'une autre région n'atteint la base de données.
     """
     _exiger_colonne_region(e.fichier)
-    cols_ens = colonnes_region(n.fichier.entetes)
+    cols_ens = colonnes_region(n.fichier.entetes) if n.fichier is not None else []
     gardees_e, gardees_n, bilan = isoler_region(
         region, e.normalisees, n.normalisees, e.numeros, n.numeros,
         [[texte(l.get(c)) for c in cols_ens] for l in n.brutes], col_region=C.COL_ETAB_REGION,
@@ -180,6 +189,8 @@ def _controle_regional(region: str, e: _Selection, n: _Selection) -> None:
     au premier écart."""
     _exiger_colonne_region(e.fichier)
     refuser_si_hors_region(region, e.normalisees, e.numeros, [C.COL_ETAB_REGION], e.fichier.nom_fichier)
+    if n.fichier is None:        # établissements seuls : rien à contrôler côté enseignants
+        return
     # Fichier des enseignants : ses éventuelles colonnes Région ont été contrôlées à l'envoi (fichier régional) ;
     # chaque enseignant doit en outre être attaché à une école du fichier régional.
     refuser_si_hors_region(region, n.brutes, n.numeros, colonnes_region(n.fichier.entetes), n.fichier.nom_fichier)
@@ -193,15 +204,16 @@ def _controle_regional(region: str, e: _Selection, n: _Selection) -> None:
             "Aucune ligne n'a été enregistrée.", hors, "region_non_autorisee", region, n.fichier.nom_fichier)
 
 
-def _lignes_du_jeu(compte, f_etab: FichierImporte, f_ens: FichierImporte
+def _lignes_du_jeu(compte, f_etab: FichierImporte, f_ens: Optional[FichierImporte]
                    ) -> Tuple[List[dict], List[dict], Optional[dict]]:
     """Lignes normalisées du futur jeu : celles de la région pour un délégué, toutes pour le DRH.
 
     Le troisième élément est le bilan de l'isolement régional (None hors extraction d'une base nationale)."""
-    e, n = _Selection.complete(f_etab), _Selection.complete(f_ens)
+    e = _Selection.complete(f_etab)
+    n = _Selection.complete(f_ens) if f_ens is not None else _Selection.absente()
     bilan = None
     if compte.est_delegue:
-        if f_etab.base_nationale or f_ens.base_nationale:
+        if f_etab.base_nationale or (f_ens is not None and f_ens.base_nationale):
             e, n, bilan = _extraire_region(compte.region, e, n)
         else:
             _controle_regional(compte.region, e, n)
@@ -263,22 +275,43 @@ def _joindre_bilan_regional(rapport: dict, bilan: dict) -> None:
     rapport["statistiques"]["nb_avertissements"] = len(rapport["avertissements"])
 
 
-@transaction.atomic
-def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte, fichier_prince: Optional[FichierImporte] = None,
-              annee_scolaire: Optional[str] = None, sens_annee_scolaire: Optional[str] = None,
-              donnees_fictives: bool = False) -> JeuDeDonnees:
-    """Crée un jeu à partir de deux fichiers envoyés par le même compte : régional pour un délégué (sa région
-    seule, même depuis la base nationale), national pour le DRH. `donnees_fictives` : jeu de test déclaré fictif par
-    la personne qui l'importe (seule origine vérifiable pour un import)."""
-    f_etab = fichier_du_compte(compte, id_fichier_etab)
-    f_ens = fichier_du_compte(compte, id_fichier_ens)
-    if f_etab.type != "etablissements" or f_ens.type != "enseignants":
+def _fichier_enseignants(compte, ident) -> Optional[FichierImporte]:
+    """Fichier des enseignants s'il est désigné, sinon None : mode « établissements seuls ». Aucun identifiant
+    n'est inventé pour un fichier absent."""
+    if ident in (None, ""):
+        return None
+    f = fichier_du_compte(compte, ident)
+    if f.type != "enseignants":
         raise RefusMetier("Types de fichiers inversés ou incorrects",
-                          ["fichier_etablissements doit être de type etablissements",
-                           "fichier_enseignants doit être de type enseignants"])
+                          ["fichier_enseignants doit être de type enseignants"])
+    return f
+
+
+@transaction.atomic
+def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens=None, *, compte,
+              fichier_prince: Optional[FichierImporte] = None, annee_scolaire: Optional[str] = None,
+              sens_annee_scolaire: Optional[str] = None, donnees_fictives: bool = False) -> JeuDeDonnees:
+    """Crée un jeu à partir du fichier des établissements (obligatoire) et, si disponible, du fichier nominatif des
+    enseignants : régional pour un délégué (sa région seule, même depuis la base nationale), national pour le DRH.
+
+    Sans fichier d'enseignants, le jeu est « établissements seuls » : l'absence est enregistrée explicitement
+    (`nominatif_disponible`), aucun enseignant n'est créé et les retraites restent non calculables. `donnees_fictives` :
+    jeu de test déclaré fictif par la personne qui l'importe (seule origine vérifiable pour un import)."""
+    if not id_fichier_etab:
+        raise RefusMetier("Fichier des établissements manquant", ["fichier_etablissements est requis"],
+                          code="etablissements_requis")
+    f_etab = fichier_du_compte(compte, id_fichier_etab)
+    if f_etab.type != "etablissements":
+        raise RefusMetier("Types de fichiers inversés ou incorrects",
+                          ["fichier_etablissements doit être de type etablissements"])
+    f_ens = _fichier_enseignants(compte, id_fichier_ens)
+    nominatif = f_ens is not None
+    if fichier_prince is not None and not nominatif:
+        raise RefusMetier("Faits du Prince : fichier nominatif requis", [MESSAGE_PRINCE_SANS_NOMINATIF],
+                          code="prince_sans_nominatif")
     annee, sens = _annee_scolaire(annee_scolaire), _sens_annee(sens_annee_scolaire)
     l_etab, l_ens, bilan = _lignes_du_jeu(compte, f_etab, f_ens)
-    rapport = controler(l_etab, l_ens, cfg_dom.defaut())
+    rapport = controler(l_etab, l_ens, cfg_dom.defaut(), nominatif=nominatif)
     if bilan is not None:
         _joindre_bilan_regional(rapport, bilan)
     if not rapport["valide"]:
@@ -291,7 +324,7 @@ def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte, fichier_prin
         portee, region, defaut = PORTEE_NATIONALE, None, f"Base nationale ({f_etab.nom_fichier})"
     jeu = JeuDeDonnees.objects.create(nom=nom or defaut, source="import", portee=portee, region=region,
                                       cree_par=compte, annee_scolaire=annee, sens_annee_scolaire=sens,
-                                      donnees_fictives=bool(donnees_fictives))
+                                      donnees_fictives=bool(donnees_fictives), nominatif_disponible=nominatif)
     depots.enregistrer(jeu, [construire_ecole(l) for l in l_etab], [construire_enseignant(l) for l in l_ens])
     RapportQualite.objects.create(jeu=jeu, contenu=rapport)
     for f in (f_etab, f_ens, fichier_prince):
@@ -324,6 +357,31 @@ def creer_demonstration(nom: str = "", graine: int = 2026, nb_ecoles: int = 60, 
     return jeu
 
 
+MESSAGE_ETABLISSEMENTS_SEULS = ("Jeu d'établissements seuls : aucun fichier nominatif des enseignants. Les analyses "
+                                "scolaires sont disponibles ; les retraites, les affectations individuelles et certains "
+                                "scénarios restent incomplets jusqu'à l'importation des enseignants.")
+
+
+def mode_nominatif(jeu: JeuDeDonnees) -> dict:
+    """Mode d'import du jeu, tel qu'enregistré : « complet » (établissements et enseignants) ou
+    « etablissements_seuls »."""
+    if jeu.nominatif_disponible:
+        return {"nominatif_disponible": True, "mode_import": "complet", "message_mode_import": None}
+    return {"nominatif_disponible": False, "mode_import": "etablissements_seuls",
+            "message_mode_import": MESSAGE_ETABLISSEMENTS_SEULS}
+
+
+def exiger_nominatif(jeu: JeuDeDonnees, fonction: str) -> None:
+    """Refuse explicitement une fonction qui exige des agents identifiés quand le jeu n'a pas de fichier nominatif.
+    Aucun enseignant, matricule ou retraite fictif n'est créé pour la laisser s'exécuter."""
+    if not jeu.nominatif_disponible:
+        raise RefusMetier(
+            f"{fonction} : fichier nominatif des enseignants indisponible",
+            [f"{fonction} exige des agents identifiés (matricule, âge, école d'attache). Ce jeu a été créé avec les "
+             "établissements seuls : importez le fichier des enseignants (actualisation du jeu) pour l'activer."],
+            code="nominatif_indisponible")
+
+
 def resume_jeu(jeu: JeuDeDonnees) -> dict:
     return {
         "id": str(jeu.id), "nom": jeu.nom, "source": jeu.source, "cree_le": jeu.cree_le,
@@ -334,14 +392,18 @@ def resume_jeu(jeu: JeuDeDonnees) -> dict:
         "donnees_fictives": jeu.source == "demonstration" or jeu.donnees_fictives,
         "portee": jeu.portee, "region": jeu.region, "consolide_depuis": jeu.consolide_depuis,
         "cree_par": jeu.cree_par.identifiant if jeu.cree_par_id else None,
-        "nb_etablissements": jeu.etablissements.count(), "nb_enseignants": jeu.enseignants.count(),
+        "nb_etablissements": jeu.etablissements.count(),
+        # Inconnu (None) quand aucun fichier nominatif n'a été fourni : jamais 0 enseignant par défaut.
+        "nb_enseignants": jeu.enseignants.count() if jeu.nominatif_disponible else None,
+        **mode_nominatif(jeu),
         "nb_scenarios": jeu.scenarios.count(),
         "nb_faits_prince": jeu.faits_prince.filter(statut="ACTIF").count(),
         "nb_arbitrages": jeu.arbitrages.count(), "nb_recrues": jeu.recrues.count(),
         "donnees_manquantes": {
             "ecoles_sans_effectif": jeu.etablissements.filter(effectif_connu=False).count(),
             "ecoles_sans_salles": jeu.etablissements.filter(salles_connues=False).count(),
-            "enseignants_sans_age": jeu.enseignants.filter(age_connu=False).count()},
+            "enseignants_sans_age": (jeu.enseignants.filter(age_connu=False).count() if jeu.nominatif_disponible
+                                     else None)},
         "statut": jeu.statut, "valide_le": jeu.valide_le, "valide_par": jeu.valide_par or None,
         "scenario_retenu_id": str(jeu.scenario_retenu_id) if jeu.scenario_retenu_id else None,
         "fichiers_source": {f.type: f.nom_fichier for f in jeu.fichiers.order_by("cree_le")},
@@ -411,7 +473,8 @@ def validation(jeu: JeuDeDonnees) -> dict:
             "reserve": jeu.validation_reserve,
             "controles": controles_validation(depots.charger_ecoles(jeu), depots.charger_enseignants(jeu),
                                               _rapport_qualite(jeu),
-                                              application.ecarts_effectifs if application else (), rejetes)}
+                                              application.ecarts_effectifs if application else (), rejetes,
+                                              nominatif=jeu.nominatif_disponible)}
 
 
 @transaction.atomic
@@ -508,9 +571,33 @@ def _invalider_decisions(jeu: JeuDeDonnees, ids_ecoles: set, matricules: set) ->
     return invalidees
 
 
+def _lignes_des_enseignants_enregistres(enseignants) -> List[dict]:
+    """Lignes (colonnes officielles) des enseignants déjà enregistrés, pour contrôler un jeu dont le fichier
+    nominatif n'est pas renvoyé. Une colonne d'âge absente à l'origine (35 ans supposés) le reste."""
+    lignes = []
+    for t in enseignants:
+        l = {k: v for k, v in t.vers_dict().items() if k in C.COLONNES_ATTENDUES_ENS or k in ("nom", "prenom")}
+        if not t.age_connu and t.age == 35.0:
+            l.pop(C.COL_ENS_AGE, None)
+        lignes.append(l)
+    return lignes
+
+
+def _tronquer(liste: List[dict]) -> List[dict]:
+    return liste[:MAX_ECARTS_DETAILLES]
+
+
 @transaction.atomic
-def actualiser(jeu: JeuDeDonnees, id_fichier_etab, id_fichier_ens, *, compte, request, auteur: str):
-    """Remplace les écoles et enseignants du jeu par deux nouveaux fichiers ; conserve les décisions valables."""
+def actualiser(jeu: JeuDeDonnees, id_fichier_etab, id_fichier_ens=None, *, compte, request, auteur: str,
+               supprimer_nominatif: bool = False):
+    """Actualise un jeu importé avec un nouveau fichier d'établissements ; conserve les décisions valables.
+
+    Le sort des données nominatives est explicite :
+    - nouveau fichier d'enseignants → il remplace les enseignants enregistrés (ou les crée : passage d'un jeu
+      « établissements seuls » à un jeu complet) ;
+    - aucun nouveau fichier → les enseignants enregistrés sont conservés, jamais supprimés ;
+    - `supprimer_nominatif` → suppression volontaire des données nominatives, seule façon de les retirer, journalisée.
+    """
     from contextes.audit.services import journaliser
     from contextes.diagnostic.services import invalider_cache
     from contextes.planification.services import marquer_obsolete
@@ -523,48 +610,80 @@ def actualiser(jeu: JeuDeDonnees, id_fichier_etab, id_fichier_ens, *, compte, re
         raise RefusMetier("Seul un jeu importé s'actualise par import",
                           ["Un jeu national se remplace par un nouvel import de la base nationale"],
                           code="actualisation_impossible")
+    if not id_fichier_etab:
+        raise RefusMetier("Fichier des établissements manquant", ["etablissements est requis"],
+                          code="etablissements_requis")
     f_etab = fichier_du_compte(compte, id_fichier_etab)
-    f_ens = fichier_du_compte(compte, id_fichier_ens)
-    if f_etab.type != "etablissements" or f_ens.type != "enseignants":
+    if f_etab.type != "etablissements":
         raise RefusMetier("Types de fichiers inversés ou incorrects",
-                          ["etablissements doit désigner un fichier d'établissements",
-                           "enseignants doit désigner un fichier d'enseignants"])
+                          ["etablissements doit désigner un fichier d'établissements"])
+    f_ens = _fichier_enseignants(compte, id_fichier_ens)
+    if f_ens is not None and supprimer_nominatif:
+        raise RefusMetier("Demande contradictoire",
+                          ["Un nouveau fichier d'enseignants et la suppression des données nominatives s'excluent"],
+                          code="nominatif_contradictoire")
+    if supprimer_nominatif and not jeu.nominatif_disponible:
+        raise RefusMetier("Aucune donnée nominative à supprimer", ["Ce jeu ne contient pas de fichier nominatif"],
+                          code="nominatif_deja_absent")
+    if f_ens is not None:
+        mode = "remplace"
+    elif supprimer_nominatif:
+        mode = "supprime"
+    else:
+        mode = "conserve" if jeu.nominatif_disponible else "aucun"
+
+    anciens = depots.charger_enseignants(jeu) if jeu.nominatif_disponible else []
     l_etab, l_ens, bilan = _lignes_du_jeu(compte, f_etab, f_ens)
-    rapport = controler(l_etab, l_ens, cfg_dom.defaut())
+    if mode == "conserve":
+        # Les enseignants enregistrés restent tels quels ; ils sont contrôlés face aux nouveaux établissements.
+        l_ens = _lignes_des_enseignants_enregistres(anciens)
+    nominatif = mode in ("remplace", "conserve")
+    rapport = controler(l_etab, l_ens, cfg_dom.defaut(), nominatif=nominatif)
     if bilan is not None:
         _joindre_bilan_regional(rapport, bilan)
     if not rapport["valide"]:
         raise RefusMetier("Les données contiennent des erreurs bloquantes",
                           [e["message"] for e in rapport["erreurs"]], code="qualite_bloquante")
     ecoles = [construire_ecole(l) for l in l_etab]
-    enseignants = [construire_enseignant(l) for l in l_ens]
-    anciens = depots.charger_enseignants(jeu)
+    enseignants = anciens if mode == "conserve" else [construire_enseignant(l) for l in l_ens]
     ecarts = calculer_ecarts(anciens, enseignants)
+    nb_ecarts = {f"nb_{k}": len(v) for k, v in ecarts.items()}
     ages = {t.matricule: t.age for t in anciens}
     for d in ecarts["departs"]:
         d["age"] = ages.get(d["matricule"])
+    ecarts = {k: _tronquer(v) for k, v in ecarts.items()}
     invalidees = _invalider_decisions(jeu, {e.id for e in ecoles}, {t.matricule for t in enseignants})
 
     jeu.etablissements.all().delete()
-    jeu.enseignants.all().delete()
-    depots.enregistrer(jeu, ecoles, enseignants)
+    if mode != "conserve":
+        jeu.enseignants.all().delete()
+    depots.enregistrer(jeu, ecoles, [] if mode == "conserve" else enseignants)
     RapportQualite.objects.update_or_create(jeu=jeu, defaults={"contenu": rapport})
     for f in (f_etab, f_ens):
-        f.jeu = jeu
-        f.save(update_fields=["jeu"])
+        if f is not None:
+            f.jeu = jeu
+            f.save(update_fields=["jeu"])
+    avant_nominatif = jeu.nominatif_disponible
+    jeu.nominatif_disponible = nominatif
     jeu.statut, jeu.valide_le, jeu.valide_par, jeu.validation_reserve = "brouillon", None, "", None
-    jeu.save(update_fields=["statut", "valide_le", "valide_par", "validation_reserve"])
+    jeu.save(update_fields=["nominatif_disponible", "statut", "valide_le", "valide_par", "validation_reserve"])
     invalider_cache(jeu)
     invalidees += _reevaluer_faits_prince(jeu)       # sur les nouvelles données : un fait impossible n'est jamais appliqué
     recalculer_scenarios(jeu)
     act = Actualisation.objects.create(
-        jeu=jeu, realisee_par=auteur, fichier_etablissements=f_etab.nom_fichier, fichier_enseignants=f_ens.nom_fichier,
-        ecarts={**ecarts, "decisions_invalidees": invalidees, "nb_avant": len(anciens)})
+        jeu=jeu, realisee_par=auteur, fichier_etablissements=f_etab.nom_fichier,
+        fichier_enseignants=f_ens.nom_fichier if f_ens is not None else "", mode_nominatif=mode,
+        ecarts={**ecarts, **nb_ecarts, "decisions_invalidees": invalidees, "nb_avant": len(anciens),
+                "liste_tronquee": any(n > MAX_ECARTS_DETAILLES for n in nb_ecarts.values())})
     resume = resume_actualisation(act)["resume"]
+    libelle_mode = {"remplace": "nouveau fichier d'enseignants", "conserve": "enseignants enregistrés conservés",
+                    "supprime": "données nominatives supprimées à la demande", "aucun": "établissements seuls"}[mode]
     journaliser(jeu, "actualisation", "réalisée",
-                f"Actualisation des données : {resume['arrivees']} arrivée(s), {resume['departs']} départ(s), "
-                f"{resume['changements_ecole']} changement(s) d'école", request=request, auteur=auteur,
-                objet=("actualisation", act.pk), apres=resume)
+                f"Actualisation des données ({libelle_mode}) : {resume['arrivees']} arrivée(s), "
+                f"{resume['departs']} départ(s), {resume['changements_ecole']} changement(s) d'école",
+                request=request, auteur=auteur, objet=("actualisation", act.pk),
+                avant={"nominatif_disponible": avant_nominatif},
+                apres={**resume, "mode_nominatif": mode, "nominatif_disponible": nominatif})
     marquer_obsolete(jeu, "Actualisation des données")
     return act
 
@@ -572,7 +691,9 @@ def actualiser(jeu: JeuDeDonnees, id_fichier_etab, id_fichier_ens, *, compte, re
 def resume_actualisation(a) -> dict:
     e = a.ecarts
     return {"id": str(a.pk), "realisee_le": a.realisee_le, "realisee_par": a.realisee_par or None,
-            "fichiers_source": {"etablissements": a.fichier_etablissements, "enseignants": a.fichier_enseignants},
-            "resume": {"arrivees": len(e.get("arrivees", [])), "departs": len(e.get("departs", [])),
-                       "changements_ecole": len(e.get("changements_ecole", [])),
+            "fichiers_source": {"etablissements": a.fichier_etablissements, "enseignants": a.fichier_enseignants or None},
+            "mode_nominatif": a.mode_nominatif or None,
+            "resume": {"arrivees": e.get("nb_arrivees", len(e.get("arrivees", []))),
+                       "departs": e.get("nb_departs", len(e.get("departs", []))),
+                       "changements_ecole": e.get("nb_changements_ecole", len(e.get("changements_ecole", []))),
                        "decisions_invalidees": len(e.get("decisions_invalidees", []))}}

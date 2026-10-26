@@ -138,7 +138,15 @@ def test_quotas_versions(c, jeu):
     assert aj["statut"] == "ajuste" and aj["retenu"] == q["calcule"] + 3
     t = get(c, f"jeux/{jeu}/planification/", region=q["territoire"], sous_systeme=q["sous_systeme"])
     assert t["annees"][0]["quota_retenu"] == q["calcule"] + 3
-    valides = envoyer(c, "post", f"jeux/{jeu}/quotas/valider/", {"annee": "N+1", "auteur": "DRH"})
+    # Décision de recrutement : les réserves qui pèsent sur les quotas doivent être reconnues avant de les figer.
+    refus = envoyer(c, "post", f"jeux/{jeu}/quotas/valider/", {"annee": "N+1", "auteur": "DRH"}, 422)
+    assert refus["code"] == "validation_reserves" and refus["details"]["reserves"]
+    codes = [r["code"] for r in refus["details"]["reserves"]]
+    assert "age_mesure_non_precisee" in codes and not any(r["reconnue"] for r in refus["details"]["reserves"])
+    assert get(c, f"jeux/{jeu}/quotas/", annee="N+1")[0]["statut"] == "ajuste"           # rien n'a été figé
+    valides = envoyer(c, "post", f"jeux/{jeu}/quotas/valider/",
+                      {"annee": "N+1", "auteur": "DRH", "reserves_reconnues": codes,
+                       "reference_administrative": "Note budgétaire 2027/12"})
     assert valides and all(x["statut"] == "valide" for x in valides)
     envoyer(c, "put", url, {"sous_systeme": q["sous_systeme"], "retenu": 0, "motif": "x"}, 409)
     hist = get(c, f"jeux/{jeu}/quotas/historique/", annee="N+1")

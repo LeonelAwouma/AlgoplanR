@@ -125,7 +125,7 @@ LIBELLE_FIABILITE_SCENARIO = {"complet": "Complet", "provisoire": "Provisoire", 
 
 
 def fiabilite_retraites(ecoles: List[ProjectionEcole], rappro: dict, audit: dict, hyp: dict,
-                        agents_du_jeu: int) -> dict:
+                        agents_du_jeu: int, nominatif_disponible: bool = True) -> dict:
     """État des retraites du périmètre : non calculables (aucun agent nominatif), partiellement identifiées (âges
     absents, agents sans école, stock déclaré et liste discordants) ou identifiées sur une population exploitable.
 
@@ -140,7 +140,8 @@ def fiabilite_retraites(ecoles: List[ProjectionEcole], rappro: dict, audit: dict
                   "couverture": _pct(avec_age, stock) if avec_age <= stock else None}
     base = {"hypothese_age": hypothese_age, "population": population,
             "retraites_identifiees": s["retraites_horizon"], "zero_etabli": False, "message": None}
-    if agents == 0 and stock > 0:
+    # Jeu d'établissements seuls : l'absence du fichier est un fait enregistré, même si aucun stock n'est déclaré.
+    if (agents == 0 and stock > 0) or not nominatif_disponible:
         raison = RAISON_RETRAITES_INCONNUES if agents_du_jeu == 0 else RAISON_RETRAITES_PERIMETRE
         return {**base, "statut": RETRAITES_NON_CALCULABLES, "libelle": "Retraites non calculables",
                 "raisons": [raison], "raison": raison,
@@ -524,7 +525,8 @@ def avertissements_coherence(suivi: List[dict], traj_plafond: List[dict], rappro
 def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], traj: Dict[str, List[dict]],
                suivi: List[dict], hyp: dict, *, annee_scolaire: str = "", norme: Optional[float] = None,
                contexte: Optional[dict] = None, decalage: int = 0, departs: Optional[List] = None,
-               enseignants_import: Optional[List[Enseignant]] = None, hors_ecoles: Optional[int] = None) -> dict:
+               enseignants_import: Optional[List[Enseignant]] = None, hors_ecoles: Optional[int] = None,
+               nominatif_disponible: bool = True) -> dict:
     """Tableau complet. `traj` : lignes de chaque scénario (calculer_annees sur le périmètre) ; `suivi` : lignes de la
     trajectoire sous plafond après report des décisions (quotas retenus) — celles du tableau principal.
     `enseignants_import` : liste nominative à l'import, rapprochée du stock déclaré (à défaut `enseignants`)."""
@@ -549,7 +551,7 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
     rappro = rapprochement_effectifs(ecoles, enseignants_import if enseignants_import is not None else enseignants,
                                      hors_ecoles=hors_ecoles)
     fiab = fiabilite_retraites(ecoles, rappro, audit, hyp, len(enseignants_import if enseignants_import is not None
-                                                                else enseignants))
+                                                                else enseignants), nominatif_disponible)
     raison_base = None if rem0 is not None else "Aucune école du périmètre n'a d'effectif d'élèves connu."
 
     a = [

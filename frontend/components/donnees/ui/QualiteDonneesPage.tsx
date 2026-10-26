@@ -58,7 +58,10 @@ export function QualiteDonneesPage() {
           </div>
           <div>
             <dt>Fichier enseignants</dt>
-            <dd className="dd-texte">{j.fichiersSource.enseignants ?? '—'}</dd>
+            <dd className="dd-texte">
+              {j.fichiersSource.enseignants ??
+                (j.nominatifDisponible ? '—' : 'Aucun fichier importé (établissements seuls)')}
+            </dd>
           </div>
           <div>
             <dt>Établissements lus</dt>
@@ -66,7 +69,7 @@ export function QualiteDonneesPage() {
           </div>
           <div>
             <dt>Enseignants lus</dt>
-            <dd>{fmt(j.nbEnseignants)}</dd>
+            <dd>{j.nominatifDisponible ? fmt(j.nbEnseignants) : 'Non disponible (pas de fichier nominatif)'}</dd>
           </div>
           <div>
             <dt>Établissements retenus au diagnostic</dt>
@@ -77,6 +80,11 @@ export function QualiteDonneesPage() {
             <dd className="dd-texte">{new Date(j.importeLe).toLocaleString('fr-FR')}</dd>
           </div>
         </dl>
+        {!j.nominatifDisponible && (
+          <Notice tone="warn" title="Jeu en établissements seuls.">
+            {j.messageModeImport} L’absence de fichier nominatif ne signifie pas que les écoles n’ont pas d’enseignants.
+          </Notice>
+        )}
         {j.demonstration && (
           <Notice tone="warn" title="Jeu de démonstration.">
             Les valeurs sont fictives et générées de façon déterministe par l’application.

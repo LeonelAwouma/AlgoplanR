@@ -25,6 +25,7 @@ export function ModelesScenarios({ jeu, onScenarioCree }: ProprietesModelesScena
   const creation = useCreerScenario(jeu)
   const calculBase = useCalculerScenariosDeBase(jeu)
   const occupe = creation.isPending || calculBase.isPending
+  const aucunDisponible = !!presets.data && presets.data.length > 0 && presets.data.every(preset => !preset.disponible)
 
   return (
     <Panel
@@ -32,7 +33,13 @@ export function ModelesScenarios({ jeu, onScenarioCree }: ProprietesModelesScena
       title="Modèles disponibles"
       hint="Un scénario n’est proposé que si les données permettent d’appliquer réellement sa règle."
       actions={
-        <button type="button" className="btn btn-primary" onClick={() => calculBase.mutate()} disabled={occupe}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => calculBase.mutate()}
+          disabled={occupe || aucunDisponible}
+          title={aucunDisponible ? presets.data?.[0]?.motif : undefined}
+        >
           <RefreshCw size={14} className={calculBase.isPending ? 'spin' : undefined} aria-hidden="true" /> Recalculer
           les trois scénarios géographiques
         </button>

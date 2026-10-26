@@ -446,8 +446,15 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
 
 # --- Fiabilité ---------------------------------------------------------------------------------------------------
 
-def ligne_fiabilite(territoire: str, ecoles: List[ProjectionEcole], enseignants: List[Enseignant]) -> dict:
+def ligne_fiabilite(territoire: str, ecoles: List[ProjectionEcole], enseignants: List[Enseignant],
+                    nominatif_disponible: bool = True) -> dict:
+    """Taux de complétude des sources. Sans fichier nominatif, les taux d'enseignants sont inconnus (None), pas 0 %."""
     ids = {e.id for e in ecoles}
+    if not nominatif_disponible:
+        return {"territoire": territoire, "ecoles": len(ecoles), "enseignants": None, "taux_date_naissance": None,
+                "taux_sous_systeme": None,
+                "taux_effectifs_eleves": 0.0 if not ecoles else round(sum(1 for e in ecoles if e.eleves_connus)
+                                                                      / len(ecoles), 2)}
     rattaches = [t for t in enseignants if t.ecole_attache in ids]
     part = lambda n, total: 0.0 if total == 0 else round(n / total, 2)  # noqa: E731
     return {
@@ -473,18 +480,25 @@ def _pire(*niveaux: str) -> str:
 def fiabilite_indicateurs(ligne: dict, par_sous_systeme: bool) -> List[dict]:
     """Fiabilité de chaque indicateur selon la disponibilité des données sources."""
     pct = lambda t: f"{round(t * 100)} %"  # noqa: E731
-    sous_systeme = _niveau(ligne["taux_sous_systeme"]) if par_sous_systeme else "bonne"
-    precision = f" Sous-système connu pour {pct(ligne['taux_sous_systeme'])} des enseignants." if par_sous_systeme else ""
-    retraite = _niveau(ligne["taux_date_naissance"])
+    sans_nominatif = ligne["taux_date_naissance"] is None
+    sous_systeme = ("faible" if sans_nominatif else _niveau(ligne["taux_sous_systeme"])) if par_sous_systeme else "bonne"
+    precision = (f" Sous-système connu pour {pct(ligne['taux_sous_systeme'])} des enseignants."
+                 if par_sous_systeme and not sans_nominatif else "")
+    retraite = "faible" if sans_nominatif else _niveau(ligne["taux_date_naissance"])
+    detail_retraite = ("Fichier nominatif des enseignants indisponible : retraites non calculables." if sans_nominatif
+                       else f"Âge connu pour {pct(ligne['taux_date_naissance'])} des enseignants.")
     besoin = _pire(_niveau(ligne["taux_effectifs_eleves"]), "partielle")
-    vivier = "partielle"
+    vivier = "faible" if sans_nominatif else "partielle"
+    detail_vivier = ("Estimation d'après les excédents du stock déclaré (Enseignants_Actuels) des écoles : aucune liste "
+                     "nominative d'enseignants mobilisables n'existe sans fichier nominatif."
+                     if sans_nominatif else "Seules les sources retenues du vivier sont comptées.")
     lignes = [
         ("effectif_debut", "bonne", "Enseignants des écoles, après les mouvements retenus et les recrutements supposés."),
-        ("departs_retraite", retraite, f"Âge connu pour {pct(ligne['taux_date_naissance'])} des enseignants."),
+        ("departs_retraite", retraite, detail_retraite),
         ("departs_attrition", "partielle", "Taux d'autres départs des hypothèses de planification (par défaut celui du modèle M1 du rapport DRH), à confirmer."),
         ("besoin", besoin, f"Effectifs d'élèves connus pour {pct(ligne['taux_effectifs_eleves'])} des écoles ; "
                            "inclut la croissance des élèves, l'attrition et les directeurs déchargés."),
-        ("ressources_vivier", vivier, "Seules les sources retenues du vivier sont comptées."),
+        ("ressources_vivier", vivier, detail_vivier),
         ("quota_calcule", _pire(besoin, vivier), "Dépend du besoin, du rattrapage étalé, du plafond et du vivier."),
         ("quota_retenu", "bonne", "Décision administrative enregistrée (ajustement ou validation)."),
         ("nominations_prevues", "bonne", "Lu dans le suivi des nominations validées."),

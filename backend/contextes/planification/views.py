@@ -224,14 +224,17 @@ def quota(request, jeu, annee, territoire):
     return Response(pl.ajuster_quota(j, annee, territoire, d, request=request, auteur=auteur_de(request, d.get("auteur"))))
 
 
-@extend_schema(request=OBJ, responses=OBJ, summary="Valider (figer) les quotas d'une année {annee, auteur}")
+@extend_schema(request=OBJ, responses=OBJ, summary="Valider (figer) les quotas d'une année {annee, auteur, reserves_reconnues?, reference_administrative?} : les réserves qui pèsent sur eux (retraites, besoin provisoire, dépassement du plafond…) doivent être reconnues")
 @api_view(["POST"])
 def valider_quotas(request, jeu):
     j = jeu_autorise(request, jeu)
     d = request.data if isinstance(request.data, dict) else {}
-    pl.contexte(j)
+    ctx = pl.contexte(j)
+    reconnues = d.get("reserves_reconnues")
     return Response(pl.valider_quotas(j, str(d.get("annee") or ""), request=request,
-                                      auteur=auteur_de(request, d.get("auteur"))))
+                                      auteur=auteur_de(request, d.get("auteur")), ctx=ctx,
+                                      reserves_reconnues=reconnues if isinstance(reconnues, list) else None,
+                                      reference_administrative=str(d.get("reference_administrative") or "")))
 
 
 @extend_schema(parameters=[OpenApiParameter("annee", str)], responses=OBJ, summary="Historique des quotas")

@@ -34,13 +34,17 @@ export interface JeuDjango {
   annee_donnees?: string
   donnees_fictives?: boolean
   nb_etablissements: number
-  nb_enseignants: number
+  /** Inconnu (`null`) sans fichier nominatif. */
+  nb_enseignants: number | null
+  nominatif_disponible?: boolean
+  mode_import?: 'complet' | 'etablissements_seuls'
+  message_mode_import?: string | null
   nb_scenarios: number
   nb_faits_prince: number
   nb_arbitrages: number
   nb_recrues: number
   /** Données que les fichiers ne donnent pas (le calcul garde 0, ou 35 ans pour l'âge). */
-  donnees_manquantes?: { ecoles_sans_effectif: number; ecoles_sans_salles: number; enseignants_sans_age: number }
+  donnees_manquantes?: { ecoles_sans_effectif: number; ecoles_sans_salles: number; enseignants_sans_age: number | null }
   /** Portée fixée par le serveur : un jeu régional n'est ouvert qu'au délégué de sa région. */
   portee?: PorteeJeu | ''
   region?: string | null
@@ -70,6 +74,10 @@ export function versJeu(j: JeuDjango): JeuDeDonnees {
     statut: j.statut ?? 'brouillon',
     nbEtablissements: j.nb_etablissements,
     nbEnseignants: j.nb_enseignants,
+    // Mode enregistré par le serveur ; à défaut (ancien serveur), un jeu avec des enseignants est complet.
+    nominatifDisponible: j.nominatif_disponible ?? j.nb_enseignants !== null,
+    modeImport: j.mode_import ?? (j.nb_enseignants === null ? 'etablissements_seuls' : 'complet'),
+    messageModeImport: j.message_mode_import ?? null,
     nbUnitesCalcul: j.nb_etablissements,
     scenarioRetenuId: j.scenario_retenu_id ?? null,
     nbFaitsPrinceActifs: j.nb_faits_prince,

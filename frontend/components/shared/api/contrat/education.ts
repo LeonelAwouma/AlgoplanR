@@ -404,7 +404,13 @@ export interface TerritorialTotals {
   /** Élèves ÷ classes ouvertes, sur les seules écoles qui donnent les deux ; `null` sinon. */
   elevesParClasse: number | null
 
-  classesMultigrades: number
+  /**
+   * Écoles qui déclarent au moins une classe multigrade ; `null` quand aucune école du périmètre ne renseigne cette
+   * information (une colonne vide n'est jamais « aucune classe multigrade »).
+   */
+  classesMultigrades: number | null
+  /** Écoles dont le nombre de classes multigrades n'est pas renseigné : leur besoin en enseignants est provisoire. */
+  ecolesMultigradesNonRenseignees: number
 }
 
 /** Agrégat d'un territoire, avec ses enfants directs dans la hiérarchie. */

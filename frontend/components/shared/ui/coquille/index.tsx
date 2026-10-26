@@ -40,6 +40,7 @@ import { Pill } from '@shared/ui/commun'
 import {
   estDepliable,
   etapeAccessible,
+  raisonInaccessible,
   etapeSuivante,
   etapesVisibles,
   groupesVisibles,
@@ -94,6 +95,7 @@ export function Sidebar({
   onBasculer,
   donneesChargees,
   simulationPrete,
+  nominatifDisponible,
   version,
 }: {
   page: PageKey
@@ -107,10 +109,12 @@ export function Sidebar({
   onBasculer: () => void
   donneesChargees: boolean
   simulationPrete: boolean
+  /** `false` : jeu en établissements seuls (les écrans qui exigent des agents identifiés restent fermés). */
+  nominatifDisponible?: boolean
   /** Version installée, affichée dans l'application de bureau pour faciliter l'assistance. */
   version?: string
 }) {
-  const etat: EtatJeu = { donneesChargees, simulationPrete }
+  const etat: EtatJeu = { donneesChargees, simulationPrete, nominatifDisponible }
   const rubriqueCourante = rubriqueDePage(page)
   const navRef = useRef<HTMLElement>(null)
 
@@ -269,7 +273,7 @@ export function Sidebar({
                               aria-current={courante ? 'page' : undefined}
                               disabled={!accessible}
                               {...SANS_RESTAURATION_FIREFOX}
-                              title={accessible ? entree.sousTitre : INDISPONIBLE}
+                              title={accessible ? entree.sousTitre : raisonInaccessible(entree, etat)}
                               onClick={() => aller(entree.id)}
                             >
                               {entree.label}
@@ -466,6 +470,7 @@ export function EtapesRubrique({
   role,
   donneesChargees,
   simulationPrete,
+  nominatifDisponible,
 }: {
   page: PageKey
   onNavigate: (page: PageKey) => void
@@ -473,6 +478,7 @@ export function EtapesRubrique({
   role: RoleAcces
   donneesChargees: boolean
   simulationPrete: boolean
+  nominatifDisponible?: boolean
 }) {
   const rubrique = rubriqueDePage(page)
   if (!rubrique) return null
@@ -485,7 +491,7 @@ export function EtapesRubrique({
   const avecDetail = onglets.length > 0 && (avecParcours || detail.length >= 2)
   if (!avecParcours && !avecDetail) return null
 
-  const etat: EtatJeu = { donneesChargees, simulationPrete }
+  const etat: EtatJeu = { donneesChargees, simulationPrete, nominatifDisponible }
   const composantes = parcours.filter(e => !e.finale)
   const finales = parcours.filter(e => e.finale)
 
@@ -498,7 +504,7 @@ export function EtapesRubrique({
           aria-current={etape.id === page ? 'step' : undefined}
           disabled={!accessible}
           {...SANS_RESTAURATION_FIREFOX}
-          title={accessible ? etape.sousTitre : INDISPONIBLE}
+          title={accessible ? etape.sousTitre : raisonInaccessible(etape, etat)}
           onClick={() => onNavigate(etape.id)}
         >
           {etape.finale ? (
@@ -542,7 +548,7 @@ export function EtapesRubrique({
                     aria-current={etape.id === page ? 'page' : undefined}
                     disabled={!accessible}
                     {...SANS_RESTAURATION_FIREFOX}
-                    title={accessible ? etape.sousTitre : INDISPONIBLE}
+                    title={accessible ? etape.sousTitre : raisonInaccessible(etape, etat)}
                     onClick={() => onNavigate(etape.id)}
                   >
                     <Icone size={14} aria-hidden="true" />
@@ -570,6 +576,7 @@ export function BoutonContinuer({
   role,
   donneesChargees,
   simulationPrete,
+  nominatifDisponible,
   ignorer = [],
 }: {
   page: PageKey
@@ -578,10 +585,11 @@ export function BoutonContinuer({
   role: RoleAcces
   donneesChargees: boolean
   simulationPrete: boolean
+  nominatifDisponible?: boolean
   /** Étapes facultatives sautées par le bouton, par exemple le Fait de Prince quand il n'y en a aucun. */
   ignorer?: readonly PageKey[]
 }) {
-  const suivante = etapeSuivante(page, mode, role, { donneesChargees, simulationPrete }, ignorer)
+  const suivante = etapeSuivante(page, mode, role, { donneesChargees, simulationPrete, nominatifDisponible }, ignorer)
   if (!suivante) return null
   return (
     <div className="continuer no-print">
@@ -590,7 +598,11 @@ export function BoutonContinuer({
         className="btn btn-primary"
         disabled={!suivante.accessible}
         {...SANS_RESTAURATION_FIREFOX}
-        title={suivante.accessible ? suivante.etape.sousTitre : INDISPONIBLE}
+        title={
+          suivante.accessible
+            ? suivante.etape.sousTitre
+            : raisonInaccessible(suivante.etape, { donneesChargees, simulationPrete, nominatifDisponible })
+        }
         onClick={() => onNavigate(suivante.etape.id)}
       >
         Continuer : {suivante.etape.label} <ArrowRight size={15} aria-hidden="true" />

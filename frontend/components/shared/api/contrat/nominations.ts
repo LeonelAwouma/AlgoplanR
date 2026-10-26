@@ -155,6 +155,8 @@ export interface CorpsNomination {
 export interface CorpsValidationNomination {
   reference: string
   auteur: string
+  /** Reconnaissance de la vérification des sources quand le stock déclaré et les agents nominatifs diffèrent. */
+  verificationSources?: boolean
 }
 
 export interface CorpsMotifNomination {
@@ -175,6 +177,7 @@ export interface CorpsLotNominations {
   reference?: string
   motif?: string
   auteur: string
+  verificationSources?: boolean
 }
 
 export interface BilanLot {
@@ -241,6 +244,7 @@ export interface CorpsMiseEnOeuvreMouvement {
   dateEffet: string
   referenceActe: string
   auteur: string
+  verificationSources?: boolean
 }
 
 /** Incohérence détectée dans le registre (double comptage). */

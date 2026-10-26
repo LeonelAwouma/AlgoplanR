@@ -58,6 +58,10 @@ def _valeur(numerateur: Optional[float], denominateur: Optional[float]) -> dict:
             "statut": "normal" if taux is not None else SANS_OBJET, "raison": None}
 
 
+RAISON_COUVERTURE_SANS_NOMINATIF = ("Simulation de mobilité indisponible : aucun fichier nominatif des enseignants "
+                                    "n'a été importé.")
+
+
 def _non_disponible(raison: str) -> dict:
     """Valeur qui ne peut pas être calculée de façon fiable (population commune impossible) : jamais inventée."""
     return {"numerateur": 0, "denominateur": 0, "taux": None, "statut": NON_DISPONIBLE,
@@ -204,12 +208,14 @@ def _indicateur_alea(d: _Donnees, p: dict, sim: List[ProjectionEcole]) -> Dict[s
     }
 
 
-def _indicateur_attrition(annees: List[dict], *, niveau: str) -> Dict[str, Any]:
+def _indicateur_attrition(annees: List[dict], *, niveau: str, nominatif: bool = True) -> Dict[str, Any]:
     lignes = {}
     for k, ligne in enumerate(annees[:5]):
         lignes[f"n{k + 1}"] = {
             "taux_pct": ligne.get("taux_attrition"), "origine": ligne.get("origine_taux"),
-            "departs_attrition": ligne.get("departs_attrition"), "departs_retraite": ligne.get("departs_retraite"),
+            "departs_attrition": ligne.get("departs_attrition"),
+            # Inconnus (None), pas 0, sans fichier nominatif : aucun départ à la retraite n'a été observé.
+            "departs_retraite": ligne.get("departs_retraite") if nominatif else None,
             "directeurs_decharges": ligne.get("directeurs_decharges"),
         }
     out: Dict[str, Any] = {"annees": lignes}
@@ -226,14 +232,25 @@ def _indicateurs_territoire(d: _Donnees, p: dict, *, niveau: str) -> dict:
     sim = d.ecoles_apres_simulation(p)
     lignes_sim = _lignes_couverture(d, p)
     annees = pl.annees(d.ctx, p, sim)       # suivi=True (E3) ; calculé une fois, partagé par deux indicateurs
+    nominatif = d.ctx.jeu.nominatif_disponible
+    if nominatif:
+        couverture, operationnelle = (_indicateur_couverture_globale(d, p, lignes_sim, sim),
+                                      {"apres_simulation": couverture_operationnelle(lignes_sim)})
+    else:
+        # La couverture mesure ce que la simulation de mobilité apporte : sans fichier nominatif, elle n'a pas lieu et
+        # un taux de 0 % serait une valeur que personne n'a calculée.
+        absente = _non_disponible(RAISON_COUVERTURE_SANS_NOMINATIF)
+        couverture = {**{s: absente for s in ("import", "apres_prince", "apres_simulation",
+                                              *(f"n{k}" for k in range(1, 6)))}, "ecart_n5_import": None}
+        operationnelle = {"apres_simulation": absente}
     return {
         "nb_ecoles": len(sim),
         "encadrement": _indicateur_encadrement(d, p, sim, annees),
-        "couverture_globale": _indicateur_couverture_globale(d, p, lignes_sim, sim),
-        "couverture_operationnelle": {"apres_simulation": couverture_operationnelle(lignes_sim)},
+        "couverture_globale": couverture,
+        "couverture_operationnelle": operationnelle,
         "couverture_parec": _indicateur_parec(d, p, sim),
         "alea": _indicateur_alea(d, p, sim),
-        "attrition": _indicateur_attrition(annees, niveau=niveau),
+        "attrition": _indicateur_attrition(annees, niveau=niveau, nominatif=d.ctx.jeu.nominatif_disponible),
     }
 
 

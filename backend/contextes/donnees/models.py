@@ -26,6 +26,9 @@ class JeuDeDonnees(models.Model):
     # D'où vient ce sens : « creation » (choisi à la création), « migration » (établi d'après l'historique) ou
     # « confirmation » (confirmé ou corrigé par un utilisateur autorisé).
     sens_annee_origine = models.CharField(max_length=20, default="creation", db_default="creation")
+    # Fichier nominatif des enseignants : fourni (mode complet) ou absent (établissements seuls). L'absence est
+    # enregistrée explicitement ; elle n'est jamais déduite d'un nombre d'enseignants égal à 0.
+    nominatif_disponible = models.BooleanField(default=True, db_default=True)
     # Données fictives déclarées (jeu de test importé) ; un jeu de démonstration (source) l'est toujours.
     donnees_fictives = models.BooleanField(default=False, db_default=False)
     cree_le = models.DateTimeField(auto_now_add=True)
@@ -55,6 +58,9 @@ class Actualisation(models.Model):
     realisee_par = models.CharField(max_length=150, blank=True, default="")
     fichier_etablissements = models.CharField(max_length=255, blank=True, default="")
     fichier_enseignants = models.CharField(max_length=255, blank=True, default="")
+    # Sort des données nominatives : « remplace » (nouveau fichier), « conserve » (aucun nouveau fichier : les
+    # enseignants enregistrés sont gardés), « supprime » (suppression explicite) ou « aucun » (jeu sans nominatif).
+    mode_nominatif = models.CharField(max_length=20, blank=True, default="", db_default="")
     ecarts = models.JSONField(default=dict)   # arrivees, departs, changements_ecole, decisions_invalidees
 
     class Meta:

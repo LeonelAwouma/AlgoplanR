@@ -26,7 +26,7 @@ const FONCTIONS = [
     Icone: Upload,
     titre: 'Importer',
     description:
-      'Importation des fichiers Excel des établissements (DPPC) et des enseignants (DRH), reconnaissance des colonnes et contrôle qualité.',
+      'Importation du fichier Excel des établissements (DPPC), avec ou sans celui des enseignants (DRH), reconnaissance des colonnes et contrôle qualité.',
   },
   {
     Icone: BarChart3,
@@ -135,7 +135,7 @@ export function WelcomePage() {
               <motion.p className="hint bienvenue-reprise" {...entree(0.6)}>
                 {donneesChargees
                   ? `Un jeu de données est ouvert (${meta.data?.anneeScolaire ?? ''}) : « Commencer » reprend le tableau de bord.`
-                  : 'Pour commencer, ajoutez le fichier des établissements et celui des enseignants.'}
+                  : 'Pour commencer, ajoutez le fichier des établissements ; celui des enseignants est facultatif (sans lui, retraites et affectations individuelles restent incomplètes).'}
               </motion.p>
               <ErreurAction erreur={demonstration.error} />
             </div>

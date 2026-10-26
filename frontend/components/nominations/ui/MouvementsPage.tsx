@@ -15,9 +15,10 @@ import { LIBELLE_STATUT_MOUVEMENT, LIBELLE_TYPE_MOUVEMENT } from '@shared/kernel
 import { useSession } from '@shared/session'
 import { Notice, Panel, Pill, SearchField } from '@shared/ui/commun'
 import { ChampAuteur, useAuteur } from '@shared/ui/ChampAuteur'
-import { ChargementEnCours, EtatRequetes, ErreurAction } from '@shared/ui/etats'
+import { ChargementEnCours, EtatRequetes } from '@shared/ui/etats'
 import { Pagination } from '@shared/ui/Pagination'
 
+import { ErreurOuVerificationSources } from './composants/VerificationSources'
 import { useControleMouvements, useMouvements, useMouvementsPersonne, useRealiserMouvement } from '../application/hooks'
 import { mouvementRealisable } from '../domain/cycleDeVie'
 import { TYPES_MOUVEMENT } from '../domain/sources'
@@ -104,6 +105,7 @@ export function MouvementsPage() {
   })
   const trace = useMouvementsPersonne(jeu, matriculeDiffere || null)
   const realisation = useRealiserMouvement(jeu)
+  const [sourcesVerifiees, setSourcesVerifiees] = useState(false)
 
   if (!jeu) return <ChargementEnCours />
 
@@ -154,7 +156,11 @@ export function MouvementsPage() {
             </div>
             <ChampAuteur auteur={auteur} onChange={setAuteur} />
           </div>
-          <ErreurAction erreur={realisation.error} />
+          <ErreurOuVerificationSources
+            erreur={realisation.error}
+            reconnue={sourcesVerifiees}
+            onChange={setSourcesVerifiees}
+          />
           <div className="topbar-actions actions-formulaire">
             <button
               type="button"
@@ -162,7 +168,15 @@ export function MouvementsPage() {
               disabled={realisation.isPending || acte.trim() === '' || auteur.trim() === '' || dateEffet === ''}
               onClick={() =>
                 realisation.mutate(
-                  { mouvement: aRealiser.id, corps: { dateEffet, referenceActe: acte.trim(), auteur: auteur.trim() } },
+                  {
+                    mouvement: aRealiser.id,
+                    corps: {
+                      dateEffet,
+                      referenceActe: acte.trim(),
+                      auteur: auteur.trim(),
+                      ...(sourcesVerifiees ? { verificationSources: true } : {}),
+                    },
+                  },
                   {
                     onSuccess: () => {
                       setARealiser(null)

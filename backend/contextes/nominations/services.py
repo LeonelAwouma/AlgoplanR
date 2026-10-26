@@ -280,8 +280,43 @@ def proposer(reg: Registre, personne_id: str, poste_id: str, annee: str, motif: 
 
 
 @transaction.atomic
+def sources_discordantes(jeu, ecoles) -> List[dict]:
+    """Écoles dont le stock déclaré (Enseignants_Actuels) diffère du nombre d'agents nominatifs rattachés.
+
+    Décision D6 : le bornage au stock est une protection arithmétique, pas une preuve de concordance. Une décision
+    individuelle qui s'appuie sur une telle école exige une vérification préalable des sources."""
+    from collections import Counter
+
+    from contextes.donnees.models import Enseignant, Etablissement
+    ids = {i for i in ecoles if i}
+    if not ids or not jeu.nominatif_disponible:
+        return []
+    declares = dict(Etablissement.objects.filter(jeu=jeu, id_ecole__in=ids).values_list("id_ecole",
+                                                                                         "enseignants_actuels"))
+    comptes = Counter(Enseignant.objects.filter(jeu=jeu, ecole_attache__in=ids).values_list("ecole_attache",
+                                                                                              flat=True))
+    return [{"id_ecole": i, "stock_declare": d, "agents_nominatifs": comptes.get(i, 0)}
+            for i, d in sorted(declares.items()) if d != comptes.get(i, 0)]
+
+
+def exiger_verification_sources(jeu, ecoles, *, reconnue: bool, decision: str, exigee: bool = True) -> List[dict]:
+    """Refuse une décision individuelle fondée sur une école aux sources discordantes tant que la vérification des
+    sources n'est pas reconnue explicitement ; renvoie les écarts reconnus, pour la trace. `exigee=False` : décision
+    déjà prise hors de l'application (import), enregistrée telle quelle avec les écarts constatés pour la trace."""
+    ecarts = sources_discordantes(jeu, ecoles)
+    if ecarts and not reconnue and exigee:
+        raise RefusMetier(
+            "Vérification des sources requise avant la décision",
+            [f"École {e['id_ecole']} : stock déclaré {e['stock_declare']:g}, agents nominatifs {e['agents_nominatifs']}"
+             for e in ecarts] + [f"{decision} s'appuie sur des sources discordantes : vérifiez-les, puis reconnaissez "
+                                 "la vérification (verification_sources) pour poursuivre."],
+            code="verification_sources_requise", details={"ecoles": ecarts})
+    return ecarts
+
+
 def changer_statut(reg: Registre, n: Nomination, vers: str, *, request, auteur: str, motif: Optional[str] = None,
-                   reference: Optional[str] = None, date_effet: Optional[str] = None) -> Nomination:
+                   reference: Optional[str] = None, date_effet: Optional[str] = None,
+                   verification_sources: bool = False, decision_externe: bool = False) -> Nomination:
     # Texte saisi : une valeur non textuelle du corps (nombre, objet) est lue comme un texte, jamais comme une erreur.
     motif, reference, date_effet = (None if x is None else str(x) for x in (motif, reference, date_effet))
     if vers in ("validee", "mise_en_oeuvre"):       # rejeter ou annuler reste possible sur un scénario obsolète
@@ -291,7 +326,11 @@ def changer_statut(reg: Registre, n: Nomination, vers: str, *, request, auteur: 
         raise Conflit(refus)
     if vers in ("rejetee", "annulee") and not (motif or "").strip():
         raise RefusMetier("Le motif est obligatoire", code="motif_manquant")
+    ecarts_reconnus: List[dict] = []
     if vers == "validee":
+        ecarts_reconnus = exiger_verification_sources(
+            reg.jeu, [(personne_de(reg, n).get("ecole_origine") or {}).get("id"), poste_de(reg, n).get("id_ecole")],
+            reconnue=verification_sources, decision="La validation de cette nomination", exigee=not decision_externe)
         autre = next((x for x in reg.nominations if x.pk != n.pk and x.poste_id == n.poste_id
                       and x.statut in ("validee", "mise_en_oeuvre")), None)
         if autre is not None:
@@ -316,7 +355,9 @@ def changer_statut(reg: Registre, n: Nomination, vers: str, *, request, auteur: 
     journaliser(reg.jeu, "nomination", vers,
                 f"Nomination de {_nom(personne)} sur {poste_de(reg, n).get('nom_ecole', '')} : {cycle.LIBELLES[vers]}",
                 request=request, auteur=auteur, objet=("nomination", n.pk), avant={"statut": de},
-                apres={"statut": vers, "reference": (reference or None), "date_effet": n.date_effet})
+                apres={"statut": vers, "reference": (reference or None), "date_effet": n.date_effet,
+                       **({("sources_discordantes_non_verifiees" if decision_externe else "verification_sources_reconnue"):
+                           ecarts_reconnus} if ecarts_reconnus else {})})
     _obsolete(reg.jeu, "Décision de nomination")
     return n
 
@@ -412,10 +453,17 @@ def mouvements(reg: Registre) -> List[dict]:
 
 
 @transaction.atomic
-def realiser_mouvement(reg: Registre, m: dict, *, date_effet: str, reference_acte: str, request, auteur: str) -> None:
+def realiser_mouvement(reg: Registre, m: dict, *, date_effet: str, reference_acte: str, request, auteur: str,
+                       verification_sources: bool = False) -> None:
     sim.exiger_a_jour(reg.scenario)
     if m["statut"] == "realise":
         raise Conflit("Ce mouvement est déjà réalisé.")
+    ecarts_reconnus: List[dict] = []
+    if m["type"] in ("redeploiement", "fait_prince"):
+        # Mouvement réel d'un agent : ses deux écoles doivent avoir des sources concordantes, ou vérifiées.
+        ecarts_reconnus = exiger_verification_sources(
+            reg.jeu, [(m.get("origine") or {}).get("id"), m["destination"].get("id")], reconnue=verification_sources,
+            decision="La mise en œuvre de ce mouvement")
     if m["type"] == "nomination":
         n = next(x for x in reg.nominations if str(x.pk) == m["decision"]["id"])
         changer_statut(reg, n, "mise_en_oeuvre", request=request, auteur=auteur, reference=reference_acte,
@@ -427,7 +475,8 @@ def realiser_mouvement(reg: Registre, m: dict, *, date_effet: str, reference_act
     journaliser(reg.jeu, "mouvement", "réalisé",
                 f"Mouvement réalisé : {m['personne']['nom']} → {m['destination']['nom']}", request=request,
                 auteur=auteur, objet=("mouvement", m["id"]), avant={"statut": "prevu"},
-                apres={"statut": "realise", "reference_acte": reference_acte, "date_effet": date_effet})
+                apres={"statut": "realise", "reference_acte": reference_acte, "date_effet": date_effet,
+                       **({"verification_sources_reconnue": ecarts_reconnus} if ecarts_reconnus else {})})
     _obsolete(reg.jeu, "Mouvement réalisé")
 
 

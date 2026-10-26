@@ -94,7 +94,13 @@ export function SituationNationalePage() {
             </div>
             <div>
               <dt>Classes multigrades</dt>
-              <dd>{fmt(totals.classesMultigrades)}</dd>
+              <dd>{renseigne(totals.classesMultigrades)}</dd>
+              {totals.ecolesMultigradesNonRenseignees > 0 && (
+                <dd className="hint">
+                  {fmt(totals.ecolesMultigradesNonRenseignees)} école(s) sans cette information : leur besoin en
+                  enseignants est provisoire.
+                </dd>
+              )}
             </div>
           </dl>
         </Panel>

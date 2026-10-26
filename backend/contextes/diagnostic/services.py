@@ -110,6 +110,12 @@ def preparer(jeu) -> Preparation:
     ecoles = enrichir_ecoles(depots.charger_ecoles(jeu), cfg)
     tous = enrichir_enseignants(depots.charger_enseignants(jeu), ecoles)
     prep = _situation(cfg, ecoles, tous)
+    if not jeu.nominatif_disponible:
+        # Aucun agent identifié : « 0 mobilisable » dirait que personne ne peut quitter son école. Le champ est absent
+        # (None) et les totaux retombent sur l'excédent théorique déclaré de l'école (`xe`), un excédent d'école et non
+        # une liste d'agents.
+        for ligne in prep.ecoles_dicts:
+            ligne["mobilisables"] = None
     faits = sim.faits_prince_actifs(jeu)
     if faits:
         prep = _apres_prince(prep, faits)
@@ -266,6 +272,8 @@ def synthese(jeu, perimetre, scenario=None) -> dict:
     sc = scenario or sim.scenario_par_defaut(jeu)
     res = terr.restreindre_resultat(sim.charger_resultat(sc), perimetre)
     s = res["synthese"]
+    if not jeu.nominatif_disponible:
+        s = syn.masquer_mobilite_individuelle(s)
     ecoles = res["etab_enrichi"]
     par_zone: Dict[str, dict] = {}
     for e in ecoles:

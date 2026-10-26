@@ -121,11 +121,15 @@ def test_import_des_decisions_et_cycle_de_vie(drh, jeu):
     # Proposition concurrente : la première validation gagne, la seconde est refusée.
     concurrentes = [n for n in noms if n["poste"]["id"] == "ECO008_P2"]
     assert len(concurrentes) == 2
+    # D6 : une école aux sources discordantes (stock déclaré ≠ agents nominatifs) exige une vérification reconnue.
     r = c.post(B + f"jeux/{jeu}/nominations/{concurrentes[0]['id']}/valider/", {"reference": "DEC-X", "auteur": "A"},
                content_type="application/json")
+    assert r.status_code == 422 and r.json()["code"] == "verification_sources_requise", r.content
+    r = c.post(B + f"jeux/{jeu}/nominations/{concurrentes[0]['id']}/valider/",
+               {"reference": "DEC-X", "auteur": "A", "verification_sources": True}, content_type="application/json")
     assert r.status_code == 200, r.content
-    r = c.post(B + f"jeux/{jeu}/nominations/{concurrentes[1]['id']}/valider/", {"reference": "DEC-Y", "auteur": "A"},
-               content_type="application/json")
+    r = c.post(B + f"jeux/{jeu}/nominations/{concurrentes[1]['id']}/valider/",
+               {"reference": "DEC-Y", "auteur": "A", "verification_sources": True}, content_type="application/json")
     assert r.status_code == 409, r.content
 
     mouvements = get(c, f"jeux/{jeu}/mouvements/", type="nomination", taille=100)["resultats"]

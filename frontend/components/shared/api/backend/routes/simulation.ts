@@ -49,6 +49,10 @@ import type { RecrueDjango } from './recrutement'
 
 const S = 'jeux/{jeu}/scenarios/{scenario}'
 
+const MOTIF_SCENARIOS_SANS_NOMINATIF =
+  'Ce jeu n’a pas de fichier nominatif des enseignants : les scénarios de mobilité ne peuvent pas être exécutés. ' +
+  'Importez le fichier des enseignants dans « Validation et actualisation » pour les débloquer.'
+
 /** Indicateurs d'un territoire tels que le sert `analyses.comparer_encadrement_turnover`. */
 interface IndicateursDjango {
   territoire: string
@@ -163,9 +167,18 @@ function correspond(a: ProposedAssignment, q: string): boolean {
 }
 
 export const conversionsSimulation: Record<string, Conversion> = {
-  'GET scenarios/presets/': async (_, acces) => {
-    const r = await acces.lire<{ presets: Parameters<typeof versPreset>[0][] }>('scenarios/presets/')
-    return r.presets.map(versPreset)
+  'GET scenarios/presets/': async (requete, acces) => {
+    const jeu = requete.query.jeu
+    const [r, meta] = await Promise.all([
+      acces.lire<{ presets: Parameters<typeof versPreset>[0][] }>('scenarios/presets/'),
+      typeof jeu === 'string' && jeu ? acces.lire<{ nominatif_disponible?: boolean }>(`jeux/${jeu}/`) : null,
+    ])
+    const presets = r.presets.map(versPreset)
+    // Les scénarios de mobilité s'appuient sur la liste nominative des enseignants : sans elle, ils sont refusés
+    // par le serveur, et le sont aussi ici plutôt que proposés puis échoués.
+    return meta?.nominatif_disponible === false
+      ? presets.map(preset => ({ ...preset, disponible: false, motif: MOTIF_SCENARIOS_SANS_NOMINATIF }))
+      : presets
   },
 
   'GET jeux/{jeu}/scenarios/': async (_, acces, p) => {

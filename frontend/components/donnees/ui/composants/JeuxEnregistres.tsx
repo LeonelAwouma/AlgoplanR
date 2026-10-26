@@ -91,7 +91,9 @@ export function JeuxEnregistres({ jeuOuvert, onOuvrir, onJeuOuvertSupprime }: Pr
               {jeu.donneesFictives && <Pill tone="warn">Données fictives</Pill>}
               <p className="hint">
                 Importé le {dateImport(jeu)} · {libelleAnnee(jeu)} · {fmt(jeu.nbEtablissements)} établissements ·{' '}
-                {fmt(jeu.nbEnseignants)} enseignants
+                {jeu.nominatifDisponible
+                  ? `${fmt(jeu.nbEnseignants)} enseignants`
+                  : 'établissements seuls (sans fichier nominatif)'}
               </p>
               {jeu.sensAnneeScolaire === 'non_confirme' && (
                 <p className="hint">

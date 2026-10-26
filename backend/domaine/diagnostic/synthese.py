@@ -263,21 +263,37 @@ def trier_par_priorite(ecoles: List[dict]) -> List[dict]:
     return [{**e, "rang": i + 1, "raisons": raisons_priorite(e)} for i, e in enumerate(ordre_priorite(ecoles))]
 
 
+#: Résultats de la mobilité individuelle : inconnus (jamais 0) quand aucun fichier nominatif n'a été fourni.
+CLES_MOBILITE_INDIVIDUELLE = ("disponibles", "affectes", "affectes_total", "non_affectes", "postes_non_pourvus",
+                              "a_recruter", "postes_rouge_non_pourvus", "non_affectes_hors_region")
+MESSAGE_SANS_NOMINATIF = ("Fichier nominatif des enseignants indisponible : les affectations, le vivier mobilisable et "
+                          "le recrutement net ne sont pas calculables. Seul le besoin lié aux écoles est établi.")
+
+
+def masquer_mobilite_individuelle(synthese: dict) -> dict:
+    """Synthèse d'un jeu sans fichier nominatif : les résultats de la mobilité individuelle sont inconnus (None), pas
+    nuls. Le besoin des écoles, qui n'en dépend pas, reste affiché."""
+    return {**synthese, **{k: None for k in CLES_MOBILITE_INDIVIDUELLE if k in synthese}, "stats_phase": {},
+            "nominatif_disponible": False, "avertissement_nominatif": MESSAGE_SANS_NOMINATIF}
+
+
 def points_attention(synthese: dict, ecoles: List[dict]) -> List[dict]:
     pts = []
     besoin = synthese.get("besoin_total", 0)
-    if synthese.get("postes_rouge_non_pourvus", 0) > 0:
+    if synthese.get("nominatif_disponible") is False:
+        pts.append({"code": "NOMINATIF_ABSENT", "gravite": "alerte", "message": MESSAGE_SANS_NOMINATIF})
+    if (synthese.get("postes_rouge_non_pourvus") or 0) > 0:
         pts.append({"code": "ZONE_ROUGE", "gravite": "critique",
                     "message": f"{synthese['postes_rouge_non_pourvus']} poste(s) en zone rouge restent non pourvus."})
-    if besoin:
+    if besoin and synthese.get("affectes") is not None:
         taux = synthese.get("affectes", 0) / besoin
         if taux < 0.5:
             pts.append({"code": "COUVERTURE_FAIBLE", "gravite": "alerte",
                         "message": f"Seuls {taux:.0%} du besoin sont couverts par la mobilité interne."})
-    if synthese.get("non_affectes", 0) > 0:
+    if (synthese.get("non_affectes") or 0) > 0:
         pts.append({"code": "VIVIER_RESIDUEL", "gravite": "info",
                     "message": f"{synthese['non_affectes']} enseignant(s) du vivier restent sans poste compatible."})
-    if synthese.get("a_recruter", 0) > 0:
+    if (synthese.get("a_recruter") or 0) > 0:
         pts.append({"code": "RECRUTEMENT", "gravite": "alerte",
                     "message": f"{synthese['a_recruter']} poste(s) devront être pourvus par recrutement."})
     manquantes = int(sum(float(e.get("se", 0) or 0) for e in ecoles))
@@ -291,6 +307,9 @@ def points_attention(synthese: dict, ecoles: List[dict]) -> List[dict]:
 
 
 def texte_narratif(synthese: dict, perimetre_titre: str) -> str:
+    if synthese.get("affectes") is None:
+        return (f"Périmètre {perimetre_titre} : {synthese.get('besoin_total', 0)} poste(s) à pourvoir d'après le besoin "
+                f"des écoles. {MESSAGE_SANS_NOMINATIF}")
     b, a = synthese.get("besoin_total", 0), synthese.get("affectes", 0)
     couv = f"{a / b:.0%}" if b else "n/a"
     return (f"Périmètre {perimetre_titre} : {b} poste(s) à pourvoir pour {synthese.get('disponibles', 0)} "

@@ -13,7 +13,8 @@ import type { AnneePlan, IndicateursAnnee } from '../../shared/api'
 export interface LigneProjection {
   annee: AnneePlan
   effectifDebut: number
-  departsRetraite: number
+  /** `null` : retraites non calculables. */
+  departsRetraite: number | null
   departsAttrition: number
   /** `null` quand le serveur ne le fournit pas. */
   directeursDecharges: number | null
@@ -36,7 +37,8 @@ export interface LigneProjection {
 
 /** Totaux sur l'horizon de la projection. */
 export interface TotauxProjection {
-  departsRetraite: number
+  /** `null` dès qu'une année est inconnue : un total partiel passerait pour exhaustif. */
+  departsRetraite: number | null
   departsAttrition: number
   recrutements: number | null
   effectifInitial: number
@@ -70,14 +72,15 @@ export function construireProjection(annees: readonly IndicateursAnnee[]): Ligne
 /** Totaux de l'horizon ; les recrutements ne sont totalisés que si le serveur les donne pour toutes les années. */
 export function totauxProjection(lignes: readonly LigneProjection[]): TotauxProjection | null {
   if (lignes.length === 0) return null
-  const somme = (cle: 'departsRetraite' | 'departsAttrition') => lignes.reduce((s, l) => s + l[cle], 0)
+  const somme = (cle: 'departsRetraite' | 'departsAttrition') =>
+    lignes.every(l => l[cle] !== null) ? lignes.reduce((s, l) => s + (l[cle] ?? 0), 0) : null
   const recrutements = lignes.every(l => l.recrutement !== null)
     ? lignes.reduce((s, l) => s + (l.recrutement ?? 0), 0)
     : null
   const effectifFinal = lignes[lignes.length - 1].effectifFin
   return {
     departsRetraite: somme('departsRetraite'),
-    departsAttrition: somme('departsAttrition'),
+    departsAttrition: somme('departsAttrition') ?? 0,
     recrutements,
     effectifInitial: lignes[0].effectifDebut,
     effectifFinal,

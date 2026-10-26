@@ -28,7 +28,7 @@ def _pct(x: float) -> str:
 def controles_validation(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant],
                          rapport_qualite: Optional[dict] = None,
                          ecarts_prince: Iterable[dict] = (),
-                         faits_rejetes: Iterable[dict] = ()) -> List[dict]:
+                         faits_rejetes: Iterable[dict] = (), nominatif: bool = True) -> List[dict]:
     """`ecarts_prince` : écarts d'effectif des écoles touchées par un fait du Prince (bloquants, dérogeables).
     `faits_rejetes` : faits du Prince actifs que le prétraitement ne peut pas appliquer ({id_ens, motifs}) (bloquants)."""
     ecarts_prince = list(ecarts_prince)
@@ -88,6 +88,21 @@ def controles_validation(ecoles: Iterable[Ecole], enseignants: Iterable[Enseigna
         {"code": "salles", "libelle": "Nombre de salles disponible", "ok": sans_salles == 0, "bloquant": False,
          "detail": f"{sans_salles} école(s) à capacité inconnue (salles non renseignées, comptées pour 0)."},
     ]
+    if not nominatif:
+        # Établissements seuls : les contrôles qui portent sur des agents n'ont pas d'objet, et leur « 100 % » n'est pas
+        # une réussite. L'absence du fichier est signalée par un contrôle non bloquant.
+        sans_objet = "Sans objet : aucun fichier nominatif des enseignants."
+        for c in controles:
+            if c["code"] == "rattachement":
+                c.update(ok=True, detail=sans_objet)
+            elif c["code"] in ("date_naissance", "sous_systeme"):
+                c.update(ok=False, detail="Fichier nominatif indisponible : " + (
+                    "retraites non calculables." if c["code"] == "date_naissance"
+                    else "ventilation par sous-système des agents impossible."))
+        controles.insert(0, {"code": "nominatif", "libelle": "Fichier nominatif des enseignants fourni", "ok": False,
+                             "bloquant": False,
+                             "detail": "Jeu d'établissements seuls : les retraites, les affectations individuelles et "
+                                       "certains scénarios restent incomplets jusqu'à l'importation des enseignants."})
     for c in controles:
         c.setdefault("derogeable", False)      # sauf mention contraire, un contrôle bloquant est structurel
     return controles

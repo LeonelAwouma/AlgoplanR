@@ -33,6 +33,7 @@ const TOTAUX: TerritorialTotals = {
   elevesParEnseignantEtat: 50,
   elevesParClasse: 41.7,
   classesMultigrades: 0,
+  ecolesMultigradesNonRenseignees: 0,
 }
 
 function entree(patch: Partial<EntreeKpis> = {}): EntreeKpis {

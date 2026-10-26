@@ -123,7 +123,7 @@ export function listerJeux(signal?: AbortSignal): Promise<JeuDeDonnees[]> {
 }
 
 /**
- * Crée un jeu à partir des deux fichiers envoyés. Le serveur construit les
+ * Crée un jeu à partir du fichier des établissements et, s'il existe, de celui des enseignants. Le serveur construit les
  * entités, produit le rapport de qualité et calcule les scénarios de base.
  *
  * @throws ApiError 422 si une colonne requise n'est pas résolue.
