@@ -15,8 +15,15 @@ import { DataTable, Delta, Panel, Pill, fmt, type Colonne, type Tone } from '@sh
 import { ChampAuteur, useAuteur } from '@shared/ui/ChampAuteur'
 import { ChargementEnCours, EtatRequetes, ErreurAction } from '@shared/ui/etats'
 
-import { useAjusterQuota, useHistoriqueQuotas, useQuotas, useValiderQuotas } from '../application/hooks'
+import {
+  useAjusterQuota,
+  useHistoriqueQuotas,
+  useQuotas,
+  useTableauPlanification,
+  useValiderQuotas,
+} from '../application/hooks'
 import { AjustementQuota } from './composants/AjustementQuota'
+import { AvisRetraites } from './composants/AvisRetraites'
 
 /** Ton de la pastille de statut. */
 const TON_STATUT: Record<QuotaRecrutement['statut'], Tone> = { calcule: 'neutral', ajuste: 'warn', valide: 'ok' }
@@ -30,6 +37,13 @@ export function QuotasPage() {
 
   const quotas = useQuotas(jeu, {
     annee,
+    niveau: selectionLevel(filtres.territoire),
+    region: filtres.territoire.region,
+    departement: filtres.territoire.departement,
+    commune: filtres.territoire.commune,
+  })
+  // Fiabilité des retraites du périmètre : sans fichier nominatif, les quotas sont une simulation conditionnelle.
+  const tableau = useTableauPlanification(jeu, {
     niveau: selectionLevel(filtres.territoire),
     region: filtres.territoire.region,
     departement: filtres.territoire.departement,
@@ -94,6 +108,7 @@ export function QuotasPage() {
 
   return (
     <div className="stack">
+      <AvisRetraites fiabilite={tableau.data?.retraitesFiabilite} />
       <Panel
         kicker="Quotas de recrutement"
         title="Quotas prévisionnels par territoire et sous-système"
