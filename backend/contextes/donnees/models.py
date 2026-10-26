@@ -18,6 +18,12 @@ class JeuDeDonnees(models.Model):
     # Année scolaire des données importées (« 2024-2025 »), saisie à la création : c'est la base des projections
     # (N+1 est l'année suivante) et elle date les rapports.
     annee_scolaire = models.CharField(max_length=9, default=annee_scolaire_courante)
+    # Sens de `annee_scolaire` : « donnees » (année des données, base des projections), « rentree_preparee » (la
+    # rentrée que prépare le jeu : les données sont de l'année précédente) ou « non_confirme » (jeu créé avant la
+    # distinction : lu comme année des données, signalé jusqu'à confirmation). L'année elle-même n'est jamais réécrite.
+    sens_annee_scolaire = models.CharField(max_length=20, default="donnees", db_default="donnees")
+    # Données fictives déclarées (jeu de test importé) ; un jeu de démonstration (source) l'est toujours.
+    donnees_fictives = models.BooleanField(default=False, db_default=False)
     cree_le = models.DateTimeField(auto_now_add=True)
     portee = models.CharField(max_length=20, blank=True, default="", db_index=True)  # regional | national | national_herite
     region = models.CharField(max_length=30, null=True, blank=True, db_index=True)

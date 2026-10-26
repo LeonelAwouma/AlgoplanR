@@ -7,6 +7,7 @@ import type {
   Actualisation,
   CorpsCorrespondances,
   CorpsCreationJeu,
+  CorpsModificationJeu,
   CorpsEnvoiFichier,
   EcartsActualisation,
   EnseignantDetail,
@@ -135,6 +136,8 @@ export const conversionsDonnees: Record<string, Conversion> = {
         fichier_enseignants: c.enseignants,
         ...(c.prince ? { fichier_prince: c.prince } : {}),
         ...(c.anneeScolaire ? { annee_scolaire: c.anneeScolaire } : {}),
+        ...(c.sensAnneeScolaire ? { sens_annee_scolaire: c.sensAnneeScolaire } : {}),
+        ...(c.donneesFictives ? { donnees_fictives: true } : {}),
       },
     )
     return {
@@ -147,6 +150,16 @@ export const conversionsDonnees: Record<string, Conversion> = {
     jeuCree(acces, await acces.ecrire<JeuDjango>('POST', 'jeux/demonstration/', {})),
 
   'GET jeux/{jeu}/': async (_, acces, p) => versJeu(await acces.lire<JeuDjango>(`jeux/${p.jeu}/`)),
+
+  'PATCH jeux/{jeu}/': async (r, acces, p) => {
+    const c = r.corps as CorpsModificationJeu
+    return versJeu(
+      await acces.ecrire<JeuDjango>('PATCH', `jeux/${p.jeu}/`, {
+        ...(c.sensAnneeScolaire ? { sens_annee_scolaire: c.sensAnneeScolaire } : {}),
+        ...(c.donneesFictives !== undefined ? { donnees_fictives: c.donneesFictives } : {}),
+      }),
+    )
+  },
 
   'GET jeux/{jeu}/qualite/': async (_, acces, p): Promise<QualiteJeu> => {
     const [q, ecoles] = await Promise.all([

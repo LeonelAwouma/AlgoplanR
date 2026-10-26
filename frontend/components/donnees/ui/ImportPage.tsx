@@ -86,6 +86,8 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
   // Année scolaire des données importées ; vide = l'année en cours, fixée par le serveur.
   const [anneeScolaire, setAnneeScolaire] = useState('')
   const anneeInvalide = anneeScolaire.trim() !== '' && !anneeScolaireValide(anneeScolaire)
+  // Jeu de test fictif déclaré à l'import : seule origine vérifiable d'un import (jamais déduite du nom du fichier).
+  const [donneesFictives, setDonneesFictives] = useState(false)
   /** Réponse au menu « fichier des faits du prince » ; `null` tant que le DRH n'a pas répondu. */
   const [souhaitePrince, setSouhaitePrince] = useState<boolean | null>(null)
   const [fichierPrince, setFichierPrince] = useState<FichierImporte | null>(null)
@@ -256,6 +258,7 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
         enseignants: enseignants.id,
         ...(princeAttendu && fichierPrince ? { prince: fichierPrince.id } : {}),
         ...(anneeScolaire.trim() ? { anneeScolaire: anneeScolaire.trim() } : {}),
+        ...(donneesFictives ? { donneesFictives: true } : {}),
       })
       setQualite(cree.qualite)
       setBilanPrince(cree.prince ?? null)
@@ -357,6 +360,10 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
               ? 'Saisissez deux années consécutives, par exemple 2026-2027.'
               : 'L’année scolaire à laquelle se rapportent les fichiers (base des projections ; N+1 est l’année suivante). L’année en cours si vous laissez vide. Elle ne se modifie plus ensuite.'}
           </span>
+          <label className="hint">
+            <input type="checkbox" checked={donneesFictives} onChange={e => setDonneesFictives(e.target.checked)} />{' '}
+            Données fictives (jeu de test) : un bandeau l’indiquera dans les vues et les exports.
+          </label>
         </div>
       )}
 

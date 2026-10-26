@@ -31,6 +31,7 @@ import {
   lignesContexte,
   lignesExport,
   lignesFiabilite,
+  lignesRapprochement,
   lignesScenarios,
   natureCase,
   pointsEnseignants,
@@ -39,6 +40,7 @@ import {
   raisonsIndisponibles,
   renvoi,
   syntheseDecideur,
+  syntheseRapprochement,
   valeur,
 } from '../components/planification/domain/previsionnel'
 import { camelProfond } from '../components/shared/api/backend/routes/planification'
@@ -132,6 +134,8 @@ describe('Tableau prévisionnel complet', () => {
         'Tableau complet',
         'Nature des valeurs',
         'Scénarios',
+        'Synthèse rapprochement',
+        'Rapprochement des effectifs',
         'Audit des retraites',
         'Hypothèses',
         'Données non disponibles',
@@ -207,7 +211,7 @@ describe('Provenance, natures et audit des retraites', () => {
     const lignes = lignesAuditRetraites(p)
     assert.deepEqual(
       lignes.map(l => l[1]),
-      ligne(p, 'departs_retraite')?.valeurs.slice(1),
+      ligne(p, 'retraites_identifiees')?.valeurs.slice(1),
     )
     assert.deepEqual(
       lignes.map(l => l[0]),
@@ -324,5 +328,104 @@ describe('Valeurs non disponibles et fiabilité', () => {
     const affectation = /AVERTISSEMENT_PERSONNELS = \(([^)]*\)[^)]*)\)/.exec(source)?.[1] ?? ''
     const serveur = [...affectation.matchAll(/"([^"]*)"/g)].map(m => m[1]).join('')
     assert.equal(serveur, AVERTISSEMENT_PERSONNELS)
+  })
+})
+
+const TEXTE_FICTIF =
+  'Données fictives — simulation de démonstration. Ces résultats ne représentent pas la situation réelle du Cameroun.'
+
+describe('Cohérence des effectifs, plafond et données fictives', () => {
+  it('reprend le bandeau des données fictives du serveur, mot pour mot, dans le classeur et le document Word', async () => {
+    const p = prevision()
+    assert.equal(p.contexte?.donneesFictives, true)
+    assert.equal(p.texteDonneesFictives, TEXTE_FICTIF)
+    assert.deepEqual(feuille(p, 'Contexte').lignes[0], ['DONNÉES FICTIVES', TEXTE_FICTIF])
+    assert.ok(feuille(p, 'Avertissements').lignes.some(l => l[1] === TEXTE_FICTIF))
+    const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
+    assert.ok(xml.includes(TEXTE_FICTIF))
+    const source = readFileSync(
+      path.join(RACINE, '..', 'backend', 'domaine', 'planification', 'previsionnel.py'),
+      'utf8',
+    )
+    const affectation = /TEXTE_DONNEES_FICTIVES = \(([^)]*)\)/.exec(source)?.[1] ?? ''
+    assert.equal([...affectation.matchAll(/"([^"]*)"/g)].map(m => m[1]).join(''), TEXTE_FICTIF)
+  })
+
+  it('n’affiche aucun bandeau pour des données réelles', () => {
+    const p = { ...prevision(), texteDonneesFictives: null }
+    p.contexte = { ...p.contexte!, donneesFictives: false }
+    p.avertissements = (p.avertissements ?? []).filter(a => a.code !== 'donnees_fictives')
+    assert.ok(!feuille(p, 'Contexte').lignes.some(l => l[1] === TEXTE_FICTIF))
+    assert.ok(!feuille(p, 'Avertissements').lignes.some(l => l[1] === TEXTE_FICTIF))
+  })
+
+  it('exporte le rapprochement des effectifs tel que le serveur le calcule', () => {
+    const p = prevision()
+    const r = p.rapprochement!
+    const s = r.synthese
+    assert.equal(s.ecolesConcordantes + s.ecolesEcartPositif + s.ecolesEcartNegatif, s.ecoles)
+    assert.equal(s.stockDeclare, p.contexte?.personnelsStockDeclare)
+    assert.equal(s.agentsNominatifs, p.contexte?.personnelsNominatifs)
+    assert.equal(s.retraitesHorizon, s.retraitesRetireesDuStock + s.retraitesNonImputables)
+    const lignes = feuille(p, 'Rapprochement des effectifs').lignes
+    assert.deepEqual(lignes, lignesRapprochement(p))
+    assert.equal(lignes.length, r.ecoles.length)
+    r.ecoles.forEach((e, i) => {
+      assert.equal(lignes[i][5], e.stockDeclare - e.agentsNominatifs)
+      assert.equal(lignes[i][9], e.retraitesNonImputables)
+    })
+    // Les écoles à anomalie viennent d'abord.
+    const premiereSans = r.ecoles.findIndex(e => e.anomalies.length === 0)
+    if (premiereSans >= 0) assert.ok(r.ecoles.slice(premiereSans).every(e => e.anomalies.length === 0))
+    assert.deepEqual(feuille(p, 'Synthèse rapprochement').lignes.slice(0, -1), syntheseRapprochement(p))
+  })
+
+  it('distingue retraites identifiées, retirées du stock et non imputables', () => {
+    const p = prevision()
+    const id = ligne(p, 'retraites_identifiees')!
+    const ret = ligne(p, 'departs_retraite')!
+    const ni = ligne(p, 'retraites_non_imputables')!
+    for (let i = 1; i < 6; i++) assert.equal(id.valeurs[i], Number(ret.valeurs[i]) + Number(ni.valeurs[i]))
+    assert.equal(
+      id.valeurs.slice(1).reduce<number>((a, v) => a + Number(v), 0),
+      p.rapprochement?.synthese.retraitesHorizon,
+    )
+    assert.deepEqual(
+      id.valeurs.slice(1),
+      p.auditRetraites?.lignes.map(l => l.departs),
+    )
+    // Sans année de mesure des âges, les retraites projetées sont qualifiées de provisoires.
+    assert.equal(p.auditRetraites?.anneeAges, null)
+    assert.ok((ret.natures ?? []).slice(1).length === 5 && (ret.natures ?? []).slice(1).every(n => n === 'provisoire'))
+    assert.ok(p.avertissements?.some(a => a.code === 'annee_ages_absente'))
+  })
+
+  it('présente le dépassement du plafond et la règle alternative sans les appliquer', () => {
+    const p = prevision()
+    const q = ligne(p, 'quota_calcule')!
+    const plafond = ligne(p, 'plafond')!
+    const dep = ligne(p, 'depassement_plafond')!
+    const alt = ligne(p, 'quota_plafond_prioritaire')!
+    for (let i = 1; i < 6; i++) {
+      if (plafond.valeurs[i] === null) assert.equal(dep.valeurs[i], null)
+      else assert.equal(dep.valeurs[i], Math.max(0, Number(q.valeurs[i]) - Number(plafond.valeurs[i])))
+      if (plafond.valeurs[i] !== null) assert.ok(Number(alt.valeurs[i]) <= Number(plafond.valeurs[i]))
+    }
+    const messages = (p.avertissements ?? []).filter(a => a.code === 'depassement_plafond')
+    assert.equal(messages.length, dep.valeurs.slice(1).filter(v => Number(v) > 0).length)
+    for (const m of messages)
+      assert.match(
+        m.message,
+        /^Le quota proposé dépasse le plafond de recrutement de \d+ postes? en N\+\d \(\d{4}-\d{4}\) en raison du remplacement des départs à la retraite\.$/,
+      )
+    // La règle alternative n'entre dans aucune trajectoire : le scénario sous plafond suit le quota calculé.
+    assert.deepEqual(ligne(p, 'recrutement_plafond')!.valeurs.slice(1), q.valeurs.slice(1))
+  })
+
+  it('signale les effectifs discordants en tête', () => {
+    const p = prevision()
+    const a = p.avertissements ?? []
+    assert.equal(a[0]?.code, 'donnees_fictives')
+    assert.ok(a.some(x => x.code === 'effectifs_discordants' && x.gravite === 'important'))
   })
 })

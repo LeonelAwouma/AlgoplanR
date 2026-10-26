@@ -80,6 +80,23 @@ export interface CorpsCreationJeu {
   dateReference?: string
   /** Année scolaire des données importées, « AAAA-AAAA » (base des projections) : l'année en cours par défaut. */
   anneeScolaire?: string
+  /** Sens de l'année saisie : année des données (par défaut) ou rentrée préparée (données de l'année précédente). */
+  sensAnneeScolaire?: SensAnneeScolaire
+  /** Jeu de test fictif, déclaré par la personne qui l'importe : un bandeau l'indique dans les vues et les exports. */
+  donneesFictives?: boolean
+}
+
+/**
+ * Sens de l'année saisie d'un jeu : `donnees` (année des données observées, la base), `rentree_preparee` (rentrée que
+ * le jeu prépare : les données sont celles de l'année précédente), `non_confirme` (jeu antérieur à cette distinction,
+ * lu comme l'année des données en attendant une confirmation explicite).
+ */
+export type SensAnneeScolaire = 'donnees' | 'rentree_preparee' | 'non_confirme'
+
+/** Confirmation du sens de l'année ou déclaration de l'origine fictive d'un jeu (`PATCH jeux/{jeu}/`). */
+export interface CorpsModificationJeu {
+  sensAnneeScolaire?: SensAnneeScolaire
+  donneesFictives?: boolean
 }
 
 /** Statut d'un jeu : il ne sert de référence aux projections qu'une fois validé. */
@@ -93,6 +110,11 @@ export interface JeuDeDonnees {
   importeLe: string
   fichiersSource: { etablissements: string | null; enseignants: string | null }
   anneeScolaire: string
+  /** Sens de l'année saisie et année des données qui en découle (base des projections). */
+  sensAnneeScolaire: SensAnneeScolaire
+  anneeDonnees: string
+  /** Origine fictive vérifiable : jeu de démonstration, ou marqueur déclaré ; jamais déduite du nom ni de la taille. */
+  donneesFictives: boolean
   statut: StatutJeu
   nbEtablissements: number
   nbEnseignants: number

@@ -207,8 +207,12 @@ def test_contexte_du_jeu_et_du_perimetre(drh, jeu):
 def test_audit_des_retraites_coherent_avec_le_tableau(drh, jeu):
     p = get(drh, f"jeux/{jeu}/planification/previsionnel/")
     a = p["audit_retraites"]
-    retraites = _lignes(p)["departs_retraite"]["valeurs"][1:]
+    l = _lignes(p)
+    retraites = l["retraites_identifiees"]["valeurs"][1:]
     assert [x["departs"] for x in a["lignes"]] == retraites
+    # Identifiées = retirées du stock + non imputables (au-delà du stock déclaré de l'école).
+    assert retraites == [r + n for r, n in zip(l["departs_retraite"]["valeurs"][1:],
+                                               l["retraites_non_imputables"]["valeurs"][1:])]
     for x in a["lignes"]:
         assert x["deja_eligibles"] + x["atteignant_age_legal"] == x["departs"]
     # Les agents ayant déjà l'âge légal partent tous en N+1 (CORR_60) ; aucun n'est recompté ensuite.

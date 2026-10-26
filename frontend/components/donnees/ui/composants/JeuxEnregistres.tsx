@@ -8,12 +8,20 @@
 
 import { FolderOpen, Trash2 } from 'lucide-react'
 
-import type { IdJeu, JeuDeDonnees } from '@shared/api'
+import type { IdJeu, JeuDeDonnees, SensAnneeScolaire } from '@shared/api'
 import { LIBELLE_STATUT_JEU } from '@shared/kernel'
 import { Panel, Pill, fmt } from '@shared/ui/commun'
 import { ErreurAction } from '@shared/ui/etats'
 
-import { useJeux, useSupprimerJeu } from '../../application/hooks'
+import { useJeux, useModifierJeu, useSupprimerJeu } from '../../application/hooks'
+
+/** Année saisie et son sens : la base des projections est l'année des données. */
+function libelleAnnee(jeu: JeuDeDonnees): string {
+  if (jeu.sensAnneeScolaire === 'rentree_preparee')
+    return `rentrée préparée ${jeu.anneeScolaire} (données ${jeu.anneeDonnees})`
+  if (jeu.sensAnneeScolaire === 'non_confirme') return `année ${jeu.anneeScolaire} (sens à confirmer)`
+  return `données ${jeu.anneeScolaire}`
+}
 
 /** Date lisible d'un import. */
 function dateImport(jeu: JeuDeDonnees): string {
@@ -32,6 +40,7 @@ export interface ProprietesJeuxEnregistres {
 export function JeuxEnregistres({ jeuOuvert, onOuvrir, onJeuOuvertSupprime }: ProprietesJeuxEnregistres) {
   const jeux = useJeux()
   const suppression = useSupprimerJeu()
+  const modification = useModifierJeu()
 
   // Sans jeu enregistré (ou serveur pas encore joignable), la section n'a pas lieu d'être.
   if (!jeux.data || jeux.data.length === 0) return null
@@ -54,7 +63,7 @@ export function JeuxEnregistres({ jeuOuvert, onOuvrir, onJeuOuvertSupprime }: Pr
       title="Jeux de données enregistrés"
       hint="Les données importées sont conservées sur ce poste par le serveur AlgoPlanR, avec les décisions et les résultats."
     >
-      <ErreurAction erreur={suppression.error} />
+      <ErreurAction erreur={suppression.error ?? modification.error} />
       <ul className="liste-jeux">
         {jeux.data.map(jeu => (
           <li key={jeu.id}>
@@ -63,13 +72,47 @@ export function JeuxEnregistres({ jeuOuvert, onOuvrir, onJeuOuvertSupprime }: Pr
                 {jeu.demonstration ? 'Jeu de démonstration' : (jeu.fichiersSource.etablissements ?? 'Jeu importé')}
               </strong>{' '}
               {jeu.id === jeuOuvert && <Pill tone="info">Ouvert</Pill>}{' '}
-              <Pill tone={jeu.statut === 'valide' ? 'ok' : 'neutral'}>{LIBELLE_STATUT_JEU[jeu.statut]}</Pill>
+              <Pill tone={jeu.statut === 'valide' ? 'ok' : 'neutral'}>{LIBELLE_STATUT_JEU[jeu.statut]}</Pill>{' '}
+              {jeu.donneesFictives && <Pill tone="warn">Données fictives</Pill>}
               <p className="hint">
-                Importé le {dateImport(jeu)} · année {jeu.anneeScolaire} · {fmt(jeu.nbEtablissements)} établissements ·{' '}
+                Importé le {dateImport(jeu)} · {libelleAnnee(jeu)} · {fmt(jeu.nbEtablissements)} établissements ·{' '}
                 {fmt(jeu.nbEnseignants)} enseignants
               </p>
+              {jeu.sensAnneeScolaire === 'non_confirme' && (
+                <p className="hint">
+                  Jeu créé avant la distinction entre l’année des données et la rentrée préparée : l’année{' '}
+                  {jeu.anneeScolaire} est lue comme celle des données. Elle désigne :{' '}
+                  {(
+                    [
+                      ['donnees', `les données (base ${jeu.anneeScolaire})`],
+                      ['rentree_preparee', 'la rentrée préparée (base : année précédente)'],
+                    ] as [SensAnneeScolaire, string][]
+                  ).map(([sens, libelle]) => (
+                    <button
+                      key={sens}
+                      type="button"
+                      className="btn btn-sm"
+                      disabled={modification.isPending}
+                      onClick={() => modification.mutate({ jeu: jeu.id, corps: { sensAnneeScolaire: sens } })}
+                    >
+                      {libelle}
+                    </button>
+                  ))}
+                </p>
+              )}
             </div>
             <div className="liste-jeux-actions">
+              {!jeu.demonstration && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={modification.isPending}
+                  title="Marqueur explicite : un bandeau « Données fictives » s’affiche dans les vues et les exports."
+                  onClick={() => modification.mutate({ jeu: jeu.id, corps: { donneesFictives: !jeu.donneesFictives } })}
+                >
+                  {jeu.donneesFictives ? 'Retirer « fictif »' : 'Déclarer fictif'}
+                </button>
+              )}
               <button type="button" className="btn btn-sm" onClick={() => onOuvrir(jeu.id)}>
                 <FolderOpen size={14} aria-hidden="true" /> Ouvrir
               </button>

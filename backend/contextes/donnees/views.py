@@ -86,7 +86,8 @@ def jeux(request):
             raise PermissionDenied("Code d'accès Effet de Prince manquant ou invalide")
         f_prince, lignes_prince = services.preparer_fichier_prince(request.user, d["fichier_prince"])
     jeu = services.creer_jeu(d.get("nom", ""), ide, idn, compte=request.user, fichier_prince=f_prince,
-                             annee_scolaire=d.get("annee_scolaire"))
+                             annee_scolaire=d.get("annee_scolaire"), sens_annee_scolaire=d.get("sens_annee_scolaire"),
+                             donnees_fictives=_oui(d.get("donnees_fictives")))
     bilan_prince = None
     if f_prince is not None:
         from contextes.audit.services import decision
@@ -112,7 +113,8 @@ def jeu_demonstration(request):
                                                     maximum=30000),
                                        entier_param(d.get("nb_enseignants"), "nb_enseignants", defaut=420, minimum=1,
                                                     maximum=100000), compte=request.user,
-                                       annee_scolaire=d.get("annee_scolaire"))
+                                       annee_scolaire=d.get("annee_scolaire"),
+                                       sens_annee_scolaire=d.get("sens_annee_scolaire"))
     from contextes.simulation.services import creer_scenarios_base
     creer_scenarios_base(jeu)
     _journal_creation(request, jeu, "Ouverture du jeu de démonstration")
@@ -121,9 +123,14 @@ def jeu_demonstration(request):
 
 @extend_schema(methods=["GET"], responses=OpenApiTypes.OBJECT, summary="Détail d'un jeu")
 @extend_schema(methods=["DELETE"], responses=None, summary="« Effacer les données » (cascade)")
-@api_view(["GET", "DELETE"])
+@extend_schema(methods=["PATCH"], request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT,
+               summary="Sens de l'année scolaire (donnees | rentree_preparee | non_confirme) et données fictives")
+@api_view(["GET", "PATCH", "DELETE"])
 def jeu_detail(request, jeu):
     j = jeu_autorise(request, jeu)
+    if request.method == "PATCH":
+        return Response(services.modifier_jeu(j, request.data if isinstance(request.data, dict) else {},
+                                              request=request))
     if request.method == "DELETE":
         from contextes.diagnostic.services import invalider_cache
         invalider_cache(j)

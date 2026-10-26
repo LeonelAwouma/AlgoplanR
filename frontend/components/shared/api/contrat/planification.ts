@@ -369,6 +369,12 @@ export interface ContextePrevisionnel {
   jeuPortee: string
   jeuRegion: string | null
   anneeScolaire: string
+  /** Année saisie à la création, son sens et l'année des données qui en découle (base des projections). */
+  anneeSaisie?: string
+  sensAnneeScolaire?: 'donnees' | 'rentree_preparee' | 'non_confirme'
+  anneeDonnees?: string
+  /** Origine fictive vérifiable (jeu de démonstration ou marqueur déclaré). */
+  donneesFictives?: boolean
   fichiersSource: Record<string, string>
   perimetre: string
   niveau: NiveauTerritorial
@@ -408,6 +414,70 @@ export interface AuditRetraites {
   anneeAges: string | null
 }
 
+/** Avertissement de cohérence affiché en tête de la projection et des exports (jamais un recalage silencieux). */
+export interface AvertissementCoherence {
+  code:
+    | 'donnees_fictives'
+    | 'sens_annee_non_confirme'
+    | 'effectifs_discordants'
+    | 'retraites_non_imputables'
+    | 'agents_hors_ecoles'
+    | 'depassement_plafond'
+    | 'annee_ages_absente'
+    | 'agents_sans_age'
+  gravite: 'important' | 'information'
+  message: string
+  annee?: string
+}
+
+/** Rapprochement d'une école : stock déclaré (Enseignants_Actuels) et agents nominatifs rattachés. */
+export interface RapprochementEcole {
+  idEcole: string
+  nomEcole: string
+  region: string
+  stockDeclare: number
+  stockApresPlan: number
+  agentsNominatifs: number
+  /** Stock déclaré − agents nominatifs ; aucun des deux n'est corrigé. */
+  ecart: number
+  retraitesN1: number
+  retraitesHorizon: number
+  retraitesRetireesDuStock: number
+  /** Retraites identifiées au-delà du stock déclaré restant de l'école : ni retirées du stock, ni remplacées. */
+  retraitesNonImputables: number
+  agentsSansAge: number
+  doublons: number
+  anomalies: string[]
+}
+
+/** Rapprochement des effectifs du périmètre : synthèse et écoles (anomalies d'abord). */
+export interface RapprochementEffectifs {
+  synthese: {
+    ecoles: number
+    stockDeclare: number
+    stockApresPlan: number
+    agentsNominatifs: number
+    ecolesConcordantes: number
+    ecolesEcartPositif: number
+    ecartPositif: number
+    ecolesEcartNegatif: number
+    ecartNegatif: number
+    /** Agents rattachés à aucune école projetée ; `null` quand le périmètre est filtré. */
+    agentsHorsEcoles: number | null
+    doublons: number
+    agentsSansAge: number
+    retraitesN1: number
+    retraitesHorizon: number
+    retraitesRetireesDuStock: number
+    retraitesNonImputables: number
+    ecolesRetraitesSuperieuresAuStock: number
+    concordanceComplete: boolean
+  }
+  ecoles: RapprochementEcole[]
+  ecolesTronquees: boolean
+  methode: string
+}
+
 /** Tableau prévisionnel complet du périmètre (`GET jeux/{jeu}/planification/previsionnel/`). */
 export interface PrevisionnelComplet {
   perimetre: string
@@ -426,6 +496,12 @@ export interface PrevisionnelComplet {
   contexte?: ContextePrevisionnel
   /** Départs à la retraite du périmètre, année par année, et méthode. */
   auditRetraites?: AuditRetraites
+  /** Stock déclaré et liste nominative rapprochés école par école. */
+  rapprochement?: RapprochementEffectifs
+  /** Incohérences et réserves à afficher en tête de la projection et des exports. */
+  avertissements?: AvertissementCoherence[]
+  /** Bandeau des données fictives (texte exact), `null` pour des données réelles. */
+  texteDonneesFictives?: string | null
   /** Les personnels de la cartographie ne sont pas nécessairement tous des maîtres chargés de classe. */
   avertissementPersonnels?: string
   groupes: { code: 'A' | 'B' | 'C' | 'D' | 'E'; titre: string; lignes: LignePrevisionnel[] }[]

@@ -24,7 +24,7 @@ from domaine.acces.isolement_regional import isoler_region
 from domaine.acces.regions import region_canonique
 from domaine.commun.texte import texte
 from domaine.donnees import colonnes as C
-from domaine.donnees.annee_scolaire import normaliser_annee_scolaire
+from domaine.donnees.annee_scolaire import SENS_ANNEE, SENS_DONNEES, annee_des_donnees, normaliser_annee_scolaire
 from domaine.donnees import correspondance as corr
 from domaine.donnees.demonstration import construire_jeu_demonstration
 from domaine.donnees.modeles import construire_ecole, construire_enseignant
@@ -238,6 +238,15 @@ def _annee_scolaire(valeur: Optional[str]) -> str:
         raise RefusMetier("Année scolaire invalide", [str(exc)], code="annee_scolaire_invalide")
 
 
+def _sens_annee(valeur: Optional[str]) -> str:
+    """Sens de l'année saisie : « donnees » (année des données, par défaut), « rentree_preparee » ou « non_confirme »."""
+    texte = str(valeur or "").strip() or SENS_DONNEES
+    if texte not in SENS_ANNEE:
+        raise RefusMetier("Sens de l'année scolaire invalide", [f"Valeurs admises : {', '.join(SENS_ANNEE)}"],
+                          code="sens_annee_invalide")
+    return texte
+
+
 def _joindre_bilan_regional(rapport: dict, bilan: dict) -> None:
     """Le bilan de l'isolement entre dans le rapport de qualité ; les rattachements douteux deviennent des
     avertissements (les enseignants concernés ne sont rattachés à aucune région)."""
@@ -255,16 +264,18 @@ def _joindre_bilan_regional(rapport: dict, bilan: dict) -> None:
 
 @transaction.atomic
 def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte, fichier_prince: Optional[FichierImporte] = None,
-              annee_scolaire: Optional[str] = None) -> JeuDeDonnees:
+              annee_scolaire: Optional[str] = None, sens_annee_scolaire: Optional[str] = None,
+              donnees_fictives: bool = False) -> JeuDeDonnees:
     """Crée un jeu à partir de deux fichiers envoyés par le même compte : régional pour un délégué (sa région
-    seule, même depuis la base nationale), national pour le DRH."""
+    seule, même depuis la base nationale), national pour le DRH. `donnees_fictives` : jeu de test déclaré fictif par
+    la personne qui l'importe (seule origine vérifiable pour un import)."""
     f_etab = fichier_du_compte(compte, id_fichier_etab)
     f_ens = fichier_du_compte(compte, id_fichier_ens)
     if f_etab.type != "etablissements" or f_ens.type != "enseignants":
         raise RefusMetier("Types de fichiers inversés ou incorrects",
                           ["fichier_etablissements doit être de type etablissements",
                            "fichier_enseignants doit être de type enseignants"])
-    annee = _annee_scolaire(annee_scolaire)
+    annee, sens = _annee_scolaire(annee_scolaire), _sens_annee(sens_annee_scolaire)
     l_etab, l_ens, bilan = _lignes_du_jeu(compte, f_etab, f_ens)
     rapport = controler(l_etab, l_ens, cfg_dom.defaut())
     if bilan is not None:
@@ -278,7 +289,8 @@ def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte, fichier_prin
     else:
         portee, region, defaut = PORTEE_NATIONALE, None, f"Base nationale ({f_etab.nom_fichier})"
     jeu = JeuDeDonnees.objects.create(nom=nom or defaut, source="import", portee=portee, region=region,
-                                      cree_par=compte, annee_scolaire=annee)
+                                      cree_par=compte, annee_scolaire=annee, sens_annee_scolaire=sens,
+                                      donnees_fictives=bool(donnees_fictives))
     depots.enregistrer(jeu, [construire_ecole(l) for l in l_etab], [construire_enseignant(l) for l in l_ens])
     RapportQualite.objects.create(jeu=jeu, contenu=rapport)
     for f in (f_etab, f_ens, fichier_prince):
@@ -290,19 +302,22 @@ def creer_jeu(nom: str, id_fichier_etab, id_fichier_ens, *, compte, fichier_prin
 
 @transaction.atomic
 def creer_demonstration(nom: str = "", graine: int = 2026, nb_ecoles: int = 60, nb_enseignants: int = 420, *,
-                        compte, annee_scolaire: Optional[str] = None) -> JeuDeDonnees:
+                        compte, annee_scolaire: Optional[str] = None,
+                        sens_annee_scolaire: Optional[str] = None) -> JeuDeDonnees:
     """Jeu fictif. Pour un délégué, toutes les écoles fictives sont placées dans sa région (jeu régional)."""
-    annee = _annee_scolaire(annee_scolaire)
+    annee, sens = _annee_scolaire(annee_scolaire), _sens_annee(sens_annee_scolaire)
     l_etab, l_ens = construire_jeu_demonstration(graine, nb_ecoles, nb_enseignants)
     if compte.est_delegue:
         for l in l_etab:
             l[C.COL_ETAB_REGION] = compte.region
         jeu = JeuDeDonnees.objects.create(nom=nom or f"Jeu de démonstration ({compte.region})",
                                           source="demonstration", portee=PORTEE_REGIONALE, region=compte.region,
-                                          cree_par=compte, annee_scolaire=annee)
+                                          cree_par=compte, annee_scolaire=annee, sens_annee_scolaire=sens,
+                                          donnees_fictives=True)
     else:
         jeu = JeuDeDonnees.objects.create(nom=nom or "Jeu de démonstration", source="demonstration",
-                                          portee=PORTEE_NATIONALE, cree_par=compte, annee_scolaire=annee)
+                                          portee=PORTEE_NATIONALE, cree_par=compte, annee_scolaire=annee,
+                                          sens_annee_scolaire=sens, donnees_fictives=True)
     depots.enregistrer(jeu, [construire_ecole(l) for l in l_etab], [construire_enseignant(l) for l in l_ens])
     RapportQualite.objects.create(jeu=jeu, contenu=controler(l_etab, l_ens, cfg_dom.defaut()))
     return jeu
@@ -311,7 +326,10 @@ def creer_demonstration(nom: str = "", graine: int = 2026, nb_ecoles: int = 60, 
 def resume_jeu(jeu: JeuDeDonnees) -> dict:
     return {
         "id": str(jeu.id), "nom": jeu.nom, "source": jeu.source, "cree_le": jeu.cree_le,
-        "annee_scolaire": jeu.annee_scolaire,
+        "annee_scolaire": jeu.annee_scolaire, "sens_annee_scolaire": jeu.sens_annee_scolaire,
+        "annee_donnees": annee_des_donnees(jeu.annee_scolaire, jeu.sens_annee_scolaire),
+        # Origine fictive vérifiable : jeu de démonstration, ou marqueur déclaré ; jamais déduite du nom ni de la taille.
+        "donnees_fictives": jeu.source == "demonstration" or jeu.donnees_fictives,
         "portee": jeu.portee, "region": jeu.region, "consolide_depuis": jeu.consolide_depuis,
         "cree_par": jeu.cree_par.identifiant if jeu.cree_par_id else None,
         "nb_etablissements": jeu.etablissements.count(), "nb_enseignants": jeu.enseignants.count(),
@@ -326,6 +344,41 @@ def resume_jeu(jeu: JeuDeDonnees) -> dict:
         "scenario_retenu_id": str(jeu.scenario_retenu_id) if jeu.scenario_retenu_id else None,
         "fichiers_source": {f.type: f.nom_fichier for f in jeu.fichiers.order_by("cree_le")},
     }
+
+
+@transaction.atomic
+def modifier_jeu(jeu: JeuDeDonnees, corps: dict, *, request) -> dict:
+    """Confirme le sens de l'année saisie ou déclare l'origine fictive d'un jeu. Migration explicite et réversible :
+    l'année saisie n'est jamais réécrite, chaque changement est journalisé (avant / après) et la version conservée de
+    la planification devient obsolète quand la base des projections change."""
+    from contextes.audit.services import journaliser
+    avant = {"sens_annee_scolaire": jeu.sens_annee_scolaire, "donnees_fictives": jeu.donnees_fictives}
+    champs = []
+    if "sens_annee_scolaire" in corps:
+        jeu.sens_annee_scolaire = _sens_annee(corps["sens_annee_scolaire"])
+        champs.append("sens_annee_scolaire")
+    if "donnees_fictives" in corps:
+        valeur = corps["donnees_fictives"]
+        if not isinstance(valeur, bool):
+            raise RefusMetier("Valeur invalide", ["donnees_fictives doit valoir true ou false"])
+        if jeu.source == "demonstration" and not valeur:
+            raise RefusMetier("Jeu de démonstration", ["Un jeu de démonstration est toujours fictif"],
+                              code="demonstration_fictive")
+        jeu.donnees_fictives = valeur
+        champs.append("donnees_fictives")
+    if not champs:
+        raise RefusMetier("Aucune modification", ["sens_annee_scolaire ou donnees_fictives attendu"])
+    jeu.save(update_fields=champs)
+    apres = {"sens_annee_scolaire": jeu.sens_annee_scolaire, "donnees_fictives": jeu.donnees_fictives}
+    if apres != avant:
+        journaliser(jeu, "import", "modification du jeu",
+                    f"Année {jeu.annee_scolaire} : sens « {apres['sens_annee_scolaire']} » ; données fictives : "
+                    f"{'oui' if apres['donnees_fictives'] else 'non'}", request=request, objet=("jeu", jeu.id),
+                    avant=avant, apres=apres)
+        if apres["sens_annee_scolaire"] != avant["sens_annee_scolaire"]:
+            from contextes.planification.services import marquer_obsolete
+            marquer_obsolete(jeu, "Sens de l'année scolaire du jeu modifié")
+    return resume_jeu(jeu)
 
 
 # --- Validation et actualisation ------------------------------------------------------------------------------

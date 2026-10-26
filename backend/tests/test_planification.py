@@ -98,7 +98,10 @@ def test_tableau_et_ventilations(c, jeu):
     ecoles = get(c, f"jeux/{jeu}/planification/ecoles/", taille=5)
     assert ecoles["count"] > 0 and len(ecoles["resultats"][0]["annees"]) == 5
     dep = get(c, f"jeux/{jeu}/planification/departs/")
-    assert len(dep["retraites"]) == sum(a["departs_retraite"] for a in t["annees"])
+    # Le plan liste toutes les retraites identifiées ; le stock ne perd que celles qui y sont imputables (les autres,
+    # au-delà du stock déclaré de leur école, sont comptées à part).
+    assert len(dep["retraites"]) == sum(a["retraites_identifiees"] for a in t["annees"]) \
+        == sum(a["departs_retraite"] + a["retraites_non_imputables"] for a in t["annees"])
     fia = get(c, f"jeux/{jeu}/planification/fiabilite/")
     assert fia["global"]["ecoles"] == ecoles["count"] and fia["par_territoire"]
     ind = get(c, f"jeux/{jeu}/indicateurs/")

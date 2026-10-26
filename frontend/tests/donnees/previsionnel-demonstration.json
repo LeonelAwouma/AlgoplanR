@@ -117,8 +117,8 @@
       272,
       266,
       264,
-      264,
-      262
+      265,
+      264
      ],
      "nature": "observe",
      "natures": [
@@ -135,7 +135,39 @@
     },
     {
      "cle": "departs_retraite",
-     "libelle": "Départs à la retraite",
+     "libelle": "Départs à la retraite retirés du stock",
+     "valeurs": [
+      null,
+      18,
+      10,
+      2,
+      9,
+      9
+     ],
+     "nature": "provisoire",
+     "natures": [
+      "sans_objet",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Retraites identifiées nominativement d'après les âges connus (jamais par le taux de 1,08 %), retirées du stock déclaré de leur école sans dépasser ce qui y reste ; voir l'audit des retraites. Provisoires : année de mesure des âges non précisée.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "retraites_identifiees",
+     "libelle": "Retraites identifiées nominativement (liste des enseignants)",
      "valeurs": [
       null,
       18,
@@ -144,18 +176,50 @@
       10,
       9
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Projetés nominativement d'après les âges connus (jamais par le taux de 1,08 %) ; voir l'audit des retraites.",
+     "detail": "Agents du fichier nominatif atteignant l'âge légal, matricules distincts, rattachés aux écoles du périmètre.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "retraites_non_imputables",
+     "libelle": "dont non imputables au stock déclaré",
+     "valeurs": [
+      null,
+      0,
+      0,
+      1,
+      1,
+      0
+     ],
+     "nature": "provisoire",
+     "natures": [
+      "sans_objet",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Retraites identifiées au-delà du stock déclaré restant de leur école (sources discordantes) : ni retirées du stock, ni remplacées par le plancher ; voir le rapprochement des effectifs.",
      "raisons": [
       null,
       null,
@@ -260,9 +324,9 @@
       null,
       266,
       264,
+      265,
       264,
-      262,
-      261
+      263
      ],
      "nature": "projete",
      "natures": [
@@ -292,9 +356,9 @@
       272,
       265,
       262,
-      261,
-      258,
-      256
+      262,
+      260,
+      258
      ],
      "nature": "observe",
      "natures": [
@@ -552,8 +616,8 @@
       null,
       18,
       10,
-      3,
-      10,
+      2,
+      9,
       9
      ],
      "nature": "projete",
@@ -584,8 +648,8 @@
       null,
       25,
       17,
-      10,
-      17,
+      9,
+      16,
       16
      ],
      "nature": "projete",
@@ -744,8 +808,8 @@
       null,
       18,
       10,
-      3,
-      10,
+      2,
+      9,
       9
      ],
      "nature": "projete",
@@ -760,6 +824,70 @@
      "decimal": false,
      "unite": "nombre",
      "detail": "Le quota calculé ne descend jamais sous les retraites de l'année, même au-delà du plafond.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "depassement_plafond",
+     "libelle": "Dépassement du plafond dû au remplacement des retraites",
+     "valeurs": [
+      null,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "nature": "projete",
+     "natures": [
+      "sans_objet",
+      "projete",
+      "projete",
+      "projete",
+      "projete",
+      "projete"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Quota calculé − plafond, quand le plancher des retraites porte le quota au-delà du plafond.",
+     "raisons": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "cle": "quota_plafond_prioritaire",
+     "libelle": "Quota si le plafond primait (règle alternative, non appliquée)",
+     "valeurs": [
+      null,
+      18,
+      14,
+      9,
+      14,
+      14
+     ],
+     "nature": "estime",
+     "natures": [
+      "sans_objet",
+      "estime",
+      "estime",
+      "estime",
+      "estime",
+      "estime"
+     ],
+     "decimal": false,
+     "unite": "nombre",
+     "detail": "Q' = min(max(besoin calculé ; retraites) ; plafond), année par année sur la trajectoire du tableau : présenté pour la décision D1 (le plancher ou le plafond prime-t-il ?), sans effet sur les trajectoires.",
      "raisons": [
       null,
       null,
@@ -879,8 +1007,8 @@
       33.3,
       35.1,
       36.5,
-      37.6,
-      39.1
+      37.4,
+      38.8
      ],
      "nature": "observe",
      "natures": [
@@ -998,9 +1126,9 @@
       32.4,
       34.2,
       35.5,
-      36.6,
-      38.0,
-      39.4
+      36.5,
+      37.7,
+      39.1
      ],
      "nature": "observe",
      "natures": [
@@ -1030,9 +1158,9 @@
       32.4,
       34.2,
       35.5,
-      36.6,
-      38.0,
-      39.4
+      36.5,
+      37.7,
+      39.1
      ],
      "nature": "observe",
      "natures": [
@@ -1062,9 +1190,9 @@
       -42.0,
       -40.2,
       -38.9,
-      -37.8,
-      -36.4,
-      -35.0
+      -37.9,
+      -36.7,
+      -35.3
      ],
      "nature": "observe",
      "natures": [
@@ -1097,11 +1225,11 @@
    "recrutements": [
     18,
     10,
-    3,
-    10,
+    2,
+    9,
     9
    ],
-   "recrutements_total": 50,
+   "recrutements_total": 48,
    "effectif_fin": [
     266,
     260,
@@ -1141,11 +1269,11 @@
    "recrutements": [
     25,
     17,
-    10,
-    17,
+    9,
+    16,
     16
    ],
-   "recrutements_total": 85,
+   "recrutements_total": 83,
    "effectif_fin": [
     273,
     274,
@@ -1193,33 +1321,33 @@
    "effectif_fin": [
     266,
     264,
+    265,
     264,
-    262,
-    261
+    263
    ],
    "disponibles_fin": [
     265,
     262,
-    261,
-    258,
-    256
+    262,
+    260,
+    258
    ],
    "rem": [
     34.2,
     35.5,
-    36.6,
-    38.0,
-    39.4
+    36.5,
+    37.7,
+    39.1
    ],
    "ecart_reference": [
     -40.2,
     -38.9,
-    -37.8,
-    -36.4,
-    -35.0
+    -37.9,
+    -36.7,
+    -35.3
    ],
-   "rem_final": 39.4,
-   "ecart_final": -35.0,
+   "rem_final": 39.1,
+   "ecart_final": -35.3,
    "besoin_restant_final": 0,
    "besoin_restant_raison": null
   },
@@ -1237,33 +1365,33 @@
    "effectif_fin": [
     266,
     264,
+    265,
     264,
-    262,
-    261
+    263
    ],
    "disponibles_fin": [
     265,
     262,
-    261,
-    258,
-    256
+    262,
+    260,
+    258
    ],
    "rem": [
     34.2,
     35.5,
-    36.6,
-    38.0,
-    39.4
+    36.5,
+    37.7,
+    39.1
    ],
    "ecart_reference": [
     -40.2,
     -38.9,
-    -37.8,
-    -36.4,
-    -35.0
+    -37.9,
+    -36.7,
+    -35.3
    ],
-   "rem_final": 39.4,
-   "ecart_final": -35.0,
+   "rem_final": 39.1,
+   "ecart_final": -35.3,
    "besoin_restant_final": 0,
    "besoin_restant_raison": null
   }
@@ -1278,6 +1406,10 @@
   "jeu_portee": "national",
   "jeu_region": null,
   "annee_scolaire": "2026-2027",
+  "annee_saisie": "2026-2027",
+  "sens_annee_scolaire": "donnees",
+  "annee_donnees": "2026-2027",
+  "donnees_fictives": true,
   "fichiers_source": {},
   "perimetre": "Cameroun",
   "niveau": "national",
@@ -1291,8 +1423,8 @@
   "ecoles_minimum_provisoire": 0,
   "ecoles_salles_flux_inconnu": 0,
   "version_planification": 1,
-  "calcule_le": "2026-10-25T23:17:19.155113Z",
-  "edite_le": "2026-10-25T23:17:19.161502Z"
+  "calcule_le": "2026-10-26T00:08:16.450072Z",
+  "edite_le": "2026-10-26T00:08:16.459355Z"
  },
  "audit_retraites": {
   "lignes": [
@@ -1342,10 +1474,776 @@
   "doublons": 0,
   "personnels_nominatifs": 300,
   "stock_declare": 272,
-  "methode": "Nominative : départ compté l'année scolaire où l'agent a 60 ans révolus à la rentrée : un agent de 59 ans au début de N+1 part en N+2. Les 18 agent(s) ayant déjà cet âge au début de N+1 sont imputés à N+1 (CORR_60). Âges supposés mesurés au début de N+1 (même date que le stock observé). Un agent sans âge exploitable n'est pas compté ; un matricule en double n'est compté qu'une fois. Le taux de 1,08 % du rapport n'est jamais utilisé.",
+  "methode": "Nominative : départ compté l'année scolaire où l'agent a 60 ans révolus à la rentrée : un agent de 59 ans au début de N+1 part en N+2. Les 18 agent(s) ayant déjà cet âge au début de N+1 sont imputés à N+1 (CORR_60). Année de mesure des âges non précisée : âges supposés mesurés au début de N+1. Un agent sans âge exploitable n'est pas compté ; un matricule en double n'est compté qu'une fois. Le taux de 1,08 % du rapport n'est jamais utilisé.",
   "decalage_ages": 0,
   "annee_ages": null
  },
+ "rapprochement": {
+  "synthese": {
+   "ecoles": 40,
+   "stock_declare": 272,
+   "stock_apres_plan": 272,
+   "agents_nominatifs": 300,
+   "ecoles_concordantes": 2,
+   "ecoles_ecart_positif": 16,
+   "ecart_positif": 59,
+   "ecoles_ecart_negatif": 22,
+   "ecart_negatif": -87,
+   "agents_hors_ecoles": 0,
+   "doublons": 0,
+   "agents_sans_age": 0,
+   "retraites_n1": 18,
+   "retraites_horizon": 50,
+   "retraites_retirees_du_stock": 48,
+   "retraites_non_imputables": 2,
+   "ecoles_retraites_superieures_au_stock": 1,
+   "concordance_complete": false
+  },
+  "ecoles": [
+   {
+    "id_ecole": "ECO022",
+    "nom_ecole": "Ecole publique de Meri n°22",
+    "region": "Extreme-Nord",
+    "stock_declare": 3,
+    "stock_apres_plan": 3,
+    "agents_nominatifs": 12,
+    "ecart": -9,
+    "retraites_n1": 2,
+    "retraites_horizon": 5,
+    "retraites_retirees_du_stock": 3,
+    "retraites_non_imputables": 2,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare",
+     "retraites_superieures_au_stock"
+    ]
+   },
+   {
+    "id_ecole": "ECO017",
+    "nom_ecole": "Ecole publique de Pitoa n°17",
+    "region": "Nord",
+    "stock_declare": 3,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 13,
+    "ecart": -10,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO002",
+    "nom_ecole": "Ecole publique de Garoua 2 n°2",
+    "region": "Nord",
+    "stock_declare": 12,
+    "stock_apres_plan": 11,
+    "agents_nominatifs": 4,
+    "ecart": 8,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO037",
+    "nom_ecole": "Ecole publique de Mokolo n°37",
+    "region": "Extreme-Nord",
+    "stock_declare": 11,
+    "stock_apres_plan": 9,
+    "agents_nominatifs": 3,
+    "ecart": 8,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO008",
+    "nom_ecole": "Ecole publique de Meri n°8",
+    "region": "Extreme-Nord",
+    "stock_declare": 2,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 9,
+    "ecart": -7,
+    "retraites_n1": 1,
+    "retraites_horizon": 3,
+    "retraites_retirees_du_stock": 3,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO026",
+    "nom_ecole": "Ecole publique de Yaounde 2 n°26",
+    "region": "Centre",
+    "stock_declare": 2,
+    "stock_apres_plan": 2,
+    "agents_nominatifs": 9,
+    "ecart": -7,
+    "retraites_n1": 0,
+    "retraites_horizon": 2,
+    "retraites_retirees_du_stock": 2,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO034",
+    "nom_ecole": "Ecole publique de Maroua 1 n°34",
+    "region": "Extreme-Nord",
+    "stock_declare": 4,
+    "stock_apres_plan": 4,
+    "agents_nominatifs": 11,
+    "ecart": -7,
+    "retraites_n1": 0,
+    "retraites_horizon": 2,
+    "retraites_retirees_du_stock": 2,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO036",
+    "nom_ecole": "Ecole publique de Meri n°36",
+    "region": "Extreme-Nord",
+    "stock_declare": 6,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 12,
+    "ecart": -6,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO039",
+    "nom_ecole": "Ecole publique de Yaounde 1 n°39",
+    "region": "Centre",
+    "stock_declare": 10,
+    "stock_apres_plan": 9,
+    "agents_nominatifs": 4,
+    "ecart": 6,
+    "retraites_n1": 1,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO006",
+    "nom_ecole": "Ecole publique de Maroua 1 n°6",
+    "region": "Extreme-Nord",
+    "stock_declare": 11,
+    "stock_apres_plan": 10,
+    "agents_nominatifs": 6,
+    "ecart": 5,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO012",
+    "nom_ecole": "Ecole publique de Yaounde 2 n°12",
+    "region": "Centre",
+    "stock_declare": 2,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 7,
+    "ecart": -5,
+    "retraites_n1": 2,
+    "retraites_horizon": 4,
+    "retraites_retirees_du_stock": 4,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO014",
+    "nom_ecole": "Ecole publique de Monatele n°14",
+    "region": "Centre",
+    "stock_declare": 10,
+    "stock_apres_plan": 8,
+    "agents_nominatifs": 5,
+    "ecart": 5,
+    "retraites_n1": 1,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO016",
+    "nom_ecole": "Ecole publique de Garoua 2 n°16",
+    "region": "Nord",
+    "stock_declare": 8,
+    "stock_apres_plan": 8,
+    "agents_nominatifs": 3,
+    "ecart": 5,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO020",
+    "nom_ecole": "Ecole publique de Maroua 1 n°20",
+    "region": "Extreme-Nord",
+    "stock_declare": 3,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 8,
+    "ecart": -5,
+    "retraites_n1": 1,
+    "retraites_horizon": 3,
+    "retraites_retirees_du_stock": 3,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO009",
+    "nom_ecole": "Ecole publique de Mokolo n°9",
+    "region": "Extreme-Nord",
+    "stock_declare": 3,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 7,
+    "ecart": -4,
+    "retraites_n1": 1,
+    "retraites_horizon": 3,
+    "retraites_retirees_du_stock": 3,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO013",
+    "nom_ecole": "Ecole publique de Obala n°13",
+    "region": "Centre",
+    "stock_declare": 9,
+    "stock_apres_plan": 8,
+    "agents_nominatifs": 5,
+    "ecart": 4,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO019",
+    "nom_ecole": "Ecole publique de Figuil n°19",
+    "region": "Nord",
+    "stock_declare": 5,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 9,
+    "ecart": -4,
+    "retraites_n1": 1,
+    "retraites_horizon": 3,
+    "retraites_retirees_du_stock": 3,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO028",
+    "nom_ecole": "Ecole publique de Monatele n°28",
+    "region": "Centre",
+    "stock_declare": 3,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 7,
+    "ecart": -4,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO029",
+    "nom_ecole": "Ecole publique de Garoua 1 n°29",
+    "region": "Nord",
+    "stock_declare": 7,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 3,
+    "ecart": 4,
+    "retraites_n1": 1,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO040",
+    "nom_ecole": "Ecole publique de Yaounde 2 n°40",
+    "region": "Centre",
+    "stock_declare": 2,
+    "stock_apres_plan": 2,
+    "agents_nominatifs": 6,
+    "ecart": -4,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO010",
+    "nom_ecole": "Ecole publique de Hina n°10",
+    "region": "Extreme-Nord",
+    "stock_declare": 9,
+    "stock_apres_plan": 7,
+    "agents_nominatifs": 6,
+    "ecart": 3,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO015",
+    "nom_ecole": "Ecole publique de Garoua 1 n°15",
+    "region": "Nord",
+    "stock_declare": 4,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 7,
+    "ecart": -3,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO003",
+    "nom_ecole": "Ecole publique de Pitoa n°3",
+    "region": "Nord",
+    "stock_declare": 9,
+    "stock_apres_plan": 7,
+    "agents_nominatifs": 11,
+    "ecart": -2,
+    "retraites_n1": 1,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO004",
+    "nom_ecole": "Ecole publique de Guider n°4",
+    "region": "Nord",
+    "stock_declare": 10,
+    "stock_apres_plan": 10,
+    "agents_nominatifs": 8,
+    "ecart": 2,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO005",
+    "nom_ecole": "Ecole publique de Figuil n°5",
+    "region": "Nord",
+    "stock_declare": 11,
+    "stock_apres_plan": 10,
+    "agents_nominatifs": 9,
+    "ecart": 2,
+    "retraites_n1": 0,
+    "retraites_horizon": 2,
+    "retraites_retirees_du_stock": 2,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO007",
+    "nom_ecole": "Ecole publique de Maroua 2 n°7",
+    "region": "Extreme-Nord",
+    "stock_declare": 10,
+    "stock_apres_plan": 8,
+    "agents_nominatifs": 8,
+    "ecart": 2,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO018",
+    "nom_ecole": "Ecole publique de Guider n°18",
+    "region": "Nord",
+    "stock_declare": 7,
+    "stock_apres_plan": 7,
+    "agents_nominatifs": 9,
+    "ecart": -2,
+    "retraites_n1": 0,
+    "retraites_horizon": 2,
+    "retraites_retirees_du_stock": 2,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO021",
+    "nom_ecole": "Ecole publique de Maroua 2 n°21",
+    "region": "Extreme-Nord",
+    "stock_declare": 8,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 6,
+    "ecart": 2,
+    "retraites_n1": 1,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO030",
+    "nom_ecole": "Ecole publique de Garoua 2 n°30",
+    "region": "Nord",
+    "stock_declare": 6,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 8,
+    "ecart": -2,
+    "retraites_n1": 2,
+    "retraites_horizon": 2,
+    "retraites_retirees_du_stock": 2,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO001",
+    "nom_ecole": "Ecole publique de Garoua 1 n°1",
+    "region": "Nord",
+    "stock_declare": 6,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 7,
+    "ecart": -1,
+    "retraites_n1": 1,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO011",
+    "nom_ecole": "Ecole publique de Yaounde 1 n°11",
+    "region": "Centre",
+    "stock_declare": 6,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 5,
+    "ecart": 1,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO023",
+    "nom_ecole": "Ecole publique de Mokolo n°23",
+    "region": "Extreme-Nord",
+    "stock_declare": 7,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 8,
+    "ecart": -1,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO024",
+    "nom_ecole": "Ecole publique de Hina n°24",
+    "region": "Extreme-Nord",
+    "stock_declare": 4,
+    "stock_apres_plan": 4,
+    "agents_nominatifs": 5,
+    "ecart": -1,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO031",
+    "nom_ecole": "Ecole publique de Pitoa n°31",
+    "region": "Nord",
+    "stock_declare": 8,
+    "stock_apres_plan": 8,
+    "agents_nominatifs": 9,
+    "ecart": -1,
+    "retraites_n1": 1,
+    "retraites_horizon": 3,
+    "retraites_retirees_du_stock": 3,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO032",
+    "nom_ecole": "Ecole publique de Guider n°32",
+    "region": "Nord",
+    "stock_declare": 10,
+    "stock_apres_plan": 9,
+    "agents_nominatifs": 9,
+    "ecart": 1,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO033",
+    "nom_ecole": "Ecole publique de Figuil n°33",
+    "region": "Nord",
+    "stock_declare": 6,
+    "stock_apres_plan": 6,
+    "agents_nominatifs": 7,
+    "ecart": -1,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO035",
+    "nom_ecole": "Ecole publique de Maroua 2 n°35",
+    "region": "Extreme-Nord",
+    "stock_declare": 7,
+    "stock_apres_plan": 7,
+    "agents_nominatifs": 6,
+    "ecart": 1,
+    "retraites_n1": 0,
+    "retraites_horizon": 0,
+    "retraites_retirees_du_stock": 0,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "declare_superieur_nominatif"
+    ]
+   },
+   {
+    "id_ecole": "ECO038",
+    "nom_ecole": "Ecole publique de Hina n°38",
+    "region": "Extreme-Nord",
+    "stock_declare": 8,
+    "stock_apres_plan": 8,
+    "agents_nominatifs": 9,
+    "ecart": -1,
+    "retraites_n1": 1,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": [
+     "nominatif_superieur_declare"
+    ]
+   },
+   {
+    "id_ecole": "ECO025",
+    "nom_ecole": "Ecole publique de Yaounde 1 n°25",
+    "region": "Centre",
+    "stock_declare": 10,
+    "stock_apres_plan": 9,
+    "agents_nominatifs": 10,
+    "ecart": 0,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": []
+   },
+   {
+    "id_ecole": "ECO027",
+    "nom_ecole": "Ecole publique de Obala n°27",
+    "region": "Centre",
+    "stock_declare": 10,
+    "stock_apres_plan": 8,
+    "agents_nominatifs": 10,
+    "ecart": 0,
+    "retraites_n1": 0,
+    "retraites_horizon": 1,
+    "retraites_retirees_du_stock": 1,
+    "retraites_non_imputables": 0,
+    "agents_sans_age": 0,
+    "doublons": 0,
+    "anomalies": []
+   }
+  ],
+  "ecoles_tronquees": false,
+  "methode": "Stock déclaré : Enseignants_Actuels du fichier des établissements (fixe le besoin et le stock S). Agents nominatifs : matricules distincts du fichier des enseignants rattachés à l'école. Écart = stock déclaré − agents nominatifs ; aucun des deux n'est corrigé. Les retraites sont identifiées sur la liste nominative et retirées du stock déclaré de l'école, sans jamais dépasser ce qui y reste : l'excédent est « non imputable », compté à part et non remplacé."
+ },
+ "avertissements": [
+  {
+   "code": "donnees_fictives",
+   "gravite": "important",
+   "message": "Données fictives — simulation de démonstration. Ces résultats ne représentent pas la situation réelle du Cameroun."
+  },
+  {
+   "code": "effectifs_discordants",
+   "gravite": "important",
+   "message": "Stock déclaré et liste nominative diffèrent dans 38 école(s) sur 40 (272 personnels déclarés, 300 agents nominatifs) : +59 dans 16 école(s), −87 dans 22 école(s). Les retraites, identifiées sur la liste nominative, sont retirées du stock déclaré : les deux populations ne sont pas identiques."
+  },
+  {
+   "code": "retraites_non_imputables",
+   "gravite": "important",
+   "message": "2 retraite(s) identifiée(s) dépassent le stock déclaré de leur école (1 école(s)) : elles ne sont ni retirées du stock ni remplacées par le plancher."
+  },
+  {
+   "code": "annee_ages_absente",
+   "gravite": "information",
+   "message": "Année de mesure des âges non précisée : les âges sont supposés mesurés au début de N+1 ; les retraites sont provisoires."
+  }
+ ],
+ "texte_donnees_fictives": "Données fictives — simulation de démonstration. Ces résultats ne représentent pas la situation réelle du Cameroun.",
  "avertissement_personnels": "Les effectifs enseignants sont ceux des personnels rapprochés dans la cartographie (Enseignants_Actuels). Ces personnels ne sont pas nécessairement tous des maîtres chargés de classe : leur statut n'est pas fourni par les fichiers importés.",
  "ecoles": 40,
  "ecoles_minimum_provisoire": 0,

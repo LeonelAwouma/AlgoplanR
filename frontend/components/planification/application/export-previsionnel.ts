@@ -27,8 +27,10 @@ import { telechargerFichier } from '../../shared/exports/export-csv'
 import { exporterXLSX, type FeuilleXlsx } from '../../shared/exports/export-xlsx'
 import {
   ENTETES_AUDIT_RETRAITES,
+  ENTETES_RAPPROCHEMENT,
   ENTETES_SCENARIOS,
   LIBELLE_NATURE,
+  avertissementsCoherence,
   controlesAuditRetraites,
   entetesExport,
   libelleNatures,
@@ -36,11 +38,13 @@ import {
   lignesContexte,
   lignesExport,
   lignesFiabilite,
+  lignesRapprochement,
   lignesScenarios,
   natureCase,
   phraseContexte,
   raisonsIndisponibles,
   renvoi,
+  syntheseRapprochement,
 } from '../domain/previsionnel'
 
 const TYPE_MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -82,6 +86,7 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
       nom: 'Contexte',
       entetes: ['Rubrique', 'Valeur'],
       lignes: [
+        ...(p.texteDonneesFictives ? [['DONNÉES FICTIVES', p.texteDonneesFictives]] : []),
         ...lignesContexte(p),
         ['Passage de la base à N+1', p.hypotheseTransition ?? ''],
         ['Avertissement', MENTION_SIMULATION],
@@ -108,6 +113,18 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
     },
     { nom: 'Scénarios', entetes: ENTETES_SCENARIOS, lignes: lignesScenarios(p) },
     {
+      nom: 'Synthèse rapprochement',
+      entetes: ['Contrôle', 'Valeur'],
+      lignes: [...syntheseRapprochement(p), ...(p.rapprochement ? [['Méthode', p.rapprochement.methode]] : [])],
+      formats: ['texte', 'entier'],
+    },
+    {
+      nom: 'Rapprochement des effectifs',
+      entetes: ENTETES_RAPPROCHEMENT,
+      lignes: lignesRapprochement(p),
+      formats: ['texte', 'texte', ...Array<'entier'>(10).fill('entier'), 'texte'],
+    },
+    {
       nom: 'Audit des retraites',
       entetes: ENTETES_AUDIT_RETRAITES,
       lignes: [...lignesAuditRetraites(p), [], ...controlesAuditRetraites(p)],
@@ -133,6 +150,11 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
       nom: 'Avertissements',
       entetes: ['Sujet', 'Avertissement'],
       lignes: [
+        ...(p.texteDonneesFictives ? [['Données fictives', p.texteDonneesFictives]] : []),
+        ...avertissementsCoherence(p).map(a => [
+          `Cohérence${a.gravite === 'important' ? ' (important)' : ''}`,
+          a.message,
+        ]),
         ...(p.messageMinimumProvisoire ? [['Classes multigrades', p.messageMinimumProvisoire]] : []),
         ...(p.avertissementPersonnels ? [['Personnels enseignants', p.avertissementPersonnels]] : []),
         ...raisonsIndisponibles(p).map(r => [`Non disponible : ${r.cellules.join(' ; ')}`, r.raison]),
@@ -190,6 +212,14 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
         properties: { page: { size: { orientation: PageOrientation.LANDSCAPE } } },
         children: [
           new Paragraph({ text: `Projection sur 5 ans — ${p.perimetre}`, heading: HeadingLevel.TITLE }),
+          ...(p.texteDonneesFictives
+            ? [
+                new Paragraph({
+                  spacing: { after: 200 },
+                  children: [new TextRun({ text: p.texteDonneesFictives, bold: true, color: 'B42318', size: 28 })],
+                }),
+              ]
+            : []),
           new Paragraph({
             children: [new TextRun({ text: MENTION_SIMULATION, italics: true })],
             spacing: { after: 200 },
@@ -231,6 +261,18 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
                 }),
               ]
             : []),
+          ...(avertissementsCoherence(p).length
+            ? [
+                titre('Avertissements de cohérence'),
+                ...avertissementsCoherence(p).map(
+                  a =>
+                    new Paragraph({
+                      spacing: { before: 80 },
+                      children: [new TextRun({ text: a.message, bold: a.gravite === 'important' })],
+                    }),
+                ),
+              ]
+            : []),
           ...p.groupes.flatMap(g => [
             titre(`${g.code}. ${g.titre}`),
             tableau(
@@ -269,6 +311,22 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
                 tableau(ENTETES_AUDIT_RETRAITES, lignesAuditRetraites(p)),
                 new Paragraph({ text: '' }),
                 tableau(['Contrôle', 'Valeur'], controlesAuditRetraites(p)),
+              ]
+            : []),
+          ...(p.rapprochement
+            ? [
+                titre('Rapprochement des effectifs'),
+                new Paragraph({ spacing: { after: 120 }, text: p.rapprochement.methode }),
+                tableau(['Contrôle', 'Valeur'], syntheseRapprochement(p)),
+                new Paragraph({ text: '' }),
+                tableau(ENTETES_RAPPROCHEMENT, lignesRapprochement(p).slice(0, 100)),
+                ...(p.rapprochement.ecoles.length > 100
+                  ? [
+                      new Paragraph({
+                        text: `100 premières écoles sur ${p.rapprochement.ecoles.length.toLocaleString('fr-FR')} (anomalies d’abord) ; le classeur Excel les contient toutes.`,
+                      }),
+                    ]
+                  : []),
               ]
             : []),
           ...(p.contexte ? [titre('Provenance et périmètre'), tableau(['Rubrique', 'Valeur'], lignesContexte(p))] : []),

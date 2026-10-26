@@ -20,6 +20,7 @@ from contextes.audit.services import journaliser
 from contextes.commun.erreurs import RefusMetier
 from contextes.simulation import services as sim
 from domaine.commun.texte import cle_tri_fr, norm
+from domaine.donnees.annee_scolaire import SENS_DONNEES, annee_des_donnees
 from domaine.donnees.modeles import Enseignant
 from domaine.planification import parametres as par
 from domaine.planification import previsionnel as prev
@@ -184,6 +185,20 @@ class Contexte:
     quotas: List[dict] = field(default_factory=list)
 
 
+def annee_base_jeu(jeu) -> str:
+    """Année des données observées d'un jeu (la base des projections), d'après l'année saisie et son sens.
+
+    Un jeu antérieur à la migration 0009 garde son année telle quelle (sens « non_confirme ») : aucune date historique
+    n'est modifiée automatiquement, un avertissement demande de confirmer le sens."""
+    return annee_des_donnees(getattr(jeu, "annee_scolaire", ""), getattr(jeu, "sens_annee_scolaire", SENS_DONNEES))
+
+
+def donnees_fictives(jeu) -> bool:
+    """Origine fictive vérifiable : jeu de démonstration généré par AlgoPlanR, ou marqueur explicite enregistré.
+    Jamais déduite de la taille ni du nom du jeu."""
+    return getattr(jeu, "source", "") == "demonstration" or bool(getattr(jeu, "donnees_fictives", False))
+
+
 _PROJECTIONS: "OrderedDict[tuple, tuple]" = OrderedDict()
 _MAX = 6
 # Les écritures de la planification (quotas calculés, premier instantané) sont rares et sérialisées : plusieurs
@@ -206,8 +221,9 @@ def contexte(jeu, scenario_id: Optional[str] = None, *, avec_etat: bool = True) 
         if sc is None:
             raise Http404("Ce scénario n'existe pas")
     res = sim.charger_resultat(sc)
+    base = annee_base_jeu(jeu)
     cle = (str(jeu.id), diag.empreinte_jeu(jeu), meta["version"], str(meta["modifiees_le"]), sc.pk,
-           str(sc.resultat.calcule_le))
+           str(sc.resultat.calcule_le), base)
     if cle in _PROJECTIONS:
         _PROJECTIONS.move_to_end(cle)
         ecoles, departs = _PROJECTIONS[cle]
@@ -217,7 +233,7 @@ def contexte(jeu, scenario_id: Optional[str] = None, *, avec_etat: bool = True) 
         avant = prep.avant()
         ecoles, departs = projeter_ecoles(avant.ecoles, avant.enseignants.values(), prep.cfg, hyp,
                                           affectations=res["affectations"],
-                                          decalage=decalage_ages(hyp, getattr(jeu, "annee_scolaire", "")))
+                                          decalage=decalage_ages(hyp, base))
         _PROJECTIONS[cle] = (ecoles, departs)
         while len(_PROJECTIONS) > _MAX:
             _PROJECTIONS.popitem(last=False)
@@ -391,7 +407,7 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
     ecoles = ecoles_de(ctx, p)
     ids = {e.id for e in ecoles}
     legal = ctx.hyp["retraite"]["age_legal"]
-    decalage = decalage_ages(ctx.hyp, getattr(ctx.jeu, "annee_scolaire", ""))
+    decalage = decalage_ages(ctx.hyp, annee_base_jeu(ctx.jeu))
     # Même compte que l'audit des retraites : matricules uniques, âge exploitable ramené au début de N+1.
     uniques, _ = matricules_uniques([t for t in ctx.enseignants if t.ecole_attache in ids])
     age_atteint = sum(1 for t in uniques if age_exploitable(t) is not None and age_exploitable(t) - decalage >= legal)
@@ -407,15 +423,22 @@ def previsionnel(ctx: Contexte, p: dict) -> dict:
     tableau principal, dont la trajectoire sous plafond (quotas retenus inclus) fournit les groupes A à C."""
     from django.utils import timezone
 
+    from contextes.diagnostic import services as diag
     from contextes.parametrage.services import config_jeu
     ecoles = ecoles_de(ctx, p)
+    # Rapprochement sur la liste nominative de l'import (même date que Enseignants_Actuels, avant les faits du Prince).
+    importes = list(diag.preparer(ctx.jeu).avant().enseignants.values())
+    ids_jeu = {e.id for e in ctx.ecoles}
+    hors = (sum(1 for m in {t.matricule: t for t in importes if t.ecole_attache not in ids_jeu})
+            if len(ecoles) == len(ctx.ecoles) else None)
     supp = _supplementaires(ctx, p)
-    annee = getattr(ctx.jeu, "annee_scolaire", "")
+    annee = annee_base_jeu(ctx.jeu)
     besoin = config_jeu(ctx.jeu)["besoin"]
     traj = {s: calculer_annees(ecoles, ctx.hyp, ressources_supplementaires=supp, scenario=s) for s in SCENARIOS}
     out = prev.construire(ecoles, ctx.enseignants, traj, annees(ctx, p, ecoles), ctx.hyp, annee_scolaire=annee,
                           norme=besoin["norme_eleves_par_maitre"], contexte=contexte_jeu(ctx, p, ecoles),
-                          decalage=decalage_ages(ctx.hyp, annee), departs=[d for d in ctx.departs if dans(d.lieu, p)])
+                          decalage=decalage_ages(ctx.hyp, annee), departs=[d for d in ctx.departs if dans(d.lieu, p)],
+                          enseignants_import=importes, hors_ecoles=hors)
     # Date du calcul de la projection (état enregistré) et date d'édition du tableau.
     out["contexte"]["calcule_le"] = ctx.etat.calcule_le if ctx.etat else timezone.now()
     out["contexte"]["edite_le"] = timezone.now()
@@ -432,7 +455,10 @@ def contexte_jeu(ctx: Contexte, p: dict, ecoles: List[ProjectionEcole]) -> dict:
     incompletes = sum(1 for e in ecoles if not e.eleves_connus or e.minimum_provisoire or e.bmax_incertain)
     return {
         "jeu_nom": jeu.nom, "jeu_source": jeu.source, "jeu_portee": jeu.portee, "jeu_region": jeu.region,
-        "annee_scolaire": jeu.annee_scolaire,
+        # Année saisie à la création, son sens, et année des données qui en découle (la base des projections).
+        "annee_scolaire": jeu.annee_scolaire, "annee_saisie": jeu.annee_scolaire,
+        "sens_annee_scolaire": getattr(jeu, "sens_annee_scolaire", SENS_DONNEES), "annee_donnees": annee_base_jeu(jeu),
+        "donnees_fictives": donnees_fictives(jeu),
         "fichiers_source": {f.type: f.nom_fichier for f in jeu.fichiers.order_by("cree_le")},
         "perimetre": libelle(p), "niveau": niveau_de(p), "perimetre_filtre": bool(p),
         "ecoles_perimetre": len(ecoles), "ecoles_jeu": len(ctx.ecoles),

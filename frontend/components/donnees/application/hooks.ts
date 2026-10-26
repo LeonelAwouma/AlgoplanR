@@ -12,6 +12,7 @@ import {
   clesGlobales,
   type CorpsActualisation,
   type CorpsCreationJeu,
+  type CorpsModificationJeu,
   type DemandePage,
   type GlobalFilters,
   type IdJeu,
@@ -32,6 +33,7 @@ import {
   lireQualite,
   lireValidation,
   listerActualisations,
+  modifierJeu,
   listerColonnesAttendues,
   listerEnseignants,
   listerEtablissements,
@@ -121,6 +123,19 @@ export function useSupprimerJeu() {
       client.removeQueries({ queryKey: cleJeu(jeu) })
       return client.invalidateQueries({ queryKey: clesGlobales.jeux() })
     },
+  })
+}
+
+/** Confirme le sens de l'année ou l'origine fictive d'un jeu : tous les calculs du jeu sont relus. */
+export function useModifierJeu() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jeu, corps }: { jeu: IdJeu; corps: CorpsModificationJeu }) => modifierJeu(jeu, corps),
+    onSuccess: (_resultat, { jeu }) =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: cleJeu(jeu) }),
+        client.invalidateQueries({ queryKey: clesGlobales.jeux() }),
+      ]),
   })
 }
 

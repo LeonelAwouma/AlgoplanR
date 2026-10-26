@@ -58,6 +58,7 @@ export const MANIFESTE_ROUTES = {
     ['POST', 'jeux/'],
     ['POST', 'jeux/demonstration/'],
     ['GET', 'jeux/{jeu}/'],
+    ['PATCH', 'jeux/{jeu}/'],
     ['DELETE', 'jeux/{jeu}/'],
     ['GET', 'jeux/{jeu}/qualite/'],
     ['GET', 'jeux/{jeu}/validation/'],

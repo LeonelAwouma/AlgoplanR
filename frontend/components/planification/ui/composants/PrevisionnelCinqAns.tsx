@@ -21,15 +21,18 @@ import { exporterPrevisionnelExcel, exporterPrevisionnelWord } from '../../appli
 import { usePrevisionnel, type RequetePlanification } from '../../application/hooks'
 import {
   ENTETES_AUDIT_RETRAITES,
+  ENTETES_RAPPROCHEMENT,
   ENTETES_SCENARIOS,
   LIBELLE_NATURE,
   ORDRE_SCENARIOS,
+  avertissementsCoherence,
   controlesAuditRetraites,
   libelleNatures,
   ligne,
   lignesAuditRetraites,
   lignesContexte,
   lignesFiabilite,
+  lignesRapprochement,
   lignesScenarios,
   natureCase,
   phraseContexte,
@@ -41,6 +44,7 @@ import {
   renvoi,
   scenario,
   syntheseDecideur,
+  syntheseRapprochement,
 } from '../../domain/previsionnel'
 
 const TIRET = '—'
@@ -62,9 +66,14 @@ const ETAPES_QUOTA: [string, string][] = [
   ['plafond', 'Plafond du périmètre'],
   ['plancher_retraites', 'Plancher : retraites de l’année'],
   ['quota_calcule', 'Quota calculé (proposition)'],
+  ['depassement_plafond', 'Dépassement du plafond (remplacement des retraites)'],
+  ['quota_plafond_prioritaire', 'Règle alternative : plafond prioritaire (non appliquée)'],
   ['quota_retenu', 'Quota retenu (décision administrative)'],
   ['nominations_realisees', 'Recrutements réalisés'],
 ]
+
+/** Écoles du rapprochement détaillées à l'écran ; les exports les contiennent toutes. */
+const MAX_ECOLES_ECRAN = 50
 
 /** Valeur d'une cellule ; une valeur absente est « non disponible », jamais 0. */
 function cellule(l: LignePrevisionnel, v: number | null): string {
@@ -107,6 +116,8 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
     ),
   ].sort((a, b) => a - b)
   const n1 = p.annees[1] ?? 'N+1'
+  const avertissements = avertissementsCoherence(p)
+  const rappro = p.rapprochement
 
   return (
     <Panel
@@ -125,6 +136,23 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
       }
     >
       <div className="stack">
+        {p.texteDonneesFictives && (
+          <Notice tone="alert" title="Jeu fictif.">
+            {p.texteDonneesFictives}
+          </Notice>
+        )}
+        {avertissements.length > 0 && (
+          <Notice
+            tone={avertissements.some(a => a.gravite === 'important') ? 'warn' : 'neutral'}
+            title="Avertissements de cohérence."
+          >
+            {avertissements.map(a => (
+              <span key={`${a.code}-${a.annee ?? ''}`} className="ligne-detail">
+                {a.message}
+              </span>
+            ))}
+          </Notice>
+        )}
         {p.contexte && (
           <Notice tone="neutral" title="Provenance et périmètre.">
             {phraseContexte(p)} {p.hypotheseTransition}
@@ -224,6 +252,18 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
             </tbody>
           </table>
         </div>
+
+        {rappro && (
+          <>
+            <h3 className="titre-section">Rapprochement des effectifs</h3>
+            <p className="hint">{rappro.methode}</p>
+            <div className="situation-block">
+              {syntheseRapprochement(p).map(([libelle, v]) => (
+                <Ligne key={libelle} libelle={libelle} valeur={typeof v === 'number' ? fmt(v) : v} />
+              ))}
+            </div>
+          </>
+        )}
 
         <h3 className="titre-section">Comparaison des scénarios</h3>
         <p className="hint">Valeurs projetées en fin d’horizon, {s.derniere} ; aucune n’est observée.</p>
@@ -414,6 +454,44 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
                   La liste nominative des agents partants reste réservée aux utilisateurs habilités : page « Départs à
                   la retraite » de {n1.replace(/ \(.*\)$/, '')} à N+5.
                 </p>
+              </>
+            )}
+
+            {rappro && rappro.ecoles.length > 0 && (
+              <>
+                <h3 className="titre-section">Rapprochement école par école</h3>
+                <p className="hint">
+                  Écoles présentant une anomalie d’abord.
+                  {rappro.ecoles.length > MAX_ECOLES_ECRAN &&
+                    ` ${fmt(MAX_ECOLES_ECRAN)} premières écoles sur ${fmt(rappro.ecoles.length)} ; l’export Excel les contient toutes.`}
+                </p>
+                <div className="table-scroll">
+                  <table className="compare-table">
+                    <thead>
+                      <tr>
+                        {ENTETES_RAPPROCHEMENT.map((e, i) => (
+                          <th key={e} scope="col" className={i > 1 && i < 12 ? 'num' : undefined}>
+                            {e}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lignesRapprochement(p)
+                        .slice(0, MAX_ECOLES_ECRAN)
+                        .map((l, k) => (
+                          <tr key={rappro.ecoles[k]?.idEcole ?? k}>
+                            <th scope="row">{l[0]}</th>
+                            {l.slice(1).map((v, i) => (
+                              <td key={i} className={i > 0 && i < 11 ? 'num' : undefined}>
+                                {typeof v === 'number' ? fmt(v) : v}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               </>
             )}
 

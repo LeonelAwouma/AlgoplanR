@@ -243,7 +243,10 @@ export function lignesContexte(p: PrevisionnelComplet): [string, string | number
   return [
     ['Jeu de données', c.jeuNom],
     ['Origine du jeu', LIBELLE_SOURCE[c.jeuSource] ?? c.jeuSource],
-    ['Année scolaire des données (base)', c.anneeScolaire],
+    ...(c.donneesFictives ? ([['Données fictives', p.texteDonneesFictives ?? 'Oui']] as [string, string][]) : []),
+    ['Année scolaire saisie à la création', c.anneeSaisie ?? c.anneeScolaire],
+    ['Sens de l’année saisie', LIBELLE_SENS[c.sensAnneeScolaire ?? 'donnees']],
+    ['Année scolaire des données (base)', c.anneeDonnees ?? c.anneeScolaire],
     ['Périmètre', `${c.perimetre} : ${couverture}`],
     ['Écoles du périmètre', c.ecolesPerimetre],
     ['Personnels rattachés administrativement (Enseignants_Actuels)', c.personnelsStockDeclare],
@@ -255,6 +258,12 @@ export function lignesContexte(p: PrevisionnelComplet): [string, string | number
     ['Projection calculée le', dateFr(c.calculeLe)],
     ['Tableau édité le', dateFr(c.editeLe)],
   ]
+}
+
+const LIBELLE_SENS: Record<string, string> = {
+  donnees: 'année des données observées',
+  rentree_preparee: 'rentrée préparée (données de l’année précédente)',
+  non_confirme: 'non confirmé : lue comme l’année des données',
 }
 
 const LIBELLE_SOURCE: Record<string, string> = {
@@ -281,7 +290,7 @@ export function phraseContexte(p: PrevisionnelComplet): string {
 
 export const ENTETES_AUDIT_RETRAITES = [
   'Année',
-  'Départs à la retraite',
+  'Retraites identifiées (liste nominative)',
   'Déjà à l’âge légal au début de N+1',
   'Atteignant l’âge légal dans l’année',
   'Part du stock déclaré (%)',
@@ -315,4 +324,77 @@ export function controlesAuditRetraites(p: PrevisionnelComplet): [string, string
     ['Année de mesure des âges', a.anneeAges ?? 'non précisée (même date que les effectifs)'],
     ['Méthode', a.methode],
   ]
+}
+
+export const ENTETES_RAPPROCHEMENT = [
+  'École',
+  'Région',
+  'Stock déclaré',
+  'Stock après le plan',
+  'Agents nominatifs',
+  'Écart (déclaré − nominatif)',
+  'Retraites N+1',
+  'Retraites sur l’horizon',
+  'Retirées du stock',
+  'Non imputables',
+  'Agents sans âge',
+  'Matricules en double',
+  'Anomalies',
+]
+
+export const LIBELLE_ANOMALIE: Record<string, string> = {
+  declare_superieur_nominatif: 'stock déclaré supérieur à la liste nominative',
+  nominatif_superieur_declare: 'liste nominative supérieure au stock déclaré',
+  retraites_superieures_au_stock: 'retraites supérieures au stock déclaré',
+  matricules_en_double: 'matricules en double',
+  agents_sans_age: 'agents sans âge',
+}
+
+/** Synthèse du rapprochement des effectifs : écoles concordantes, écarts positifs et négatifs, retraites. */
+export function syntheseRapprochement(p: PrevisionnelComplet): [string, number | string][] {
+  const r = p.rapprochement
+  if (!r) return []
+  const s = r.synthese
+  return [
+    ['Écoles rapprochées', s.ecoles],
+    ['Stock déclaré (Enseignants_Actuels)', s.stockDeclare],
+    ['Agents nominatifs rattachés (matricules distincts)', s.agentsNominatifs],
+    ['Écoles concordantes', s.ecolesConcordantes],
+    ['Écoles où le stock déclaré dépasse la liste nominative', s.ecolesEcartPositif],
+    ['Écart positif total', s.ecartPositif],
+    ['Écoles où la liste nominative dépasse le stock déclaré', s.ecolesEcartNegatif],
+    ['Écart négatif total', s.ecartNegatif],
+    ['Agents rattachés à aucune école projetée', s.agentsHorsEcoles ?? 'non calculé (périmètre filtré)'],
+    ['Matricules en double', s.doublons],
+    ['Agents sans âge exploitable', s.agentsSansAge],
+    ['Retraites identifiées en N+1', s.retraitesN1],
+    ['Retraites identifiées sur l’horizon', s.retraitesHorizon],
+    ['dont retirées du stock déclaré', s.retraitesRetireesDuStock],
+    ['dont non imputables (au-delà du stock de l’école)', s.retraitesNonImputables],
+    ['Écoles aux retraites supérieures au stock', s.ecolesRetraitesSuperieuresAuStock],
+  ]
+}
+
+/** Lignes du rapprochement école par école (anomalies d'abord), pour l'écran et les exports. */
+export function lignesRapprochement(p: PrevisionnelComplet): (string | number)[][] {
+  return (p.rapprochement?.ecoles ?? []).map(e => [
+    e.nomEcole,
+    e.region,
+    e.stockDeclare,
+    e.stockApresPlan,
+    e.agentsNominatifs,
+    e.ecart,
+    e.retraitesN1,
+    e.retraitesHorizon,
+    e.retraitesRetireesDuStock,
+    e.retraitesNonImputables,
+    e.agentsSansAge,
+    e.doublons,
+    e.anomalies.map(a => LIBELLE_ANOMALIE[a] ?? a).join(' ; '),
+  ])
+}
+
+/** Avertissements de cohérence, le bandeau des données fictives d'abord (il figure déjà en tête). */
+export function avertissementsCoherence(p: PrevisionnelComplet) {
+  return (p.avertissements ?? []).filter(a => a.code !== 'donnees_fictives')
 }

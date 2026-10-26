@@ -30,7 +30,7 @@ export const LIGNES_INDICATEURS: readonly LigneIndicateur[] = [
     cle: 'departsRetraite',
     libelle: 'Départs à la retraite',
     definition:
-      'Départs nominatifs : agents ayant l’âge légal à la date de référence de l’année ; en N+1, aussi ceux qui l’ont déjà dépassé (CORR_60).',
+      'Départs nominatifs : agents ayant l’âge légal à la date de référence de l’année ; en N+1, aussi ceux qui l’ont déjà dépassé (CORR_60). Une école ne perd jamais plus d’agents que son stock déclaré : l’excédent est signalé comme non imputable dans la projection sur 5 ans.',
   },
   {
     cle: 'departsAttrition',

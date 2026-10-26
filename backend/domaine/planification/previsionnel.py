@@ -76,6 +76,15 @@ AVERTISSEMENT_PERSONNELS = ("Les effectifs enseignants sont ceux des personnels 
                             "chargés de classe : leur statut n'est pas fourni par les fichiers importés.")
 
 
+#: Bandeau des jeux d'origine fictive vérifiable (source « demonstration » ou marqueur déclaré) : texte exact repris
+#: par les vues Décideur et Analyste et par les exports Excel et Word.
+TEXTE_DONNEES_FICTIVES = ("Données fictives — simulation de démonstration. Ces résultats ne représentent pas la "
+                          "situation réelle du Cameroun.")
+
+#: Nombre maximal d'écoles détaillées dans le rapprochement (les anomalies d'abord) ; la synthèse porte sur toutes.
+MAX_ECOLES_RAPPROCHEMENT = 500
+
+
 def _ligne(cle: str, libelle: str, base, valeurs: List, *, nature: str = OBSERVE, projete: str = PROJETE,
            natures_annees: Optional[List[str]] = None, decimal: bool = False, unite: str = "nombre", detail: str = "",
            raisons: Optional[List[Optional[str]]] = None) -> dict:
@@ -194,8 +203,11 @@ def audit_retraites(ecoles: List[ProjectionEcole], enseignants: List[Enseignant]
     methode = (f"Nominative : départ compté l'année scolaire où l'agent a {legal} ans révolus {quand}{exemple}. "
                + (f"Les {deja} agent(s) ayant déjà cet âge au début de N+1 sont imputés à N+1 (CORR_60). " if corr
                   else f"Les {deja} agent(s) ayant déjà cet âge au début de N+1 ne sont pas comptés (CORR_60 désactivé). ")
-               + (f"Âges ramenés de {decalage} an(s) au début de N+1 (année de mesure des âges déclarée). "
-                  if decalage else "Âges supposés mesurés au début de N+1 (même date que le stock observé). ")
+               + (f"Âges du fichier ramenés de {decalage} an(s) au début de N+1 (mesurés après N+1). " if decalage > 0
+                  else f"Âges du fichier avancés de {-decalage} an(s) au début de N+1 (mesurés avant N+1). "
+                  if decalage < 0 else "Âges mesurés au début de N+1 (année de mesure déclarée). "
+                  if hyp["retraite"].get("annee_ages")
+                  else "Année de mesure des âges non précisée : âges supposés mesurés au début de N+1. ")
                + "Un agent sans âge exploitable n'est pas compté ; un matricule en double n'est compté qu'une fois. "
                "Le taux de 1,08 % du rapport n'est jamais utilisé.")
     return {"lignes": lignes, "deja_eligibles_debut": deja, "sans_age": sans_age, "doublons": doublons,
@@ -203,11 +215,137 @@ def audit_retraites(ecoles: List[ProjectionEcole], enseignants: List[Enseignant]
             "decalage_ages": decalage, "annee_ages": hyp["retraite"].get("annee_ages")}
 
 
+def rapprochement_effectifs(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], *,
+                            hors_ecoles: Optional[int] = None) -> dict:
+    """Rapprochement, école par école, du stock déclaré (Enseignants_Actuels) et des agents nominatifs rattachés.
+
+    Les deux sources sont indépendantes : le stock déclaré fixe le besoin et le stock S ; la liste nominative fournit
+    les âges, donc les retraites. Rien n'est complété ni corrigé : les écarts sont décrits, et une retraite identifiée
+    au-delà du stock déclaré restant de son école n'en est pas retirée (« non imputable »). `hors_ecoles` : agents du
+    jeu rattachés à aucune école projetée (structure, école absente) ; None quand le périmètre est filtré."""
+    par_ecole: Dict[str, Dict[str, int]] = {}
+    for t in enseignants:
+        par_ecole.setdefault(t.ecole_attache, {}).setdefault(t.matricule, 0)
+        par_ecole[t.ecole_attache][t.matricule] += 1
+    sans_age_par: Dict[str, set] = {}
+    for t in enseignants:
+        if age_exploitable(t) is None:
+            sans_age_par.setdefault(t.ecole_attache, set()).add(t.matricule)
+    lignes = []
+    for e in ecoles:
+        agents = par_ecole.get(e.id, {})
+        nominatifs, doublons = len(agents), sum(n - 1 for n in agents.values() if n > 1)
+        ident = list(e.retraites_identifiees or e.retraites)
+        non_imp = list(e.retraites_non_imputables or [0] * len(ident))
+        ecart = e.effectif_declare - nominatifs
+        anomalies = []
+        if ecart > 0:
+            anomalies.append("declare_superieur_nominatif")
+        elif ecart < 0:
+            anomalies.append("nominatif_superieur_declare")
+        if sum(non_imp):
+            anomalies.append("retraites_superieures_au_stock")
+        if doublons:
+            anomalies.append("matricules_en_double")
+        if sans_age_par.get(e.id):
+            anomalies.append("agents_sans_age")
+        lignes.append({
+            "id_ecole": e.id, "nom_ecole": e.nom, "region": e.region, "stock_declare": e.effectif_declare,
+            "stock_apres_plan": e.effectif_initial, "agents_nominatifs": nominatifs, "ecart": ecart,
+            "retraites_n1": ident[0] if ident else 0, "retraites_horizon": sum(ident),
+            "retraites_retirees_du_stock": sum(ident) - sum(non_imp), "retraites_non_imputables": sum(non_imp),
+            "agents_sans_age": len(sans_age_par.get(e.id, ())), "doublons": doublons, "anomalies": anomalies})
+    concordantes = [l for l in lignes if l["ecart"] == 0]
+    positives = [l for l in lignes if l["ecart"] > 0]
+    negatives = [l for l in lignes if l["ecart"] < 0]
+    depasse = [l for l in lignes if l["retraites_non_imputables"]]
+    synthese = {
+        "ecoles": len(lignes), "stock_declare": sum(l["stock_declare"] for l in lignes),
+        "stock_apres_plan": sum(l["stock_apres_plan"] for l in lignes),
+        "agents_nominatifs": sum(l["agents_nominatifs"] for l in lignes),
+        "ecoles_concordantes": len(concordantes),
+        "ecoles_ecart_positif": len(positives), "ecart_positif": sum(l["ecart"] for l in positives),
+        "ecoles_ecart_negatif": len(negatives), "ecart_negatif": sum(l["ecart"] for l in negatives),
+        "agents_hors_ecoles": hors_ecoles, "doublons": sum(l["doublons"] for l in lignes),
+        "agents_sans_age": sum(l["agents_sans_age"] for l in lignes),
+        "retraites_n1": sum(l["retraites_n1"] for l in lignes),
+        "retraites_horizon": sum(l["retraites_horizon"] for l in lignes),
+        "retraites_retirees_du_stock": sum(l["retraites_retirees_du_stock"] for l in lignes),
+        "retraites_non_imputables": sum(l["retraites_non_imputables"] for l in lignes),
+        "ecoles_retraites_superieures_au_stock": len(depasse),
+        "concordance_complete": not positives and not negatives,
+    }
+    tri = sorted(lignes, key=lambda l: (not l["anomalies"], -l["retraites_non_imputables"], -abs(l["ecart"]),
+                                        l["id_ecole"]))
+    return {"synthese": synthese, "ecoles": tri[:MAX_ECOLES_RAPPROCHEMENT], "ecoles_tronquees": len(tri) >
+            MAX_ECOLES_RAPPROCHEMENT,
+            "methode": ("Stock déclaré : Enseignants_Actuels du fichier des établissements (fixe le besoin et le stock "
+                        "S). Agents nominatifs : matricules distincts du fichier des enseignants rattachés à l'école. "
+                        "Écart = stock déclaré − agents nominatifs ; aucun des deux n'est corrigé. Les retraites sont "
+                        "identifiées sur la liste nominative et retirées du stock déclaré de l'école, sans jamais "
+                        "dépasser ce qui y reste : l'excédent est « non imputable », compté à part et non remplacé.")}
+
+
+def _n(x: int) -> str:
+    """Entier en écriture française (espace des milliers, vrai signe moins) pour les messages."""
+    return f"{x:,}".replace(",", "\u202f").replace("-", "−")
+
+
+def avertissements_coherence(suivi: List[dict], traj_plafond: List[dict], rappro: dict, contexte: dict, hyp: dict,
+                             annees: List[str], audit: dict) -> List[dict]:
+    """Avertissements explicites affichés en tête de la projection et des exports : jamais un recalage silencieux."""
+    out = []
+    if contexte.get("donnees_fictives"):
+        out.append({"code": "donnees_fictives", "gravite": "important", "message": TEXTE_DONNEES_FICTIVES})
+    if contexte.get("sens_annee_scolaire") == "non_confirme":
+        out.append({"code": "sens_annee_non_confirme", "gravite": "important", "message": (
+            f"Le sens de l'année {contexte.get('annee_saisie') or ''} n'est pas confirmé pour ce jeu, créé avant la "
+            "distinction entre l'année des données et la rentrée préparée : elle est lue comme l'année des données "
+            "(base). Confirmez-le dans la fiche du jeu ; si elle désignait la rentrée préparée, la base et les années "
+            "des colonnes reculent d'un an.")})
+    sy = rappro["synthese"]
+    if sy["ecoles_ecart_positif"] or sy["ecoles_ecart_negatif"]:
+        out.append({"code": "effectifs_discordants", "gravite": "important", "message": (
+            f"Stock déclaré et liste nominative diffèrent dans "
+            f"{_n(sy['ecoles_ecart_positif'] + sy['ecoles_ecart_negatif'])} école(s) sur {_n(sy['ecoles'])} "
+            f"({_n(sy['stock_declare'])} personnels déclarés, {_n(sy['agents_nominatifs'])} agents nominatifs) : "
+            f"+{_n(sy['ecart_positif'])} dans {_n(sy['ecoles_ecart_positif'])} école(s), {_n(sy['ecart_negatif'])} "
+            f"dans {_n(sy['ecoles_ecart_negatif'])} école(s). Les retraites, identifiées sur la "
+            "liste nominative, sont retirées du stock déclaré : les deux populations ne sont pas identiques.")})
+    if sy["retraites_non_imputables"]:
+        out.append({"code": "retraites_non_imputables", "gravite": "important", "message": (
+            f"{_n(sy['retraites_non_imputables'])} retraite(s) identifiée(s) dépassent le stock déclaré de leur école "
+            f"({_n(sy['ecoles_retraites_superieures_au_stock'])} école(s)) : elles ne sont ni retirées du stock ni "
+            "remplacées par le plancher.")})
+    if sy.get("agents_hors_ecoles"):
+        out.append({"code": "agents_hors_ecoles", "gravite": "important", "message": (
+            f"{_n(sy['agents_hors_ecoles'])} agent(s) du fichier nominatif ne sont rattachés à aucune école projetée : "
+            "leurs retraites ne sont pas comptées.")})
+    for k, l in enumerate(traj_plafond[:len(suivi)]):
+        x = l.get("depassement_plafond") or 0
+        if x:
+            annee = annees[k + 1] if k + 1 < len(annees) else ANNEES_PLAN[k]
+            out.append({"code": "depassement_plafond", "gravite": "information", "annee": ANNEES_PLAN[k], "message": (
+                f"Le quota proposé dépasse le plafond de recrutement de {_n(x)} poste{'s' if x > 1 else ''} en {annee} "
+                "en raison du remplacement des départs à la retraite.")})
+    if not hyp["retraite"].get("annee_ages"):
+        out.append({"code": "annee_ages_absente", "gravite": "information", "message": (
+            "Année de mesure des âges non précisée : les âges sont supposés mesurés au début de N+1 ; les retraites "
+            "sont provisoires.")})
+    if audit.get("sans_age"):
+        out.append({"code": "agents_sans_age", "gravite": "information", "message": (
+            f"{_n(audit['sans_age'])} agent(s) sans âge exploitable : leurs retraites ne sont pas comptées (aucun âge "
+            "n'est supposé) ; les retraites sont provisoires.")})
+    return out
+
+
 def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], traj: Dict[str, List[dict]],
                suivi: List[dict], hyp: dict, *, annee_scolaire: str = "", norme: Optional[float] = None,
-               contexte: Optional[dict] = None, decalage: int = 0, departs: Optional[List] = None) -> dict:
+               contexte: Optional[dict] = None, decalage: int = 0, departs: Optional[List] = None,
+               enseignants_import: Optional[List[Enseignant]] = None, hors_ecoles: Optional[int] = None) -> dict:
     """Tableau complet. `traj` : lignes de chaque scénario (calculer_annees sur le périmètre) ; `suivi` : lignes de la
-    trajectoire sous plafond après report des décisions (quotas retenus) — celles du tableau principal."""
+    trajectoire sous plafond après report des décisions (quotas retenus) — celles du tableau principal.
+    `enseignants_import` : liste nominative à l'import, rapprochée du stock déclaré (à défaut `enseignants`)."""
     drh = hyp["drh"]
     ref = float(drh["REM_REF_PRI"])
     norme = ref if norme is None else float(norme)
@@ -224,6 +362,13 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
     stock = sum(e.effectif_initial for e in ecoles)
     nature_besoin = PROVISOIRE if besoin_provisoire else ESTIME
     rem0 = rem_base(ecoles)
+    contexte = contexte or {}
+    audit = audit_retraites(ecoles, enseignants, departs or [], hyp, horizon, decalage)
+    rappro = rapprochement_effectifs(ecoles, enseignants_import if enseignants_import is not None else enseignants,
+                                     hors_ecoles=hors_ecoles)
+    raisons_ret = ([] if hyp["retraite"].get("annee_ages") else ["année de mesure des âges non précisée"]) \
+        + ([f"{audit['sans_age']} agent(s) sans âge exploitable"] if audit["sans_age"] else [])
+    nature_ret = PROVISOIRE if raisons_ret else PROJETE
     raison_base = None if rem0 is not None else "Aucune école du périmètre n'a d'effectif d'élèves connu."
 
     a = [
@@ -247,9 +392,21 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
                       "tous chargés de classe). N+1 : stock observé retenu comme début de N+1, après les mouvements "
                       "du scénario retenu (estimé). Dès N+2 : projeté, recrutements de l'année précédente supposés "
                       "réalisés (quota retenu, sinon quota calculé)."),
-        _ligne("departs_retraite", "Départs à la retraite", None, [l["departs_retraite"] for l in suivi],
-               detail="Projetés nominativement d'après les âges connus (jamais par le taux de 1,08 %) ; voir l'audit "
-                      "des retraites.", raisons=[None] + [None] * horizon),
+        _ligne("departs_retraite", "Départs à la retraite retirés du stock", None,
+               [l["departs_retraite"] for l in suivi], projete=nature_ret,
+               detail="Retraites identifiées nominativement d'après les âges connus (jamais par le taux de 1,08 %), "
+                      "retirées du stock déclaré de leur école sans dépasser ce qui y reste ; voir l'audit des "
+                      "retraites." + (f" Provisoires : {' ; '.join(raisons_ret)}." if raisons_ret else ""),
+               raisons=[None] + [None] * horizon),
+        _ligne("retraites_identifiees", "Retraites identifiées nominativement (liste des enseignants)", None,
+               [l.get("retraites_identifiees", l["departs_retraite"]) for l in suivi], projete=nature_ret,
+               detail="Agents du fichier nominatif atteignant l'âge légal, matricules distincts, rattachés aux écoles "
+                      "du périmètre.", raisons=[None] + [None] * horizon),
+        _ligne("retraites_non_imputables", "dont non imputables au stock déclaré", None,
+               [l.get("retraites_non_imputables", 0) for l in suivi], projete=nature_ret,
+               detail="Retraites identifiées au-delà du stock déclaré restant de leur école (sources discordantes) : "
+                      "ni retirées du stock, ni remplacées par le plancher ; voir le rapprochement des effectifs.",
+               raisons=[None] + [None] * horizon),
         _ligne("departs_attrition", "Autres départs par attrition (hors retraite)", None,
                [l["departs_attrition"] for l in suivi],
                detail=f"Projetés par hypothèse statistique : taux d'autres départs "
@@ -324,6 +481,17 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
                detail="Le quota calculé ne descend jamais sous les retraites de l'année, même au-delà du plafond."
                       if plancher else "PLANCHER_RET désactivé : aucun plancher.",
                raisons=[None] + [None if plancher else "PLANCHER_RET désactivé."] * horizon),
+        _ligne("depassement_plafond", "Dépassement du plafond dû au remplacement des retraites", None,
+               [l["depassement_plafond"] if l["plafond"] is not None else None for l in traj["plafond"][:horizon]],
+               detail="Quota calculé − plafond, quand le plancher des retraites porte le quota au-delà du plafond.",
+               raisons=[None] + [None if l["plafond"] is not None else "Aucun plafond (PLAF_PRI = 0)."
+                                 for l in traj["plafond"][:horizon]]),
+        _ligne("quota_plafond_prioritaire", "Quota si le plafond primait (règle alternative, non appliquée)", None,
+               [l["quota_plafond_prioritaire"] for l in traj["plafond"][:horizon]], projete=ESTIME,
+               detail="Q' = min(max(besoin calculé ; retraites) ; plafond), année par année sur la trajectoire du "
+                      "tableau : présenté pour la décision D1 (le plancher ou le plafond prime-t-il ?), sans effet sur "
+                      "les trajectoires.",
+               raisons=[None] + [None] * horizon),
         _ligne("quota_calcule", "Quota calculé (sous plafond, plancher compris)", None,
                [l["quota_calcule"] for l in suivi],
                detail=("Q = max(min(besoin calculé ; plafond) ; retraites)." if plancher
@@ -373,8 +541,10 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
         "groupes": groupes, "scenarios": [resumes[s] for s in SCENARIOS], "rem_reference": ref,
         "rem_indisponible": next((l["rem_raison"] for l in suivi if l.get("rem_raison")), None),
         "annee_base": annee_base(annee_scolaire), "hypothese_transition": HYPOTHESE_TRANSITION,
-        "contexte": contexte or {},
-        "audit_retraites": audit_retraites(ecoles, enseignants, departs or [], hyp, horizon, decalage),
+        "contexte": contexte, "audit_retraites": audit, "rapprochement": rappro,
+        "avertissements": avertissements_coherence(suivi, traj["plafond"], rappro, contexte, hyp,
+                                                   libelles_annees(annee_scolaire, horizon), audit),
+        "texte_donnees_fictives": TEXTE_DONNEES_FICTIVES if contexte.get("donnees_fictives") else None,
         "avertissement_personnels": AVERTISSEMENT_PERSONNELS,
         "ecoles": nb, "ecoles_minimum_provisoire": provisoires, "ecoles_eleves_inconnus": inconnues,
         "fiabilite": {"minimum_provisoire": provisoires, "minimum_provisoire_sans_effet": sans_effet,
