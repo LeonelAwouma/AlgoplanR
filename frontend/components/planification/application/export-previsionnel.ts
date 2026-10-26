@@ -24,7 +24,7 @@ import {
 import type { PrevisionnelComplet } from '../../shared/api'
 import { MENTION_SIMULATION } from '../../shared/kernel'
 import { telechargerFichier } from '../../shared/exports/export-csv'
-import { exporterXLSX, type FeuilleXlsx } from '../../shared/exports/export-xlsx'
+import { exporterXLSX, type FeuilleXlsx, type FormatColonne } from '../../shared/exports/export-xlsx'
 import {
   ENTETES_AUDIT_RETRAITES,
   ENTETES_RAPPROCHEMENT,
@@ -73,6 +73,12 @@ export function lignesMinimumPedagogique(p: PrevisionnelComplet): (string | numb
   ]
 }
 
+/** Format d'une colonne d'après ses seuls nombres : un texte (« Non calculable ») n'en fait pas une colonne de texte. */
+function formatNumerique(valeurs: readonly (string | number | null)[]): FormatColonne {
+  const nombres = valeurs.filter((v): v is number => typeof v === 'number')
+  return nombres.some(v => !Number.isInteger(v)) ? 'decimal' : 'entier'
+}
+
 /**
  * Les feuilles du classeur : contexte, tableau complet, natures des valeurs, scénarios, audit des retraites,
  * hypothèses, données non disponibles, minimum pédagogique, avertissements.
@@ -98,6 +104,15 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
       nom: 'Tableau complet',
       entetes: [...entetesExport(p), 'Définition', 'Raison des valeurs non disponibles'],
       lignes: lignesExport(p).map((l, i) => [...l, lignes[i]?.detail ?? '', raisonsLigne[i] ?? '']),
+      // Les nombres restent des nombres même si une case porte « Non calculable » (retraites inconnues).
+      formats: [
+        'texte',
+        'texte',
+        ...p.annees.map((_, c) => formatNumerique(lignesExport(p).map(l => l[2 + c]))),
+        'texte',
+        'texte',
+        'texte',
+      ],
     },
     {
       // Qualification de chaque case : une valeur future n'est jamais « observée ».
@@ -111,7 +126,12 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
         ]),
       ),
     },
-    { nom: 'Scénarios', entetes: ENTETES_SCENARIOS, lignes: lignesScenarios(p) },
+    {
+      nom: 'Scénarios',
+      entetes: ENTETES_SCENARIOS,
+      lignes: lignesScenarios(p),
+      formats: ['texte', ...[1, 2, 3, 4, 5, 6].map(c => formatNumerique(lignesScenarios(p).map(l => l[c]))), 'texte'],
+    },
     {
       nom: 'Synthèse rapprochement',
       entetes: ['Contrôle', 'Valeur'],

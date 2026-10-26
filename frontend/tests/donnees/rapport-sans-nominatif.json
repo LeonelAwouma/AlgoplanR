@@ -1,0 +1,504 @@
+{
+ "perimetre": "Cameroun",
+ "scenario_id": "6",
+ "horizon": 3,
+ "annees": [
+  "N+1",
+  "N+2",
+  "N+3"
+ ],
+ "national": {
+  "annees": [
+   "Base",
+   "N+1",
+   "N+2",
+   "N+3"
+  ],
+  "lignes": [
+   {
+    "libelle": "Élèves projetés",
+    "valeurs": [
+     5420,
+     5566,
+     5717,
+     5871
+    ],
+    "decimal": false
+   },
+   {
+    "libelle": "Enseignants nécessaires (⌈élèves ÷ taux d'encadrement de référence⌉)",
+    "valeurs": [
+     73,
+     75,
+     77,
+     79
+    ],
+    "decimal": false
+   },
+   {
+    "libelle": "Enseignants en poste en début d'année (sous plafond)",
+    "valeurs": [
+     174,
+     174,
+     171,
+     178
+    ],
+    "decimal": false,
+    "fiabilite": "conditionnel"
+   },
+   {
+    "libelle": "Retraites (quota incompressible)",
+    "valeurs": [
+     null,
+     null,
+     null,
+     null
+    ],
+    "decimal": false,
+    "fiabilite": "non_calculable"
+   },
+   {
+    "libelle": "Autres départs (sous plafond)",
+    "valeurs": [
+     null,
+     3,
+     3,
+     3
+    ],
+    "decimal": false
+   },
+   {
+    "libelle": "Directeurs déchargés de classe",
+    "valeurs": [
+     null,
+     0,
+     0,
+     0
+    ],
+    "decimal": false
+   },
+   {
+    "libelle": "Enseignants disponibles en fin d'année (sous plafond)",
+    "valeurs": [
+     174,
+     171,
+     178,
+     184
+    ],
+    "decimal": false,
+    "fiabilite": "conditionnel"
+   },
+   {
+    "libelle": "Recrutement S-min",
+    "valeurs": [
+     null,
+     null,
+     null,
+     null
+    ],
+    "decimal": false,
+    "fiabilite": "non_calculable"
+   },
+   {
+    "libelle": "Recrutement S-maintien",
+    "valeurs": [
+     null,
+     null,
+     null,
+     null
+    ],
+    "decimal": false,
+    "fiabilite": "non_calculable"
+   },
+   {
+    "libelle": "Recrutement S-besoin",
+    "valeurs": [
+     null,
+     0,
+     10,
+     10
+    ],
+    "decimal": false,
+    "fiabilite": "conditionnel"
+   },
+   {
+    "libelle": "Recrutement Sous plafond",
+    "valeurs": [
+     null,
+     0,
+     10,
+     9
+    ],
+    "decimal": false,
+    "fiabilite": "conditionnel"
+   },
+   {
+    "libelle": "Taux d'encadrement obtenu – S-besoin",
+    "valeurs": [
+     31.1,
+     32.6,
+     32.1,
+     31.7
+    ],
+    "decimal": true,
+    "fiabilite": "conditionnel"
+   },
+   {
+    "libelle": "Taux d'encadrement obtenu – S-min",
+    "valeurs": [
+     31.1,
+     null,
+     null,
+     null
+    ],
+    "decimal": true,
+    "fiabilite": "non_calculable"
+   },
+   {
+    "libelle": "Taux d'encadrement obtenu – S-maintien",
+    "valeurs": [
+     31.1,
+     null,
+     null,
+     null
+    ],
+    "decimal": true,
+    "fiabilite": "non_calculable"
+   },
+   {
+    "libelle": "Taux d'encadrement obtenu – Sous plafond",
+    "valeurs": [
+     31.1,
+     32.6,
+     32.1,
+     31.9
+    ],
+    "decimal": true,
+    "fiabilite": "conditionnel"
+   }
+  ],
+  "rem_reference": 74.4,
+  "rem_final": {
+   "min": null,
+   "maintien": null,
+   "besoin": 31.7,
+   "plafond": 31.9
+  },
+  "rem_indisponible": null
+ },
+ "retraites_regions": {
+  "lignes": [
+   {
+    "region": "Centre",
+    "annees": [
+     null,
+     null,
+     null
+    ],
+    "total": null
+   },
+   {
+    "region": "Extreme-Nord",
+    "annees": [
+     null,
+     null,
+     null
+    ],
+    "total": null
+   },
+   {
+    "region": "Nord",
+    "annees": [
+     null,
+     null,
+     null
+    ],
+    "total": null
+   }
+  ],
+  "national": {
+   "region": "National",
+   "annees": [
+    null,
+    null,
+    null
+   ],
+   "total": null
+  }
+ },
+ "scenarios_regions": {
+  "lignes": [
+   {
+    "region": "Centre",
+    "min": null,
+    "maintien": null,
+    "besoin": 5,
+    "plafond": 5,
+    "rem_base": 31.5,
+    "alea": 0.78,
+    "rem_final": {
+     "min": null,
+     "besoin": 32.9,
+     "plafond": 32.9
+    }
+   },
+   {
+    "region": "Extreme-Nord",
+    "min": null,
+    "maintien": null,
+    "besoin": 6,
+    "plafond": 6,
+    "rem_base": 37.7,
+    "alea": 0.97,
+    "rem_final": {
+     "min": null,
+     "besoin": 39.0,
+     "plafond": 39.0
+    }
+   },
+   {
+    "region": "Nord",
+    "min": null,
+    "maintien": null,
+    "besoin": 9,
+    "plafond": 8,
+    "rem_base": 24.0,
+    "alea": 1.0,
+    "rem_final": {
+     "min": null,
+     "besoin": 23.6,
+     "plafond": 24.0
+    }
+   }
+  ],
+  "national": {
+   "region": "National",
+   "min": null,
+   "maintien": null,
+   "besoin": 20,
+   "plafond": 19,
+   "rem_base": 31.1,
+   "alea": 0.94,
+   "rem_final": {
+    "min": null,
+    "besoin": 31.7,
+    "plafond": 31.9
+   }
+  },
+  "fiabilite": {
+   "min": "non_calculable",
+   "maintien": "non_calculable",
+   "besoin": "conditionnel",
+   "plafond": "conditionnel"
+  }
+ },
+ "redeploiement": {
+  "lignes": [
+   {
+    "territoire": "Centre",
+    "ecoles": 8,
+    "ecoles_deficit": 3,
+    "ecoles_excedent": 4,
+    "ecoles_equilibre": 1,
+    "ecoles_sans_eleves": 0,
+    "excedents": 12,
+    "deficits": 7,
+    "redeployable_arrondissement": 4,
+    "cohorte": 0,
+    "retraites": null
+   },
+   {
+    "territoire": "Extreme-Nord",
+    "ecoles": 10,
+    "ecoles_deficit": 5,
+    "ecoles_excedent": 4,
+    "ecoles_equilibre": 1,
+    "ecoles_sans_eleves": 0,
+    "excedents": 19,
+    "deficits": 10,
+    "redeployable_arrondissement": 7,
+    "cohorte": 0,
+    "retraites": null
+   },
+   {
+    "territoire": "Nord",
+    "ecoles": 12,
+    "ecoles_deficit": 7,
+    "ecoles_excedent": 3,
+    "ecoles_equilibre": 2,
+    "ecoles_sans_eleves": 0,
+    "excedents": 14,
+    "deficits": 16,
+    "redeployable_arrondissement": 8,
+    "cohorte": 0,
+    "retraites": null
+   }
+  ],
+  "national": {
+   "territoire": "National",
+   "ecoles": 30,
+   "ecoles_deficit": 15,
+   "ecoles_excedent": 11,
+   "ecoles_equilibre": 4,
+   "ecoles_sans_eleves": 0,
+   "excedents": 45,
+   "deficits": 33,
+   "redeployable_arrondissement": 19,
+   "cohorte": 0,
+   "retraites": null
+  },
+  "seuil_cohorte": 5.0
+ },
+ "priorites": [
+  {
+   "region": "Extreme-Nord",
+   "priorite": 3,
+   "rem_base": 37.7,
+   "rem_base_brut": 37.74193548387097,
+   "part_retraites": null,
+   "situation": "Encadrement au-dessus de la norme",
+   "orientation": "Remplacer au moins les retraites (S-min) ; région pourvoyeuse pour le redéploiement",
+   "recrutements": {
+    "min": null,
+    "maintien": null,
+    "besoin": 6,
+    "plafond": 6
+   },
+   "retraites": [
+    null,
+    null,
+    null
+   ],
+   "problemes": [
+    {
+     "titre": "Encadrement au-dessus de la norme",
+     "detail": "Taux d'encadrement du primaire de 37,7. La région peut fournir des enseignants au redéploiement plutôt que d'en recevoir."
+    },
+    {
+     "titre": "Retraites",
+     "detail": "0 en N+1, 0 en N+2, 0 en N+3, soit 0,0 % du stock ; quota incompressible de 0 sur 3 an(s)."
+    },
+    {
+     "titre": "Répartition inégale entre écoles",
+     "detail": "aléa de 0,97 (moyenne 0,94) ; le nombre d'enseignants suit mal le nombre d'élèves."
+    }
+   ],
+   "priorite_rapport_drh": 1,
+   "priorite_provisoire": true
+  },
+  {
+   "region": "Centre",
+   "priorite": 3,
+   "rem_base": 31.5,
+   "rem_base_brut": 31.53846153846154,
+   "part_retraites": null,
+   "situation": "Encadrement au-dessus de la norme",
+   "orientation": "Remplacer au moins les retraites (S-min) ; région pourvoyeuse pour le redéploiement",
+   "recrutements": {
+    "min": null,
+    "maintien": null,
+    "besoin": 5,
+    "plafond": 5
+   },
+   "retraites": [
+    null,
+    null,
+    null
+   ],
+   "problemes": [
+    {
+     "titre": "Encadrement au-dessus de la norme",
+     "detail": "Taux d'encadrement du primaire de 31,5. La région peut fournir des enseignants au redéploiement plutôt que d'en recevoir."
+    },
+    {
+     "titre": "Retraites",
+     "detail": "0 en N+1, 0 en N+2, 0 en N+3, soit 0,0 % du stock ; quota incompressible de 0 sur 3 an(s)."
+    },
+    {
+     "titre": "Écoles sous-dotées",
+     "detail": "14,3 % des écoles de plus de 100 élèves ont moins de 3 enseignants (moyenne 11,1 %)."
+    }
+   ],
+   "priorite_rapport_drh": 2,
+   "priorite_provisoire": true
+  },
+  {
+   "region": "Nord",
+   "priorite": 3,
+   "rem_base": 24.0,
+   "rem_base_brut": 24.0,
+   "part_retraites": null,
+   "situation": "Encadrement au-dessus de la norme",
+   "orientation": "Remplacer au moins les retraites (S-min) ; région pourvoyeuse pour le redéploiement",
+   "recrutements": {
+    "min": null,
+    "maintien": null,
+    "besoin": 9,
+    "plafond": 8
+   },
+   "retraites": [
+    null,
+    null,
+    null
+   ],
+   "problemes": [
+    {
+     "titre": "Encadrement au-dessus de la norme",
+     "detail": "Taux d'encadrement du primaire de 24,0. La région peut fournir des enseignants au redéploiement plutôt que d'en recevoir."
+    },
+    {
+     "titre": "Retraites",
+     "detail": "0 en N+1, 0 en N+2, 0 en N+3, soit 0,0 % du stock ; quota incompressible de 0 sur 3 an(s)."
+    },
+    {
+     "titre": "Écoles sous-dotées",
+     "detail": "33,3 % des écoles de plus de 100 élèves ont moins de 3 enseignants (moyenne 11,1 %)."
+    },
+    {
+     "titre": "Répartition inégale entre écoles",
+     "detail": "aléa de 1,00 (moyenne 0,94) ; le nombre d'enseignants suit mal le nombre d'élèves."
+    }
+   ],
+   "priorite_rapport_drh": 1,
+   "priorite_provisoire": true
+  }
+ ],
+ "limites": [
+  "Retraites non calculables : le fichier nominatif des enseignants est indisponible. Les scénarios de recrutement qui dépendent des retraites sont incomplets.",
+  "Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites.",
+  "Âge connu pour 0,0 % des enseignants : les retraites des autres ne sont pas comptées.",
+  "Attrition hors retraite : taux unique de 2.25 % par an (hypothèses de planification — source : Rapport DRH d'octobre 2026, modèle officiel M1 du SIGE (A_TOT_PRI_PCT, R_PRI_PCT)) ; mutations, abandons et décès ne sont pas distingués.",
+  "Croissance des élèves de 2.7 % par an appliquée à toutes les écoles.",
+  "Directeurs : 856 prises de fonction par an, dont 15.4 % sans classe (paramètres nationaux rapportés au périmètre) ; le jeu ne renseigne ni la fonction ni la date de prise de fonction. Un directeur déchargé reste dans le stock et n'est retranché qu'une fois des enseignants disponibles.",
+  "Degré d'aléa (1 − R²) calculé sur tous les enseignants déclarés (Enseignants_Actuels) : le jeu ne distingue pas les enseignants payés par l'État, contrairement au rapport de référence — valeurs non directement comparables aux valeurs historiques de ce rapport.",
+  "Taux d'encadrement projeté : calculé sur les seules écoles à effectif d'élèves connu (population commune) ; s'il existe des écoles à effectif inconnu, il n'est disponible que pour N+1 — les départs et recrutements ne sont pas répartis entre écoles, et les années suivantes sont « non disponibles ».",
+  "Besoin des écoles calculé par la règle du référentiel MINEDUB (P avec la tolérance de 20 élèves, minimum pédagogique max(3 ; G)) ; la ligne « enseignants nécessaires » divise directement les élèves par le taux d'encadrement de référence (74.4).",
+  "La maternelle n'est pas distinguée dans le jeu, et les chargés de classe du SIGE (colonne C2) comme les agents absents de la cartographie ne sont pas disponibles."
+ ],
+ "parametres": {
+  "rem_reference": 74.4,
+  "ecart_rem": 10.0,
+  "seuil_retraites": 7.0,
+  "plancher_retraites": true,
+  "plafond": 3000
+ },
+ "retraites_fiabilite": {
+  "hypothese_age": true,
+  "population": {
+   "stock_declare": 174,
+   "agents_nominatifs": 0,
+   "agents_avec_age": 0,
+   "couverture": 0.0
+  },
+  "retraites_identifiees": 0,
+  "zero_etabli": false,
+  "message": "Retraites non calculables : le fichier nominatif des enseignants est indisponible. Les scénarios de recrutement qui dépendent des retraites sont incomplets.",
+  "statut": "non_calculable",
+  "libelle": "Retraites non calculables",
+  "raisons": [
+   "Retraites non calculables : le fichier nominatif des enseignants est indisponible."
+  ],
+  "raison": "Retraites non calculables : le fichier nominatif des enseignants est indisponible.",
+  "message_conditionnel": "Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites."
+ }
+}

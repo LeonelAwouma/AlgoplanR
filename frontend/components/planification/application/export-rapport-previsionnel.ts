@@ -45,18 +45,21 @@ export async function exporterClasseurRapportPrevisionnel(
     feuilles.push({ nom, entetes, lignes })
   }
 
+  // Retraites non calculables : le texte « Non calculable » remplace toute valeur inconnue, jamais un zéro ni une case
+  // vide muette (les mêmes textes que l'écran).
+  const inconnu = (v: number | null, inconnue: boolean): CellValue => (v === null && inconnue ? 'Non calculable' : v)
   const n = rapport.national
   ajouter(
     'NATIONAL',
     ['Ligne', ...n.annees],
-    n.lignes.map(l => [l.libelle, ...l.valeurs]),
+    n.lignes.map(l => [l.libelle, ...l.valeurs.map(v => inconnu(v, l.fiabilite === 'non_calculable'))]),
   )
 
   const ret = rapport.retraitesRegions
   ajouter(
     'RETRAITES_REGIONS',
     ['Région', ...rapport.annees, `Total ${rapport.horizon} an(s)`],
-    [...ret.lignes, ret.national].map(l => [l.region, ...l.annees, l.total]),
+    [...ret.lignes, ret.national].map(l => [l.region, ...l.annees.map(v => inconnu(v, true)), inconnu(l.total, true)]),
   )
 
   const sc = rapport.scenariosRegions
@@ -72,9 +75,9 @@ export async function exporterClasseurRapportPrevisionnel(
     ],
     [...sc.lignes, sc.national].map(l => [
       l.region,
-      ...SCENARIOS.map(s => l[s]),
+      ...SCENARIOS.map(s => inconnu(l[s], sc.fiabilite?.[s] === 'non_calculable')),
       l.remBase,
-      l.remFinal.min,
+      inconnu(l.remFinal.min, sc.fiabilite?.min === 'non_calculable'),
       l.remFinal.besoin,
       l.remFinal.plafond,
     ]),
@@ -107,7 +110,7 @@ export async function exporterClasseurRapportPrevisionnel(
       l.deficits,
       l.redeployableArrondissement,
       l.cohorte,
-      l.retraites,
+      inconnu(l.retraites, true),
     ]),
   )
 
@@ -118,6 +121,7 @@ export async function exporterClasseurRapportPrevisionnel(
       'Priorité',
       'Taux d’encadrement primaire base',
       'Retraites / stock (%)',
+      'Priorité provisoire (retraites inconnues ou incomplètes)',
       'Situation',
       'Orientation',
       'Problèmes',
@@ -126,7 +130,8 @@ export async function exporterClasseurRapportPrevisionnel(
       f.region,
       f.priorite,
       f.remBase,
-      f.partRetraites,
+      inconnu(f.partRetraites, true),
+      f.prioriteProvisoire ? 'Oui' : 'Non',
       f.situation,
       f.orientation,
       f.problemes.map((p, i) => `${i + 1}. ${p.titre} : ${p.detail}`).join('\n'),

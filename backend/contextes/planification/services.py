@@ -188,8 +188,9 @@ class Contexte:
 def annee_base_jeu(jeu) -> str:
     """Année des données observées d'un jeu (la base des projections), d'après l'année saisie et son sens.
 
-    Un jeu antérieur à la migration 0009 garde son année telle quelle (sens « non_confirme ») : aucune date historique
-    n'est modifiée automatiquement, un avertissement demande de confirmer le sens."""
+    Un jeu dont le sens n'a pas pu être établi (« non_confirme ») garde le calendrier historique de l'application
+    (année saisie = rentrée préparée) : aucune simulation existante n'est décalée en silence, et un avertissement
+    demande de confirmer le sens. L'année enregistrée n'est jamais modifiée."""
     return annee_des_donnees(getattr(jeu, "annee_scolaire", ""), getattr(jeu, "sens_annee_scolaire", SENS_DONNEES))
 
 
@@ -277,13 +278,27 @@ def libelle(p: dict) -> str:
     return p.get("commune") or p.get("departement") or p.get("iaeb") or p.get("region") or "Cameroun"
 
 
+def retraites_fiabilite(ctx: Contexte, p: dict, ecoles: List[ProjectionEcole]) -> dict:
+    """État des retraites du périmètre, calculé par le serveur pour le suivi, le rapport et le prévisionnel : complètes,
+    partielles ou non calculables (fichier nominatif absent) — jamais un zéro par défaut."""
+    from contextes.diagnostic import services as diag
+    importes = list(diag.preparer(ctx.jeu).avant().enseignants.values())
+    ids_jeu = {e.id for e in ctx.ecoles}
+    hors = (sum(1 for m in {t.matricule: t for t in importes if t.ecole_attache not in ids_jeu})
+            if len(ecoles) == len(ctx.ecoles) else None)
+    rappro = prev.rapprochement_effectifs(ecoles, importes, hors_ecoles=hors)
+    fiab = prev.fiabilite_retraites(ecoles, rappro, {}, ctx.hyp, len(importes))
+    return {"fiab": fiab, "rapprochement": rappro, "importes": importes, "hors": hors}
+
+
 def tableau(ctx: Contexte, p: dict) -> dict:
     ecoles = ecoles_de(ctx, p)
     fiab = ligne_fiabilite(libelle(p), ecoles, ctx.enseignants)
     return {"perimetre": libelle(p), "niveau": niveau_de(p), "sous_systeme": p.get("sous_systeme") or None,
             "scenario_id": str(ctx.scenario.pk), "version": ctx.etat.version if ctx.etat else 1,
             "calcule_le": ctx.etat.calcule_le if ctx.etat else None, "annees": annees(ctx, p, ecoles),
-            "fiabilite": fiabilite_indicateurs(fiab, bool(p.get("sous_systeme")))}
+            "fiabilite": fiabilite_indicateurs(fiab, bool(p.get("sous_systeme"))),
+            "retraites_fiabilite": retraites_fiabilite(ctx, p, ecoles)["fiab"]}
 
 
 # --- Territoires ---------------------------------------------------------------------------------------------
@@ -415,7 +430,8 @@ def rapport(ctx: Contexte, p: dict, horizon=3, seuil_cohorte=5) -> dict:
     out = rap.construire(ecoles, ctx.enseignants, ctx.hyp, _horizon_rapport(horizon), ressources=ressources,
                          seuil_cohorte=_seuil_cohorte(seuil_cohorte),
                          agents_age_atteint=age_atteint if ctx.hyp["drh"].get("CORR_60", True) else 0)
-    return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk), **out}
+    return {"perimetre": libelle(p), "scenario_id": str(ctx.scenario.pk),
+            **rap.qualifier_retraites(out, retraites_fiabilite(ctx, p, ecoles)["fiab"])}
 
 
 def previsionnel(ctx: Contexte, p: dict) -> dict:
@@ -427,10 +443,8 @@ def previsionnel(ctx: Contexte, p: dict) -> dict:
     from contextes.parametrage.services import config_jeu
     ecoles = ecoles_de(ctx, p)
     # Rapprochement sur la liste nominative de l'import (même date que Enseignants_Actuels, avant les faits du Prince).
-    importes = list(diag.preparer(ctx.jeu).avant().enseignants.values())
-    ids_jeu = {e.id for e in ctx.ecoles}
-    hors = (sum(1 for m in {t.matricule: t for t in importes if t.ecole_attache not in ids_jeu})
-            if len(ecoles) == len(ctx.ecoles) else None)
+    nominatif = retraites_fiabilite(ctx, p, ecoles)
+    importes, hors = nominatif["importes"], nominatif["hors"]
     supp = _supplementaires(ctx, p)
     annee = annee_base_jeu(ctx.jeu)
     besoin = config_jeu(ctx.jeu)["besoin"]
@@ -457,7 +471,8 @@ def contexte_jeu(ctx: Contexte, p: dict, ecoles: List[ProjectionEcole]) -> dict:
         "jeu_nom": jeu.nom, "jeu_source": jeu.source, "jeu_portee": jeu.portee, "jeu_region": jeu.region,
         # Année saisie à la création, son sens, et année des données qui en découle (la base des projections).
         "annee_scolaire": jeu.annee_scolaire, "annee_saisie": jeu.annee_scolaire,
-        "sens_annee_scolaire": getattr(jeu, "sens_annee_scolaire", SENS_DONNEES), "annee_donnees": annee_base_jeu(jeu),
+        "sens_annee_scolaire": getattr(jeu, "sens_annee_scolaire", SENS_DONNEES),
+        "sens_annee_origine": getattr(jeu, "sens_annee_origine", "creation"), "annee_donnees": annee_base_jeu(jeu),
         "donnees_fictives": donnees_fictives(jeu),
         "fichiers_source": {f.type: f.nom_fichier for f in jeu.fichiers.order_by("cree_le")},
         "perimetre": libelle(p), "niveau": niveau_de(p), "perimetre_filtre": bool(p),

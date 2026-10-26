@@ -176,7 +176,10 @@ def test_plancher_et_plafond(cas, actuels, ens, plafond, attendu, plancher):
     if x["depassement_plafond"]:
         n = x["depassement_plafond"]
         assert messages[0] == (f"Le quota proposé dépasse le plafond de recrutement de {n} poste{'s' if n > 1 else ''} "
-                               "en N+1 (2025-2026) en raison du remplacement des départs à la retraite.")
+                               "en N+1 (2025-2026) en raison du remplacement des départs à la retraite "
+                               f"({R} retraites pour un plafond de {P}). Avec un plafond strict, le quota serait de "
+                               f"{x['quota_plafond_prioritaire']}. Ce dépassement nécessite une validation "
+                               "administrative ou budgétaire.")
     else:
         assert not [m for m in messages if "N+1 " in m]
 
@@ -205,7 +208,7 @@ def test_decalage_des_ages(annee_ages, decalage):
     # Un agent de 59 ans dans le fichier : il a 59 − décalage ans au début de N+1.
     assert annee_depart(59, h, decalage) == annee_depart(59 - decalage, h)
     ens = [Enseignant(matricule="A", ecole_attache="E1", age=59)]
-    p, departs = projeter_ecoles([_ecole(actuels=4)], ens, defaut(), h, decalage=decalage)
+    p, departs = projeter_ecoles([_ecole(actuels=1)], ens, defaut(), h, decalage=decalage)
     assert ens[0].age == 59                     # l'âge importé n'est jamais modifié
     assert [d.annee for d in departs] == [annee_depart(59 - decalage, h)]
     t = construire(p, ens, {s: calculer_annees(p, h, scenario=s) for s in SCENARIOS}, calculer_annees(p, h), h,
@@ -226,8 +229,9 @@ def test_age_legal_atteint_entre_deux_rentrees():
 def test_chronologie_base_n1_n5_et_sens_de_l_annee():
     assert libelles_annees("2024-2025", 5) == ["Base (2024-2025)", "N+1 (2025-2026)", "N+2 (2026-2027)",
                                                "N+3 (2027-2028)", "N+4 (2028-2029)", "N+5 (2029-2030)"]
-    assert annee_des_donnees("2026-2027", "rentree_preparee") == "2025-2026"
-    assert annee_des_donnees("2026-2027", "donnees") == annee_des_donnees("2026-2027", "non_confirme") == "2026-2027"
+    # D4 : le calendrier historique (année = rentrée préparée) est conservé tant que le sens n'est pas confirmé.
+    assert annee_des_donnees("2026-2027", "rentree_preparee") == annee_des_donnees("2026-2027", "non_confirme") == "2025-2026"
+    assert annee_des_donnees("2026-2027", "donnees") == "2026-2027"
     assert annee_des_donnees("illisible", "rentree_preparee") == "illisible"
 
 

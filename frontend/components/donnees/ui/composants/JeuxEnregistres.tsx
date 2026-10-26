@@ -15,11 +15,12 @@ import { ErreurAction } from '@shared/ui/etats'
 
 import { useJeux, useModifierJeu, useSupprimerJeu } from '../../application/hooks'
 
-/** Année saisie et son sens : la base des projections est l'année des données. */
+/** Année saisie et son sens : la base des projections en découle (jamais une année réelle inventée). */
 function libelleAnnee(jeu: JeuDeDonnees): string {
   if (jeu.sensAnneeScolaire === 'rentree_preparee')
-    return `rentrée préparée ${jeu.anneeScolaire} (données ${jeu.anneeDonnees})`
-  if (jeu.sensAnneeScolaire === 'non_confirme') return `année ${jeu.anneeScolaire} (sens à confirmer)`
+    return `rentrée préparée ${jeu.anneeScolaire} (base ${jeu.anneeDonnees})`
+  if (jeu.sensAnneeScolaire === 'non_confirme')
+    return `année ${jeu.anneeScolaire} (sens à confirmer ; base de calcul ${jeu.anneeDonnees})`
   return `données ${jeu.anneeScolaire}`
 }
 
@@ -57,6 +58,20 @@ export function JeuxEnregistres({ jeuOuvert, onOuvrir, onJeuOuvertSupprime }: Pr
     })
   }
 
+  /** Correction du sens d'un jeu dont le sens est établi : la base change d'un an, les projections sont à refaire. */
+  function corrigerSens(jeu: JeuDeDonnees) {
+    const vers: SensAnneeScolaire = jeu.sensAnneeScolaire === 'donnees' ? 'rentree_preparee' : 'donnees'
+    const confirme = window.confirm(
+      (vers === 'donnees'
+        ? `Lire l’année ${jeu.anneeScolaire} comme l’année des données (base ${jeu.anneeScolaire}) ?`
+        : `Lire l’année ${jeu.anneeScolaire} comme la rentrée préparée (base : année précédente) ?`) +
+        '\n\nLes années des projections changent et les projections enregistrées sont marquées à recalculer. ' +
+        'La correction est inscrite au journal ; l’année saisie n’est pas modifiée.',
+    )
+    if (!confirme) return
+    modification.mutate({ jeu: jeu.id, corps: { sensAnneeScolaire: vers } })
+  }
+
   return (
     <Panel
       kicker="Reprendre"
@@ -80,8 +95,8 @@ export function JeuxEnregistres({ jeuOuvert, onOuvrir, onJeuOuvertSupprime }: Pr
               </p>
               {jeu.sensAnneeScolaire === 'non_confirme' && (
                 <p className="hint">
-                  Jeu créé avant la distinction entre l’année des données et la rentrée préparée : l’année{' '}
-                  {jeu.anneeScolaire} est lue comme celle des données. Elle désigne :{' '}
+                  Le sens de l’année {jeu.anneeScolaire} n’est pas établi pour ce jeu : le calendrier historique est
+                  conservé (base {jeu.anneeDonnees}) en attendant votre confirmation. Elle désigne :{' '}
                   {(
                     [
                       ['donnees', `les données (base ${jeu.anneeScolaire})`],
@@ -102,6 +117,17 @@ export function JeuxEnregistres({ jeuOuvert, onOuvrir, onJeuOuvertSupprime }: Pr
               )}
             </div>
             <div className="liste-jeux-actions">
+              {jeu.sensAnneeScolaire !== 'non_confirme' && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={modification.isPending}
+                  title="Corriger le sens de l’année saisie : la base des projections change d’un an, la correction est journalisée."
+                  onClick={() => corrigerSens(jeu)}
+                >
+                  Corriger le sens de l’année
+                </button>
+              )}
               {!jeu.demonstration && (
                 <button
                   type="button"

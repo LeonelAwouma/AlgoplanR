@@ -24,7 +24,8 @@ from domaine.acces.isolement_regional import isoler_region
 from domaine.acces.regions import region_canonique
 from domaine.commun.texte import texte
 from domaine.donnees import colonnes as C
-from domaine.donnees.annee_scolaire import SENS_ANNEE, SENS_DONNEES, annee_des_donnees, normaliser_annee_scolaire
+from domaine.donnees.annee_scolaire import (ORIGINE_CONFIRMATION, SENS_ANNEE, SENS_DONNEES, annee_des_donnees,
+                                            normaliser_annee_scolaire)
 from domaine.donnees import correspondance as corr
 from domaine.donnees.demonstration import construire_jeu_demonstration
 from domaine.donnees.modeles import construire_ecole, construire_enseignant
@@ -327,6 +328,7 @@ def resume_jeu(jeu: JeuDeDonnees) -> dict:
     return {
         "id": str(jeu.id), "nom": jeu.nom, "source": jeu.source, "cree_le": jeu.cree_le,
         "annee_scolaire": jeu.annee_scolaire, "sens_annee_scolaire": jeu.sens_annee_scolaire,
+        "sens_annee_origine": jeu.sens_annee_origine,
         "annee_donnees": annee_des_donnees(jeu.annee_scolaire, jeu.sens_annee_scolaire),
         # Origine fictive vérifiable : jeu de démonstration, ou marqueur déclaré ; jamais déduite du nom ni de la taille.
         "donnees_fictives": jeu.source == "demonstration" or jeu.donnees_fictives,
@@ -348,15 +350,17 @@ def resume_jeu(jeu: JeuDeDonnees) -> dict:
 
 @transaction.atomic
 def modifier_jeu(jeu: JeuDeDonnees, corps: dict, *, request) -> dict:
-    """Confirme le sens de l'année saisie ou déclare l'origine fictive d'un jeu. Migration explicite et réversible :
+    """Confirme ou corrige le sens de l'année saisie, ou déclare l'origine fictive d'un jeu. Explicite et réversible :
     l'année saisie n'est jamais réécrite, chaque changement est journalisé (avant / après) et la version conservée de
     la planification devient obsolète quand la base des projections change."""
     from contextes.audit.services import journaliser
-    avant = {"sens_annee_scolaire": jeu.sens_annee_scolaire, "donnees_fictives": jeu.donnees_fictives}
+    avant = {"sens_annee_scolaire": jeu.sens_annee_scolaire, "sens_annee_origine": jeu.sens_annee_origine,
+             "donnees_fictives": jeu.donnees_fictives}
     champs = []
     if "sens_annee_scolaire" in corps:
         jeu.sens_annee_scolaire = _sens_annee(corps["sens_annee_scolaire"])
-        champs.append("sens_annee_scolaire")
+        jeu.sens_annee_origine = ORIGINE_CONFIRMATION
+        champs += ["sens_annee_scolaire", "sens_annee_origine"]
     if "donnees_fictives" in corps:
         valeur = corps["donnees_fictives"]
         if not isinstance(valeur, bool):
@@ -369,14 +373,20 @@ def modifier_jeu(jeu: JeuDeDonnees, corps: dict, *, request) -> dict:
     if not champs:
         raise RefusMetier("Aucune modification", ["sens_annee_scolaire ou donnees_fictives attendu"])
     jeu.save(update_fields=champs)
-    apres = {"sens_annee_scolaire": jeu.sens_annee_scolaire, "donnees_fictives": jeu.donnees_fictives}
+    apres = {"sens_annee_scolaire": jeu.sens_annee_scolaire, "sens_annee_origine": jeu.sens_annee_origine,
+             "donnees_fictives": jeu.donnees_fictives}
     if apres != avant:
+        base_avant = annee_des_donnees(jeu.annee_scolaire, avant["sens_annee_scolaire"])
+        base_apres = annee_des_donnees(jeu.annee_scolaire, apres["sens_annee_scolaire"])
         journaliser(jeu, "import", "modification du jeu",
-                    f"Année {jeu.annee_scolaire} : sens « {apres['sens_annee_scolaire']} » ; données fictives : "
-                    f"{'oui' if apres['donnees_fictives'] else 'non'}", request=request, objet=("jeu", jeu.id),
-                    avant=avant, apres=apres)
-        if apres["sens_annee_scolaire"] != avant["sens_annee_scolaire"]:
+                    f"Année saisie {jeu.annee_scolaire} : sens « {apres['sens_annee_scolaire']} » (base {base_apres}, "
+                    f"auparavant {base_avant}) ; données fictives : {'oui' if apres['donnees_fictives'] else 'non'}",
+                    request=request, objet=("jeu", jeu.id), avant=avant, apres=apres)
+        if base_apres != base_avant:
+            # Les libellés calendaires et le décalage des âges changent : les projections conservées sont périmées.
+            from contextes.diagnostic.services import invalider_cache
             from contextes.planification.services import marquer_obsolete
+            invalider_cache(jeu)
             marquer_obsolete(jeu, "Sens de l'année scolaire du jeu modifié")
     return resume_jeu(jeu)
 

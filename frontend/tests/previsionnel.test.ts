@@ -44,7 +44,7 @@ import {
   valeur,
 } from '../components/planification/domain/previsionnel'
 import { camelProfond } from '../components/shared/api/backend/routes/planification'
-import type { PrevisionnelComplet } from '../components/shared/api/contrat'
+import type { PrevisionnelComplet, RapportPrevisionnel, TableauPlanification } from '../components/shared/api/contrat'
 import { AVERTISSEMENT_PERSONNELS, MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../components/shared/kernel/libelles'
 
 const RACINE = path.resolve(__dirname, '..', '..')
@@ -182,7 +182,7 @@ describe('Provenance, natures et audit des retraites', () => {
     assert.ok(feuille(p, 'Contexte').lignes.some(l => l[0] === 'Jeu de données' && l[1] === c.jeuNom))
     const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
     assert.ok(xml.includes('Provenance et périmètre'))
-    assert.ok(xml.includes(`données de l’année scolaire ${c.anneeScolaire}`))
+    assert.ok(xml.includes(`année scolaire saisie ${c.anneeSaisie ?? c.anneeScolaire}`))
   })
 
   it('ne qualifie jamais une valeur future d’observée, ni à l’écran ni dans les exports', () => {
@@ -363,10 +363,10 @@ describe('Cohérence des effectifs, plafond et données fictives', () => {
     const p = prevision()
     const r = p.rapprochement!
     const s = r.synthese
-    assert.equal(s.ecolesConcordantes + s.ecolesEcartPositif + s.ecolesEcartNegatif, s.ecoles)
+    assert.equal(Number(s.ecolesConcordantes) + Number(s.ecolesEcartPositif) + Number(s.ecolesEcartNegatif), s.ecoles)
     assert.equal(s.stockDeclare, p.contexte?.personnelsStockDeclare)
     assert.equal(s.agentsNominatifs, p.contexte?.personnelsNominatifs)
-    assert.equal(s.retraitesHorizon, s.retraitesRetireesDuStock + s.retraitesNonImputables)
+    assert.equal(s.retraitesHorizon, Number(s.retraitesRetireesDuStock) + Number(s.retraitesNonImputables))
     const lignes = feuille(p, 'Rapprochement des effectifs').lignes
     assert.deepEqual(lignes, lignesRapprochement(p))
     assert.equal(lignes.length, r.ecoles.length)
@@ -416,7 +416,7 @@ describe('Cohérence des effectifs, plafond et données fictives', () => {
     for (const m of messages)
       assert.match(
         m.message,
-        /^Le quota proposé dépasse le plafond de recrutement de \d+ postes? en N\+\d \(\d{4}-\d{4}\) en raison du remplacement des départs à la retraite\.$/,
+        /^Le quota proposé dépasse le plafond de recrutement de \d+ postes? en N\+\d \(\d{4}-\d{4}\) en raison du remplacement des départs à la retraite \(\d+ retraites? pour un plafond de \d+\)\. Avec un plafond strict, le quota serait de \d+\. Ce dépassement nécessite une validation administrative ou budgétaire\.$/,
       )
     // La règle alternative n'entre dans aucune trajectoire : le scénario sous plafond suit le quota calculé.
     assert.deepEqual(ligne(p, 'recrutement_plafond')!.valeurs.slice(1), q.valeurs.slice(1))
@@ -427,5 +427,124 @@ describe('Cohérence des effectifs, plafond et données fictives', () => {
     const a = p.avertissements ?? []
     assert.equal(a[0]?.code, 'donnees_fictives')
     assert.ok(a.some(x => x.code === 'effectifs_discordants' && x.gravite === 'important'))
+  })
+})
+
+const MESSAGE_RETRAITES_INCONNUES =
+  'Retraites non calculables : le fichier nominatif des enseignants est indisponible. Les scénarios de recrutement qui dépendent des retraites sont incomplets.'
+const TEXTE_CONDITIONNEL =
+  "Simulation conditionnelle : aucun départ à la retraite n'a été modélisé faute de données nominatives. Le résultat ne représente pas une prévision des retraites."
+
+/** Prévisionnel d'un jeu bâti sans fichier nominatif (base nationale), tel que le serveur le produit. */
+const sansNominatif = (): PrevisionnelComplet =>
+  camelProfond<PrevisionnelComplet>(
+    JSON.parse(readFileSync(path.join(RACINE, 'tests', 'donnees', 'previsionnel-sans-nominatif.json'), 'utf8')),
+  )
+
+describe('Retraites non calculables : fichier nominatif absent', () => {
+  it('reprend l’état fixé par le serveur, sans le reconstituer', () => {
+    const p = sansNominatif()
+    assert.equal(p.retraitesFiabilite?.statut, 'non_calculable')
+    assert.equal(p.retraitesFiabilite?.message, MESSAGE_RETRAITES_INCONNUES)
+    assert.equal(p.retraitesFiabilite?.messageConditionnel, TEXTE_CONDITIONNEL)
+    assert.deepEqual(
+      ORDRE_SCENARIOS.map(s => p.scenarios.find(x => x.scenario === s)?.fiabilite),
+      ['non_calculable', 'non_calculable', 'conditionnel', 'conditionnel'],
+    )
+  })
+
+  it('n’affiche aucun zéro pour les retraites, S-min et S-maintien', () => {
+    const p = sansNominatif()
+    for (const cle of ['departs_retraite', 'retraites_identifiees', 'recrutement_min', 'recrutement_maintien']) {
+      const l = ligne(p, cle)!
+      assert.ok(
+        l.valeurs.slice(1).every(v => v === null),
+        cle,
+      )
+      assert.ok(
+        (l.natures ?? []).slice(1).every(n => n === 'non_disponible'),
+        cle,
+      )
+    }
+    const s = syntheseDecideur(p)
+    assert.equal(s.retraites, null)
+    assert.equal(s.departs, null)
+    assert.equal(s.statutRetraites, 'non_calculable')
+    // Les graphiques ne tracent ni S-min ni S-maintien.
+    assert.ok(pointsRecrutements(p).every(pt => pt.valeurs.min === undefined && pt.valeurs.maintien === undefined))
+    assert.ok(pointsRecrutements(p).some(pt => pt.valeurs.besoin !== undefined))
+    // Les lignes indépendantes des retraites restent calculées.
+    assert.ok(ligne(p, 'eleves')!.valeurs.every(v => v !== null))
+  })
+
+  it('qualifie de conditionnelles les lignes calculées sans modéliser de retraite', () => {
+    const p = sansNominatif()
+    assert.ok((ligne(p, 'recrutement_besoin')!.natures ?? []).slice(1).every(n => n === 'conditionnel'))
+    assert.equal(LIBELLE_NATURE.conditionnel, 'Conditionnel')
+    const [, , besoin] = lignesScenarios(p)
+    assert.ok(String(besoin.at(-1)).includes(TEXTE_CONDITIONNEL))
+    const [min] = lignesScenarios(p)
+    assert.ok(min.slice(1, 7).every(v => v === 'Non calculable'))
+  })
+
+  it('reprend les mêmes textes dans le classeur Excel et le document Word', async () => {
+    const p = sansNominatif()
+    const avert = feuille(p, 'Avertissements').lignes.map(l => l[1])
+    assert.ok(avert.includes(MESSAGE_RETRAITES_INCONNUES))
+    assert.ok(avert.includes(TEXTE_CONDITIONNEL))
+    const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
+    assert.ok(xml.includes(MESSAGE_RETRAITES_INCONNUES.replace(/&/g, '&amp;')))
+    assert.ok(xml.includes('Non calculable'))
+    // Aucun zéro dans les retraites du tableau complet exporté ni dans l'audit.
+    const ret = feuille(p, 'Tableau complet').lignes.find(l => l[1] === 'Départs à la retraite retirés du stock')!
+    assert.ok(ret.slice(3, 8).every(v => v === 'Non calculable'))
+    assert.ok(
+      feuille(p, 'Audit des retraites')
+        .lignes[0].slice(1)
+        .every(v => v === 'Non calculable'),
+    )
+    assert.equal(
+      feuille(p, 'Synthèse rapprochement').lignes.find(l => l[0] === 'Retraites identifiées en N+1')![1],
+      'Non calculable',
+    )
+    // Les nombres restent des nombres dans le classeur, même avec des cases « Non calculable ».
+    const formats = feuille(p, 'Tableau complet').formats ?? []
+    assert.ok(formats.slice(2, 2 + p.annees.length).every(f => f === 'entier' || f === 'decimal'))
+    assert.ok((feuille(p, 'Scénarios').formats ?? []).slice(1, 7).every(f => f === 'entier' || f === 'decimal'))
+    // Le rapprochement n'a rien à rapprocher : ni écart artificiel par école, ni concordance, ni zéro.
+    assert.deepEqual(p.rapprochement?.ecoles, [])
+    assert.equal(p.rapprochement?.synthese.ecolesEcartPositif, null)
+    assert.equal(
+      feuille(p, 'Synthèse rapprochement').lignes.find(l => l[0] === 'Écoles concordantes')![1],
+      'Non calculable',
+    )
+  })
+
+  it('porte l’état des retraites dans le suivi et le rapport DRH, sans zéro', () => {
+    const lire = <T>(nom: string) =>
+      camelProfond<T>(JSON.parse(readFileSync(path.join(RACINE, 'tests', 'donnees', nom), 'utf8')))
+    const tableau = lire<TableauPlanification>('tableau-sans-nominatif.json')
+    assert.equal(tableau.retraitesFiabilite?.statut, 'non_calculable')
+    assert.equal(tableau.retraitesFiabilite?.message, MESSAGE_RETRAITES_INCONNUES)
+    const rapport = lire<RapportPrevisionnel>('rapport-sans-nominatif.json')
+    assert.equal(rapport.retraitesFiabilite?.statut, 'non_calculable')
+    assert.equal(rapport.retraitesRegions.national.total, null)
+    assert.equal(rapport.scenariosRegions.national.min, null)
+    assert.equal(rapport.scenariosRegions.national.maintien, null)
+    assert.notEqual(rapport.scenariosRegions.national.besoin, null)
+    assert.deepEqual(rapport.limites.slice(0, 2), [MESSAGE_RETRAITES_INCONNUES, TEXTE_CONDITIONNEL])
+    assert.ok(rapport.priorites.every(f => f.prioriteProvisoire))
+  })
+
+  it('ne change rien pour un jeu dont les retraites sont identifiées', () => {
+    const p = prevision()
+    assert.notEqual(p.retraitesFiabilite?.statut, 'non_calculable')
+    assert.ok(
+      ligne(p, 'departs_retraite')!
+        .valeurs.slice(1)
+        .every(v => typeof v === 'number'),
+    )
+    assert.ok(p.scenarios.every(s => s.fiabilite !== 'non_calculable' && s.recrutementsTotal !== null))
+    assert.ok(!p.avertissements?.some(a => a.code === 'retraites_non_calculables'))
   })
 })

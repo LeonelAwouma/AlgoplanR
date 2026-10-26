@@ -45,7 +45,8 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Base : effectifs importés (observés) ; années suivantes : projection N(t+1) = N(t) × (1 + croissance), arrondie à l'unité à l'affichage seulement."
+     "detail": "Base : effectifs importés (observés) ; années suivantes : projection N(t+1) = N(t) × (1 + croissance), arrondie à l'unité à l'affichage seulement.",
+     "depend_retraites": false
     },
     {
      "cle": "croissance",
@@ -77,7 +78,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": false
     },
     {
      "cle": "ecoles_eleves_inconnus",
@@ -101,7 +103,8 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Aucun effectif n'est inventé pour ces écoles : elles ne comptent ni dans les élèves projetés ni dans le taux d'encadrement."
+     "detail": "Aucun effectif n'est inventé pour ces écoles : elles ne comptent ni dans les élèves projetés ni dans le taux d'encadrement.",
+     "depend_retraites": false
     }
    ]
   },
@@ -124,14 +127,15 @@
      "natures": [
       "observe",
       "estime",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Base : Enseignants_Actuels (personnels rapprochés dans la cartographie, pas nécessairement tous chargés de classe). N+1 : stock observé retenu comme début de N+1, après les mouvements du scénario retenu (estimé). Dès N+2 : projeté, recrutements de l'année précédente supposés réalisés (quota retenu, sinon quota calculé)."
+     "detail": "Base : Enseignants_Actuels (personnels rapprochés dans la cartographie, pas nécessairement tous chargés de classe). N+1 : stock observé retenu comme début de N+1, après les mouvements du scénario retenu (estimé). Dès N+2 : projeté, recrutements de l'année précédente supposés réalisés (quota retenu, sinon quota calculé). Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
+     "depend_retraites": true
     },
     {
      "cle": "departs_retraite",
@@ -155,7 +159,7 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Retraites identifiées nominativement d'après les âges connus (jamais par le taux de 1,08 %), retirées du stock déclaré de leur école sans dépasser ce qui y reste ; voir l'audit des retraites. Provisoires : année de mesure des âges non précisée.",
+     "detail": "Retraites identifiées nominativement d'après les âges connus (jamais par le taux de 1,08 %), retirées du stock déclaré de leur école sans dépasser ce qui y reste ; voir l'audit des retraites. Une retraite non calculable n'est jamais comptée comme zéro. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -163,7 +167,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "retraites_identifiees",
@@ -187,7 +192,7 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Agents du fichier nominatif atteignant l'âge légal, matricules distincts, rattachés aux écoles du périmètre.",
+     "detail": "Agents du fichier nominatif atteignant l'âge légal, matricules distincts, rattachés aux écoles du périmètre. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -195,7 +200,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "retraites_non_imputables",
@@ -219,7 +225,7 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Retraites identifiées au-delà du stock déclaré restant de leur école (sources discordantes) : ni retirées du stock, ni remplacées par le plancher ; voir le rapprochement des effectifs.",
+     "detail": "Retraites identifiées au-delà du stock déclaré restant de leur école (sources discordantes) : ni retirées du stock, ni remplacées par le plancher ; voir le rapprochement des effectifs. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -227,7 +233,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "departs_attrition",
@@ -240,18 +247,18 @@
       6,
       6
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
       "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Projetés par hypothèse statistique : taux d'autres départs (2,25 %) × stock de début. Les retraites n'y sont pas recomptées.",
+     "detail": "Projetés par hypothèse statistique : taux d'autres départs (2,25 %) × stock de début. Les retraites n'y sont pas recomptées. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -259,7 +266,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "directeurs_decharges",
@@ -291,7 +299,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": false
     },
     {
      "cle": "decharges_cumulees",
@@ -315,7 +324,8 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Un directeur déchargé reste dans le stock ; il n'est retranché qu'une fois des enseignants disponibles."
+     "detail": "Un directeur déchargé reste dans le stock ; il n'est retranché qu'une fois des enseignants disponibles.",
+     "depend_retraites": false
     },
     {
      "cle": "effectif_fin",
@@ -328,18 +338,18 @@
       264,
       263
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "S(t+1) = S(t) − retraites − autres départs + recrutements supposés réalisés.",
+     "detail": "S(t+1) = S(t) − retraites − autres départs + recrutements supposés réalisés. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -347,7 +357,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "disponibles_fin",
@@ -363,15 +374,16 @@
      "nature": "observe",
      "natures": [
       "observe",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "U = S − décharges cumulées (base : U = S)."
+     "detail": "U = S − décharges cumulées (base : U = S). Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
+     "depend_retraites": true
     }
    ]
   },
@@ -401,7 +413,8 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "⌈élèves ÷ 74,4⌉ : estimation par ratio, distincte de la somme des besoins des écoles."
+     "detail": "⌈élèves ÷ 74,4⌉ : estimation par ratio, distincte de la somme des besoins des écoles.",
+     "depend_retraites": false
     },
     {
      "cle": "somme_pe",
@@ -425,7 +438,8 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "P = max(1 ; ⌈(N − tolérance) ÷ 74,4⌉), école par école."
+     "detail": "P = max(1 ; ⌈(N − tolérance) ÷ 74,4⌉), école par école.",
+     "depend_retraites": false
     },
     {
      "cle": "somme_me",
@@ -449,7 +463,8 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "m = max(plancher ; G) ; G de secours (6) quand Classes_Multigrades n'est pas renseigné."
+     "detail": "m = max(plancher ; G) ; G de secours (6) quand Classes_Multigrades n'est pas renseigné.",
+     "depend_retraites": false
     },
     {
      "cle": "somme_de",
@@ -473,7 +488,8 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "D = max(P ; m)."
+     "detail": "D = max(P ; m).",
+     "depend_retraites": false
     },
     {
      "cle": "somme_ke",
@@ -497,7 +513,8 @@
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "K = min(D ; BMAX)."
+     "detail": "K = min(D ; BMAX).",
+     "depend_retraites": false
     },
     {
      "cle": "besoin_non_couvert",
@@ -513,15 +530,16 @@
      "nature": "estime",
      "natures": [
       "estime",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "b = max(0 ; K − enseignants restants après les retraites), école par école."
+     "detail": "b = max(0 ; K − enseignants restants après les retraites), école par école. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
+     "depend_retraites": true
     },
     {
      "cle": "ressources_vivier",
@@ -534,18 +552,18 @@
       0,
       0
      ],
-     "nature": "estime",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "estime",
-      "estime",
-      "estime",
-      "estime",
-      "estime"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "N+1 : excédents sûrs des écoles après leurs retraites de N+1 (un retraité n'est pas aussi une ressource), et personnes du vivier retenues. Les années suivantes : aucune ressource nouvelle.",
+     "detail": "N+1 : excédents sûrs des écoles après leurs retraites de N+1 (un retraité n'est pas aussi une ressource), et personnes du vivier retenues. Les années suivantes : aucune ressource nouvelle. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -553,7 +571,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "part_provisoire",
@@ -577,7 +596,8 @@
      ],
      "decimal": true,
      "unite": "pourcentage",
-     "detail": "Toutes les écoles renseignent leurs groupes pédagogiques."
+     "detail": "Toutes les écoles renseignent leurs groupes pédagogiques.",
+     "depend_retraites": false
     },
     {
      "cle": "part_besoin_incertain",
@@ -601,7 +621,8 @@
      ],
      "decimal": true,
      "unite": "pourcentage",
-     "detail": "Écoles dont le besoin ou l'excédent change selon l'organisation pédagogique plausible, ou dont l'effectif d'élèves est inconnu. Une école au minimum provisoire dont le besoin est fixé par les élèves ou les salles n'y figure pas."
+     "detail": "Écoles dont le besoin ou l'excédent change selon l'organisation pédagogique plausible, ou dont l'effectif d'élèves est inconnu. Une école au minimum provisoire dont le besoin est fixé par les élèves ou les salles n'y figure pas.",
+     "depend_retraites": false
     }
    ]
   },
@@ -620,18 +641,18 @@
       9,
       9
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Remplace les seules retraites de l'année.",
+     "detail": "Remplace les seules retraites de l'année. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -639,7 +660,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "recrutement_maintien",
@@ -652,18 +674,18 @@
       16,
       16
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Remplace les retraites, les autres départs et les décharges de directeurs : U reste constant.",
+     "detail": "Remplace les retraites, les autres départs et les décharges de directeurs : U reste constant. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -671,7 +693,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "recrutement_besoin",
@@ -684,18 +707,18 @@
       14,
       14
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Besoin de recrutement calculé (avant plafond), jamais sous les retraites.",
+     "detail": "Besoin de recrutement calculé (avant plafond), jamais sous les retraites. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -703,7 +726,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "recrutement_plafond",
@@ -716,18 +740,18 @@
       14,
       14
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Quota calculé (sous plafond, plancher compris), supposé recruté tant que les quotas sont supposés réalisés ; ce n'est pas un recrutement réalisé.",
+     "detail": "Quota calculé (sous plafond, plancher compris), supposé recruté tant que les quotas sont supposés réalisés ; ce n'est pas un recrutement réalisé. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -735,7 +759,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "quota_avant_plafond",
@@ -748,18 +773,18 @@
       14,
       14
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Besoin de l'année − déficit initial + rattrapage étalé − ressources du vivier, jamais négatif.",
+     "detail": "Besoin de l'année − déficit initial + rattrapage étalé − ressources du vivier, jamais négatif. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -767,7 +792,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "plafond",
@@ -799,7 +825,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": false
     },
     {
      "cle": "plancher_retraites",
@@ -812,18 +839,18 @@
       9,
       9
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Le quota calculé ne descend jamais sous les retraites de l'année, même au-delà du plafond.",
+     "detail": "Le quota calculé ne descend jamais sous les retraites de l'année, même au-delà du plafond. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -831,7 +858,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "depassement_plafond",
@@ -844,18 +872,18 @@
       0,
       0
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Quota calculé − plafond, quand le plancher des retraites porte le quota au-delà du plafond.",
+     "detail": "Quota calculé − plafond, quand le plancher des retraites porte le quota au-delà du plafond. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -863,7 +891,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "quota_plafond_prioritaire",
@@ -876,18 +905,18 @@
       14,
       14
      ],
-     "nature": "estime",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "estime",
-      "estime",
-      "estime",
-      "estime",
-      "estime"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Q' = min(max(besoin calculé ; retraites) ; plafond), année par année sur la trajectoire du tableau : présenté pour la décision D1 (le plancher ou le plafond prime-t-il ?), sans effet sur les trajectoires.",
+     "detail": "Q' = min(max(besoin calculé ; retraites) ; plafond), année par année sur la trajectoire du tableau : présenté pour la décision D1 (le plancher ou le plafond prime-t-il ?), sans effet sur les trajectoires. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -895,7 +924,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "quota_calcule",
@@ -908,18 +938,18 @@
       14,
       14
      ],
-     "nature": "projete",
+     "nature": "provisoire",
      "natures": [
       "sans_objet",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": false,
      "unite": "nombre",
-     "detail": "Q = max(min(besoin calculé ; plafond) ; retraites). Proposition de calcul, pas une décision.",
+     "detail": "Q = max(min(besoin calculé ; plafond) ; retraites). Proposition de calcul, pas une décision. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -927,7 +957,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "quota_retenu",
@@ -959,7 +990,8 @@
       "Aucune décision administrative enregistrée pour cette année.",
       "Aucune décision administrative enregistrée pour cette année.",
       "Aucune décision administrative enregistrée pour cette année."
-     ]
+     ],
+     "depend_retraites": false
     },
     {
      "cle": "nominations_realisees",
@@ -991,7 +1023,8 @@
       "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
       "Aucune nomination mise en œuvre n'est enregistrée pour cette année.",
       "Aucune nomination mise en œuvre n'est enregistrée pour cette année."
-     ]
+     ],
+     "depend_retraites": false
     }
    ]
   },
@@ -1014,14 +1047,14 @@
      "natures": [
       "observe",
       "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Base : écoles à effectif connu (élèves et enseignants de ces seules écoles). Années : élèves de l'année ÷ enseignants disponibles au début de l'année, trajectoire du tableau.",
+     "detail": "Base : écoles à effectif connu (élèves et enseignants de ces seules écoles). Années : élèves de l'année ÷ enseignants disponibles au début de l'année, trajectoire du tableau. Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -1029,7 +1062,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "rem_reference",
@@ -1053,7 +1087,8 @@
      ],
      "decimal": true,
      "unite": "nombre",
-     "detail": ""
+     "detail": "",
+     "depend_retraites": false
     },
     {
      "cle": "rem_min",
@@ -1069,15 +1104,15 @@
      "nature": "observe",
      "natures": [
       "observe",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios). Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -1085,7 +1120,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "rem_maintien",
@@ -1101,15 +1137,15 @@
      "nature": "observe",
      "natures": [
       "observe",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios). Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -1117,7 +1153,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "rem_besoin",
@@ -1133,15 +1170,15 @@
      "nature": "observe",
      "natures": [
       "observe",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios). Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -1149,7 +1186,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "rem_plafond",
@@ -1165,15 +1203,15 @@
      "nature": "observe",
      "natures": [
       "observe",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios).",
+     "detail": "Élèves de l'année ÷ enseignants disponibles en fin d'année, après départs et recrutements du scénario (même dénominateur pour les quatre scénarios). Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -1181,7 +1219,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     },
     {
      "cle": "ecart_reference",
@@ -1197,15 +1236,15 @@
      "nature": "observe",
      "natures": [
       "observe",
-      "projete",
-      "projete",
-      "projete",
-      "projete",
-      "projete"
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire",
+      "provisoire"
      ],
      "decimal": true,
      "unite": "nombre",
-     "detail": "REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant).",
+     "detail": "REM projeté sous plafond − REM de référence (positif : plus d'élèves par enseignant). Provisoire : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée.",
      "raisons": [
       null,
       null,
@@ -1213,7 +1252,8 @@
       null,
       null,
       null
-     ]
+     ],
+     "depend_retraites": true
     }
    ]
   }
@@ -1261,7 +1301,10 @@
    "rem_final": 42.5,
    "ecart_final": -31.9,
    "besoin_restant_final": 0,
-   "besoin_restant_raison": null
+   "besoin_restant_raison": null,
+   "fiabilite": "provisoire",
+   "fiabilite_libelle": "Provisoire",
+   "fiabilite_raison": "Retraites provisoires : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée."
   },
   {
    "scenario": "maintien",
@@ -1305,7 +1348,10 @@
    "rem_final": 37.0,
    "ecart_final": -37.4,
    "besoin_restant_final": 0,
-   "besoin_restant_raison": null
+   "besoin_restant_raison": null,
+   "fiabilite": "provisoire",
+   "fiabilite_libelle": "Provisoire",
+   "fiabilite_raison": "Retraites provisoires : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée."
   },
   {
    "scenario": "besoin",
@@ -1349,7 +1395,10 @@
    "rem_final": 39.1,
    "ecart_final": -35.3,
    "besoin_restant_final": 0,
-   "besoin_restant_raison": null
+   "besoin_restant_raison": null,
+   "fiabilite": "provisoire",
+   "fiabilite_libelle": "Provisoire",
+   "fiabilite_raison": "Retraites provisoires : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée."
   },
   {
    "scenario": "plafond",
@@ -1393,7 +1442,10 @@
    "rem_final": 39.1,
    "ecart_final": -35.3,
    "besoin_restant_final": 0,
-   "besoin_restant_raison": null
+   "besoin_restant_raison": null,
+   "fiabilite": "provisoire",
+   "fiabilite_libelle": "Provisoire",
+   "fiabilite_raison": "Retraites provisoires : stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école ; année de mesure des âges non précisée."
   }
  ],
  "rem_reference": 74.4,
@@ -1408,6 +1460,7 @@
   "annee_scolaire": "2026-2027",
   "annee_saisie": "2026-2027",
   "sens_annee_scolaire": "donnees",
+  "sens_annee_origine": "creation",
   "annee_donnees": "2026-2027",
   "donnees_fictives": true,
   "fichiers_source": {},
@@ -1423,8 +1476,8 @@
   "ecoles_minimum_provisoire": 0,
   "ecoles_salles_flux_inconnu": 0,
   "version_planification": 1,
-  "calcule_le": "2026-10-26T00:08:16.450072Z",
-  "edite_le": "2026-10-26T00:08:16.459355Z"
+  "calcule_le": "2026-10-26T09:31:29.668487Z",
+  "edite_le": "2026-10-26T09:31:29.686975Z"
  },
  "audit_retraites": {
   "lignes": [
@@ -2221,11 +2274,35 @@
   "ecoles_tronquees": false,
   "methode": "Stock déclaré : Enseignants_Actuels du fichier des établissements (fixe le besoin et le stock S). Agents nominatifs : matricules distincts du fichier des enseignants rattachés à l'école. Écart = stock déclaré − agents nominatifs ; aucun des deux n'est corrigé. Les retraites sont identifiées sur la liste nominative et retirées du stock déclaré de l'école, sans jamais dépasser ce qui y reste : l'excédent est « non imputable », compté à part et non remplacé."
  },
+ "retraites_fiabilite": {
+  "hypothese_age": true,
+  "population": {
+   "stock_declare": 272,
+   "agents_nominatifs": 300,
+   "agents_avec_age": 300,
+   "couverture": 110.3
+  },
+  "retraites_identifiees": 50,
+  "zero_etabli": false,
+  "message": "Retraites partiellement identifiées : 300 agent(s) avec un âge exploitable pour 272 personnel(s) déclaré(s) (110,3 %) ; stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école. Le nombre de retraites identifiées n'est pas un total exhaustif : les indicateurs qui en dépendent sont provisoires.",
+  "statut": "partiel",
+  "libelle": "Retraites partiellement identifiées",
+  "raisons": [
+   "stock déclaré et liste nominative différents dans 38 école(s)",
+   "2 retraite(s) au-delà du stock de leur école"
+  ],
+  "raison": null
+ },
  "avertissements": [
   {
    "code": "donnees_fictives",
    "gravite": "important",
    "message": "Données fictives — simulation de démonstration. Ces résultats ne représentent pas la situation réelle du Cameroun."
+  },
+  {
+   "code": "retraites_partielles",
+   "gravite": "important",
+   "message": "Retraites partiellement identifiées : 300 agent(s) avec un âge exploitable pour 272 personnel(s) déclaré(s) (110,3 %) ; stock déclaré et liste nominative différents dans 38 école(s) ; 2 retraite(s) au-delà du stock de leur école. Le nombre de retraites identifiées n'est pas un total exhaustif : les indicateurs qui en dépendent sont provisoires."
   },
   {
    "code": "effectifs_discordants",
@@ -2390,6 +2467,12 @@
    "code": "annee_ages",
    "libelle": "Année de mesure des âges (retraites)",
    "valeur": "non précisée : âges supposés mesurés au début de N+1",
+   "a_valider": true
+  },
+  {
+   "code": "date_depart_retraite",
+   "libelle": "Âge légal de départ (60 ans) : date d'appréciation",
+   "valeur": "à la rentrée de l'année scolaire (règle active : un agent de 59 ans au début de N+1 part en N+2)",
    "a_valider": true
   },
   {

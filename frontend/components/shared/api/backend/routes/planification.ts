@@ -24,6 +24,7 @@ import type {
   EvolutionIndicateurs,
   FiabiliteDonnees,
   FiabiliteIndicateur,
+  FiabiliteRetraites,
   Hypotheses,
   IndicateursAnnee,
   IndicateursSuivi,
@@ -101,6 +102,7 @@ interface TableauDjango {
   calcule_le: string | null
   annees: AnneeDjango[]
   fiabilite: { indicateur: string; niveau: FiabiliteIndicateur['niveau']; detail: string }[]
+  retraites_fiabilite?: unknown
 }
 
 interface TerritoireDjango {
@@ -222,6 +224,7 @@ export function versTableau(t: TableauDjango): TableauPlanification {
       niveau: f.niveau,
       detail: f.detail,
     })),
+    ...(t.retraites_fiabilite ? { retraitesFiabilite: camelProfond<FiabiliteRetraites>(t.retraites_fiabilite) } : {}),
   }
 }
 

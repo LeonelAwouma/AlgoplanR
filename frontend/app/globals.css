@@ -4838,11 +4838,27 @@ button.kpi:hover {
   max-width: 48ch;
 }
 
+/* Ligne d'avertissement ou de raison d'un bandeau : toute la largeur, sans la colonne étroite des définitions. */
+.ligne-pleine {
+  display: block;
+  margin-top: 2px;
+}
+
 /* Nature des valeurs du tableau prévisionnel : une valeur projetée se distingue d'une valeur observée. */
 .tableau-planification td.nature-projete,
 .tableau-planification td.nature-estime,
-.tableau-planification td.nature-provisoire {
+.tableau-planification td.nature-provisoire,
+.tableau-planification td.nature-conditionnel {
   font-style: italic;
+}
+/* Simulation conditionnelle : une valeur calculée sans modéliser les retraites se distingue d'une prévision. */
+.tableau-planification td.nature-conditionnel {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+/* Retraites non calculables : une case inconnue n'est jamais un zéro. */
+.tableau-planification td.nature-non_disponible {
+  color: var(--ink-soft);
 }
 .tableau-planification td.nature-hypothese {
   color: var(--ink-soft);

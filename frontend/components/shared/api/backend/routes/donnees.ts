@@ -136,7 +136,8 @@ export const conversionsDonnees: Record<string, Conversion> = {
         fichier_enseignants: c.enseignants,
         ...(c.prince ? { fichier_prince: c.prince } : {}),
         ...(c.anneeScolaire ? { annee_scolaire: c.anneeScolaire } : {}),
-        ...(c.sensAnneeScolaire ? { sens_annee_scolaire: c.sensAnneeScolaire } : {}),
+        // Un nouveau jeu enregistre toujours le sens de son année : par défaut, l'année des données.
+        sens_annee_scolaire: c.sensAnneeScolaire ?? 'donnees',
         ...(c.donneesFictives ? { donnees_fictives: true } : {}),
       },
     )
@@ -147,7 +148,7 @@ export const conversionsDonnees: Record<string, Conversion> = {
   },
 
   'POST jeux/demonstration/': async (_, acces) =>
-    jeuCree(acces, await acces.ecrire<JeuDjango>('POST', 'jeux/demonstration/', {})),
+    jeuCree(acces, await acces.ecrire<JeuDjango>('POST', 'jeux/demonstration/', { sens_annee_scolaire: 'donnees' })),
 
   'GET jeux/{jeu}/': async (_, acces, p) => versJeu(await acces.lire<JeuDjango>(`jeux/${p.jeu}/`)),
 

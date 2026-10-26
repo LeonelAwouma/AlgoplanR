@@ -30,6 +30,7 @@ export interface JeuDjango {
   /** Année scolaire des données importées (« 2024-2025 »), saisie à sa création : base des projections. */
   annee_scolaire?: string
   sens_annee_scolaire?: 'donnees' | 'rentree_preparee' | 'non_confirme'
+  sens_annee_origine?: 'creation' | 'migration' | 'confirmation'
   annee_donnees?: string
   donnees_fictives?: boolean
   nb_etablissements: number
@@ -63,6 +64,7 @@ export function versJeu(j: JeuDjango): JeuDeDonnees {
     },
     anneeScolaire: j.annee_scolaire ?? anneeScolaireCourante(),
     sensAnneeScolaire: j.sens_annee_scolaire ?? 'donnees',
+    sensAnneeOrigine: j.sens_annee_origine ?? 'creation',
     anneeDonnees: j.annee_donnees ?? j.annee_scolaire ?? anneeScolaireCourante(),
     donneesFictives: j.donnees_fictives ?? demonstration,
     statut: j.statut ?? 'brouillon',

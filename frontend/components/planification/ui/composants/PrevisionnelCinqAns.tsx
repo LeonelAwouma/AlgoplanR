@@ -56,6 +56,9 @@ const TON_NATURE: Record<NatureValeur, Tone> = {
   estime: 'info',
   hypothese: 'warn',
   provisoire: 'warn',
+  conditionnel: 'warn',
+  decision: 'info',
+  realise: 'ok',
   non_disponible: 'neutral',
   sans_objet: 'neutral',
 }
@@ -143,11 +146,17 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
         )}
         {avertissements.length > 0 && (
           <Notice
-            tone={avertissements.some(a => a.gravite === 'important') ? 'warn' : 'neutral'}
+            tone={
+              avertissements.some(a => a.code === 'retraites_non_calculables')
+                ? 'alert'
+                : avertissements.some(a => a.gravite === 'important')
+                  ? 'warn'
+                  : 'neutral'
+            }
             title="Avertissements de cohérence."
           >
             {avertissements.map(a => (
-              <span key={`${a.code}-${a.annee ?? ''}`} className="ligne-detail">
+              <span key={`${a.code}-${a.annee ?? ''}`} className="ligne-pleine">
                 {a.message}
               </span>
             ))}
@@ -183,7 +192,7 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
         {raisons.length > 0 && (
           <Notice tone="neutral" title="Valeurs non disponibles.">
             {raisons.map((r, i) => (
-              <span key={r.raison} className="ligne-detail">
+              <span key={r.raison} className="ligne-pleine">
                 <strong>({i + 1})</strong> {r.cellules.join(' ; ')}. {r.raison}
               </span>
             ))}
@@ -198,13 +207,23 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
           />
           <KpiCard
             label="Départs sur l’horizon"
-            value={fmt(s.departs)}
-            hint={`Projeté. Dont ${fmt(s.retraites)} retraites nominatives ; le reste par attrition hors retraite.`}
+            value={s.departs === null ? 'Non calculable' : fmt(s.departs)}
+            hint={
+              s.retraites === null
+                ? 'Retraites non calculables : le fichier nominatif des enseignants est indisponible (aucun zéro affiché).'
+                : `Projeté. Dont ${fmt(s.retraites)} retraites nominatives${
+                    s.statutRetraites === 'partiel' ? ' (identifiées, total non exhaustif)' : ''
+                  } ; le reste par attrition hors retraite.`
+            }
           />
           <KpiCard
             label="Recrutements S-besoin"
             value={entier(s.recrutementsBesoin)}
-            hint={`Projeté, à décider : pour approcher le REM de référence ; ${entier(s.recrutementsPlafond)} sous plafond budgétaire.`}
+            hint={`${
+              s.statutRetraites === 'non_calculable'
+                ? 'Simulation conditionnelle (aucun départ à la retraite modélisé). '
+                : ''
+            }Projeté, à décider : pour approcher le REM de référence ; ${entier(s.recrutementsPlafond)} sous plafond budgétaire.`}
           />
           <KpiCard
             label="REM à la base"
@@ -282,13 +301,16 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
               {lignesScenarios(p).map((l, k) => {
                 const remScenario = ligne(p, `rem_${ORDRE_SCENARIOS[k]}`)
                 const n = remScenario ? renvoi(raisons, remScenario, p.annees.length - 1) : null
+                const inconnu = scenario(p, ORDRE_SCENARIOS[k])?.fiabilite === 'non_calculable'
                 return (
                   <tr key={String(l[0])}>
                     <th scope="row">{l[0]}</th>
                     {l.slice(1).map((v, i) => (
                       <td key={i} className="num">
                         {v === null
-                          ? `Non disponible${n ? ` (${n})` : ''}`
+                          ? inconnu
+                            ? 'Non calculable'
+                            : `Non disponible${n ? ` (${n})` : ''}`
                           : typeof v === 'number'
                             ? i >= 3
                               ? fmtDec(v, 1)
@@ -331,7 +353,11 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
             />
           </figure>
           <figure className="stack">
-            <figcaption className="hint">Recrutements annuels de chaque scénario.</figcaption>
+            <figcaption className="hint">
+              Recrutements annuels de chaque scénario.
+              {p.retraitesFiabilite?.statut === 'non_calculable' &&
+                ' S-min et S-maintien ne sont pas tracés : retraites non calculables. S-besoin et Sous plafond sont des simulations conditionnelles.'}
+            </figcaption>
             <Colonnes titre="Recrutements par scénario" series={seriesScenarios} donnees={pointsRecrutements(p)} />
           </figure>
           <figure className="stack">
@@ -437,7 +463,7 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
                           <th scope="row">{l[0]}</th>
                           {l.slice(1).map((v, i) => (
                             <td key={i} className="num">
-                              {v === null ? TIRET : i >= 3 ? `${fmtDec(Number(v), 1)} %` : fmt(Number(v))}
+                              {v === null ? TIRET : typeof v === 'string' ? v : i >= 3 ? `${fmtDec(v, 1)} %` : fmt(v)}
                             </td>
                           ))}
                         </tr>

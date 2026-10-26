@@ -19,9 +19,13 @@ class JeuDeDonnees(models.Model):
     # (N+1 est l'année suivante) et elle date les rapports.
     annee_scolaire = models.CharField(max_length=9, default=annee_scolaire_courante)
     # Sens de `annee_scolaire` : « donnees » (année des données, base des projections), « rentree_preparee » (la
-    # rentrée que prépare le jeu : les données sont de l'année précédente) ou « non_confirme » (jeu créé avant la
-    # distinction : lu comme année des données, signalé jusqu'à confirmation). L'année elle-même n'est jamais réécrite.
+    # rentrée que prépare le jeu : les données sont de l'année précédente, convention historique) ou « non_confirme »
+    # (sens impossible à établir : calendrier historique conservé, confirmation demandée). L'année elle-même n'est
+    # jamais réécrite.
     sens_annee_scolaire = models.CharField(max_length=20, default="donnees", db_default="donnees")
+    # D'où vient ce sens : « creation » (choisi à la création), « migration » (établi d'après l'historique) ou
+    # « confirmation » (confirmé ou corrigé par un utilisateur autorisé).
+    sens_annee_origine = models.CharField(max_length=20, default="creation", db_default="creation")
     # Données fictives déclarées (jeu de test importé) ; un jeu de démonstration (source) l'est toujours.
     donnees_fictives = models.BooleanField(default=False, db_default=False)
     cree_le = models.DateTimeField(auto_now_add=True)

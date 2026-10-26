@@ -80,7 +80,7 @@ export interface CorpsCreationJeu {
   dateReference?: string
   /** Année scolaire des données importées, « AAAA-AAAA » (base des projections) : l'année en cours par défaut. */
   anneeScolaire?: string
-  /** Sens de l'année saisie : année des données (par défaut) ou rentrée préparée (données de l'année précédente). */
+  /** Sens de l'année saisie : année des données (enregistré explicitement par défaut) ou rentrée préparée. */
   sensAnneeScolaire?: SensAnneeScolaire
   /** Jeu de test fictif, déclaré par la personne qui l'importe : un bandeau l'indique dans les vues et les exports. */
   donneesFictives?: boolean
@@ -88,8 +88,10 @@ export interface CorpsCreationJeu {
 
 /**
  * Sens de l'année saisie d'un jeu : `donnees` (année des données observées, la base), `rentree_preparee` (rentrée que
- * le jeu prépare : les données sont celles de l'année précédente), `non_confirme` (jeu antérieur à cette distinction,
- * lu comme l'année des données en attendant une confirmation explicite).
+ * le jeu prépare : les données sont celles de l'année précédente, convention historique), `non_confirme` (sens
+ * impossible à établir : le calendrier historique est conservé, avec une demande de confirmation, sans jamais inventer
+ * l'année réelle des données). Une personne autorisée peut confirmer ou corriger le sens ; l'année saisie n'est jamais
+ * réécrite.
  */
 export type SensAnneeScolaire = 'donnees' | 'rentree_preparee' | 'non_confirme'
 
@@ -112,6 +114,8 @@ export interface JeuDeDonnees {
   anneeScolaire: string
   /** Sens de l'année saisie et année des données qui en découle (base des projections). */
   sensAnneeScolaire: SensAnneeScolaire
+  /** Comment le sens a été établi : à la création, par la migration des anciens jeux, ou par confirmation. */
+  sensAnneeOrigine: 'creation' | 'migration' | 'confirmation'
   anneeDonnees: string
   /** Origine fictive vérifiable : jeu de démonstration, ou marqueur déclaré ; jamais déduite du nom ni de la taille. */
   donneesFictives: boolean

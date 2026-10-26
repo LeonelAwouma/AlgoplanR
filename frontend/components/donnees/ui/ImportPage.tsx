@@ -258,6 +258,8 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
         enseignants: enseignants.id,
         ...(princeAttendu && fichierPrince ? { prince: fichierPrince.id } : {}),
         ...(anneeScolaire.trim() ? { anneeScolaire: anneeScolaire.trim() } : {}),
+        // Sens enregistré explicitement : l'année saisie est celle des données (base des projections).
+        sensAnneeScolaire: 'donnees' as const,
         ...(donneesFictives ? { donneesFictives: true } : {}),
       })
       setQualite(cree.qualite)
@@ -358,7 +360,7 @@ function ImportClasseurs({ estDrh, region }: { estDrh: boolean; region: string |
           <span className="hint">
             {anneeInvalide
               ? 'Saisissez deux années consécutives, par exemple 2026-2027.'
-              : 'L’année scolaire à laquelle se rapportent les fichiers (base des projections ; N+1 est l’année suivante). L’année en cours si vous laissez vide. Elle ne se modifie plus ensuite.'}
+              : 'L’année scolaire à laquelle se rapportent les fichiers (base des projections ; N+1 est l’année suivante). L’année en cours si vous laissez vide. Son sens (année des données) est enregistré avec le jeu ; une personne habilitée peut le corriger ensuite, avec trace au journal.'}
           </span>
           <label className="hint">
             <input type="checkbox" checked={donneesFictives} onChange={e => setDonneesFictives(e.target.checked)} />{' '}
