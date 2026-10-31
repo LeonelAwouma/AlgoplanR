@@ -11,7 +11,6 @@
 import type {
   ClassementEcole,
   EngineSettings,
-  ProvenanceGroupes,
   School,
   SchoolDiagnostic,
   StatutBesoin,
@@ -82,17 +81,12 @@ export interface EcoleDjango {
   rang_priorite?: number | null
   /** Référentiel d'octobre 2026 (absents des réponses plus anciennes). */
   Ce?: number | null
-  Ge?: number
-  Ge_provenance?: ProvenanceGroupes
   Me?: number | null
   multigrades_statut?: StatutMultigrades
-  minimum_provisoire?: boolean
   statut_besoin?: StatutBesoin
   xe_sur?: number
   xe_a_verifier?: number
   besoin_final_incertain?: boolean
-  be_min?: number
-  be_max?: number
   bmax_incertain?: boolean
   latitude?: number
   longitude?: number
@@ -194,17 +188,12 @@ export function versDiagnostic(e: EcoleDjango, ligne: number, settings: EngineSe
       remActuel: parEnseignant,
       methode: eleves == null ? 'repli_classes' : 'norme_eleves',
       besoinSelonRem: e.Ce ?? null,
-      groupesPedagogiques: e.Ge,
-      provenanceGroupes: e.Ge_provenance,
       classesMultigradesLues: e.Me ?? null,
       statutMultigrades: e.multigrades_statut,
-      minimumProvisoire: e.minimum_provisoire,
       statutBesoin: e.statut_besoin,
       excedentSur: e.xe_sur,
       excedentAVerifier: e.xe_a_verifier,
       besoinFinalIncertain: e.besoin_final_incertain,
-      besoinMin: e.be_min,
-      besoinMax: e.be_max,
       bmaxIncertain: e.bmax_incertain,
     },
     classement: classer(e),

@@ -81,9 +81,7 @@ const CONFIG: ConfigDjango = {
   besoin: {
     norme_eleves_par_maitre: 60,
     effectif_premiere_section: 20,
-    nombre_niveaux: 6,
-    niveaux_par_maitre_multigrade: 2,
-    minimum_selon_multigrades: true,
+    plancher_pedagogique: 3,
     double_flux_autorise: true,
   },
   regles_dreb: {

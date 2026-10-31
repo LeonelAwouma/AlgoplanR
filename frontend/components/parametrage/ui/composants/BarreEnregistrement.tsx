@@ -13,6 +13,8 @@ import { ErreurAction } from '@shared/ui/etats'
 export interface ProprietesBarreEnregistrement {
   modifie: boolean
   enCours: boolean
+  /** Saisie invalide : l'enregistrement est désactivé. */
+  invalide?: boolean
   erreur: unknown
   onEnregistrer: () => void
   onAnnuler: () => void
@@ -22,6 +24,7 @@ export interface ProprietesBarreEnregistrement {
 export function BarreEnregistrement({
   modifie,
   enCours,
+  invalide = false,
   erreur,
   onEnregistrer,
   onAnnuler,
@@ -36,7 +39,12 @@ export function BarreEnregistrement({
         </Notice>
       )}
       <div className="topbar-actions">
-        <button type="button" className="btn btn-primary" disabled={!modifie || enCours} onClick={onEnregistrer}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!modifie || enCours || invalide}
+          onClick={onEnregistrer}
+        >
           {enCours ? (
             <RefreshCw size={14} className="spin" aria-hidden="true" />
           ) : (

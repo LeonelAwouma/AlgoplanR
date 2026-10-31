@@ -217,7 +217,7 @@ def test_c_comparaison_des_deux_modes_sur_les_memes_ecoles_fictives(drh):
     arbre_c, _ = _lire(drh, f"jeux/{complet['id']}/territoires/arbre/")
     arbre_s, _ = _lire(drh, f"jeux/{seul['id']}/territoires/arbre/")
     scolaires = ("nb_ecoles", "besoin_postes", "salles_manquantes", "dotation_theorique", "effectif_total_eleves",
-                 "enseignants_en_poste", "nb_ecoles_minimum_provisoire", "nb_ecoles_besoin_provisoire",
+                 "enseignants_en_poste", "nb_ecoles_besoin_provisoire",
                  "multigrades_non_renseignes", "besoin_selon_rem")
     for k in scolaires:
         assert arbre_c["totaux"][k] == arbre_s["totaux"][k], k

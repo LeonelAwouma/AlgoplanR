@@ -60,28 +60,17 @@ describe('Règles du besoin (Référentiel)', () => {
     JSON.stringify(versConfigDjango(modifier(reglages as unknown as Objet, chemin) as never)) !== reference
 
   it('les réglages lus par le moteur sont transmis', () => {
-    for (const cle of [
-      'elevesParMaitre',
-      'toleranceArrondi',
-      'niveauxParMaitre',
-      'ageRetraite',
-      'plancherPedagogique',
-      'groupesSecours',
-    ]) {
+    for (const cle of ['elevesParMaitre', 'toleranceArrondi', 'ageRetraite', 'plancherPedagogique']) {
       assert.ok(transmis(['besoin', cle]), `besoin.${cle} doit être transmis`)
     }
     const config = versConfigDjango({ besoin: { ...reglages.besoin, doubleFluxAutorise: false } })
     assert.equal(config.besoin?.double_flux_autorise, false)
-    const prudence = versConfigDjango({
-      besoin: { ...reglages.besoin, mobiliserExcedentIncertain: true, groupesDepuisClassesOuvertes: true },
-    })
-    assert.equal(prudence.besoin?.mobiliser_excedent_incertain, true)
-    assert.equal(prudence.besoin?.groupes_depuis_classes_ouvertes, true)
   })
 
-  it('la norme de 74,4 garde sa décimale', () => {
-    assert.equal(reglages.besoin.elevesParMaitre, 74.4)
-    assert.equal(versConfigDjango(reglages).besoin?.norme_eleves_par_maitre, 74.4)
+  it('la norme de 74,4 reste sélectionnable et garde sa décimale', () => {
+    assert.equal(reglages.besoin.elevesParMaitre, 60)
+    const rem = versConfigDjango({ besoin: { ...reglages.besoin, elevesParMaitre: 74.4 } })
+    assert.equal(rem.besoin?.norme_eleves_par_maitre, 74.4)
   })
 
   it('les réglages que le calcul n’utilise pas ne sont pas transmis (affichés « non appliqué »)', () => {

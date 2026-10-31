@@ -120,19 +120,20 @@ def test_donnees_sige_non_disponibles(drh, jeu):
     for i in ("Chargés de classe déclarés au SIGE", "Agents hors cartographie",
               "Écart de couverture SIGE − cartographie"):
         assert noms[i]["valeur"] is None and noms[i]["source_manquante"]
-    assert any(h["code"] == "groupes_secours" and h["a_valider"] for h in p["hypotheses"])
+    codes = {h["code"] for h in p["hypotheses"]}
+    assert {"formule_besoin", "norme", "tolerance", "plancher"} <= codes
+    assert not codes & {"groupes_secours", "regroupement", "classes_ouvertes", "excedent_estime"}
 
 
-def test_minimum_provisoire_signale_sur_une_base_sans_multigrades(centre):
+def test_multigrades_non_renseignes_ne_rendent_plus_le_besoin_provisoire(centre):
     etab, ens = _national()
     for x in etab:
         x["Classes_Multigrades"] = None
     jeu = _importer(centre, etab, ens).json()["id"]
     p = get(centre, f"jeux/{jeu}/planification/previsionnel/")
-    assert p["ecoles_minimum_provisoire"] == p["ecoles"] > 0
-    assert p["message_minimum_provisoire"].startswith("Le nombre de classes multigrades n'est pas renseigné.")
-    assert _lignes(p)["part_provisoire"]["valeurs"][0] == 100.0
-    assert p["minimum_pedagogique"]["secours"] == p["ecoles"]
+    assert p["ecoles"] > 0 and p["fiabilite"]["besoin_provisoire"] == p["ecoles_eleves_inconnus"]
+    assert "ecoles_minimum_provisoire" not in p and "minimum_pedagogique" not in p
+    assert "part_provisoire" not in _lignes(p)
 
 
 def test_perimetre_du_delegue(centre):
@@ -170,20 +171,18 @@ def test_raisons_des_rem_indisponibles_visibles(centre):
         assert any(r and "effectif d'élèves inconnu" in r for r in raisons), cle
 
 
-def test_fiabilite_minimum_provisoire_distinct_du_besoin_incertain(centre):
+def test_fiabilite_du_besoin_limitee_aux_effectifs_d_eleves_inconnus(centre):
     etab, ens = _national()
     for x in etab:
         x["Classes_Multigrades"] = None
     jeu = _importer(centre, etab, ens).json()["id"]
     p = get(centre, f"jeux/{jeu}/planification/previsionnel/")
     f = p["fiabilite"]
-    assert f["minimum_provisoire"] == p["ecoles"]
-    assert f["besoin_provisoire"] + f["besoin_estime"] + f["besoin_confirme"] == p["ecoles"]
-    assert f["minimum_provisoire_sans_effet"] == f["besoin_confirme"]
-    assert f["besoin_provisoire"] <= f["minimum_provisoire"]
+    assert set(f) == {"besoin_provisoire", "besoin_confirme"}
+    assert f["besoin_provisoire"] + f["besoin_confirme"] == p["ecoles"]
+    assert f["besoin_provisoire"] == p["ecoles_eleves_inconnus"]
     l = _lignes(p)
-    assert l["part_besoin_incertain"]["valeurs"][0] == round(100 * (f["besoin_provisoire"] + f["besoin_estime"])
-                                                            / p["ecoles"], 1)
+    assert l["part_besoin_incertain"]["valeurs"][0] == round(100 * f["besoin_provisoire"] / p["ecoles"], 1)
 
 
 def test_avertissement_sur_les_personnels_de_la_cartographie(drh, jeu):

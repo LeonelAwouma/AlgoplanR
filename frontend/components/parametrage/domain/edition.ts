@@ -13,6 +13,33 @@ export function nombreSaisi(valeur: string): number {
   return valeur === '' ? 0 : Number(valeur)
 }
 
+/** Minimum pédagogique commun M : un entier de 1 à 30. Retourne le message d'erreur, ou `null` si la valeur est valide. */
+export const erreurPlancher = (m: number): string | null =>
+  Number.isInteger(m) && m >= 1 && m <= 30 ? null : 'Le minimum pédagogique est un entier de 1 à 30.'
+
+/** Norme d'encadrement R : strictement positive. */
+export const erreurNorme = (r: number): string | null =>
+  Number.isFinite(r) && r > 0 ? null : 'La norme d’encadrement doit être strictement positive.'
+
+/** Tolérance pédagogique T : de 0 à la norme (exclue). */
+export const erreurTolerance = (t: number, r: number): string | null =>
+  Number.isFinite(t) && t >= 0 && t < Math.max(r, 1)
+    ? null
+    : 'La tolérance doit être comprise entre 0 et la norme (exclue).'
+
+/** Erreurs de saisie des trois paramètres du besoin (M, R, T) ; vide quand ils sont tous valides. */
+export function erreursBesoin(b: {
+  plancherPedagogique: number
+  elevesParMaitre: number
+  toleranceArrondi: number
+}): string[] {
+  return [
+    erreurPlancher(b.plancherPedagogique),
+    erreurNorme(b.elevesParMaitre),
+    erreurTolerance(b.toleranceArrondi, b.elevesParMaitre),
+  ].filter((e): e is string => e !== null)
+}
+
 /** Arrondi au centième, sans les artefacts de la virgule flottante (0,1 + 0,2). */
 function centieme(valeur: number): number {
   return Math.round(valeur * 100) / 100

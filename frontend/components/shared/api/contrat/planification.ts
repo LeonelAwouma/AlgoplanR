@@ -453,7 +453,6 @@ export interface ContextePrevisionnel {
   personnelsNominatifs: number | null
   ecolesDonneesIncompletes: number
   ecolesElevesInconnus: number
-  ecolesMinimumProvisoire: number
   ecolesSallesFluxInconnu: number
   versionPlanification: number | null
   calculeLe: string | null
@@ -582,22 +581,14 @@ export interface PrevisionnelComplet {
   remReference: number
   remIndisponible: string | null
   ecoles: number
-  ecolesMinimumProvisoire: number
   ecolesElevesInconnus: number
-  /** Phrase du mode « non renseigné », `null` quand toutes les écoles renseignent leurs groupes. */
-  messageMinimumProvisoire: string | null
-  /** Écoles selon la provenance de leurs groupes pédagogiques. */
-  minimumPedagogique: { observe: number; estime: number; secours: number; indetermine: number }
-  /** Minimum provisoire et besoin final incertain, comptés séparément (écoles). */
+  /** Écoles au besoin provisoire (effectif d'élèves inconnu : le besoin se limite au minimum pédagogique commun). */
   fiabilite?: {
-    minimumProvisoire: number
-    minimumProvisoireSansEffet: number
     besoinProvisoire: number
-    besoinEstime: number
     besoinConfirme: number
   }
   /** Postes manquants (Σ b à la base) selon la fiabilité du besoin. */
-  besoinsParStatut: { confirme: number; estime: number; provisoire: number }
+  besoinsParStatut: { confirme: number; provisoire: number }
   nonDisponibles: DonneeNonDisponible[]
   hypotheses: HypotheseMethodologique[]
 }

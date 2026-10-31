@@ -88,8 +88,7 @@ def _sommer(par_region: List[Dict[str, List[dict]]], horizon: int) -> Dict[str, 
     cles = ("effectif_debut", "departs_retraite", "departs_attrition", "directeurs_decharges", "recrutement",
             "eleves", "eleves_brut", "besoin", "quota_calcule", "decharges_avant", "decharges_cumulees",
             "disponibles_debut", "disponibles_fin", "effectif_fin", "besoin_non_couvert", "somme_pe", "somme_me",
-            "somme_de", "somme_ke", "ressources_vivier", "quota_avant_plafond", "ecoles", "ecoles_eleves_inconnus",
-            "ecoles_minimum_provisoire")
+            "somme_de", "somme_ke", "ressources_vivier", "quota_avant_plafond", "ecoles", "ecoles_eleves_inconnus")
     out: Dict[str, List[dict]] = {}
     for s in SCENARIOS:
         lignes = []

@@ -51,7 +51,9 @@ def test_diagnostic_et_prevision_nationale_en_temps_raisonnable():
     enrichies = enrichir_ecoles(ecoles, cfg)
     t_diag = time.perf_counter() - t0
     assert len(enrichies) == NB_ECOLES
-    assert sum(1 for e in enrichies if e.ind.minimum_provisoire) == NB_ECOLES // 3
+    # Classes_Multigrades non renseigné (un tiers des écoles) : sans effet sur le besoin, qui ne dépend que des élèves.
+    assert sum(1 for e in enrichies if e.ind.multigrades_statut == "non_renseigne") == NB_ECOLES // 3
+    assert all((e.ind.statut_besoin == "provisoire") == (not e.effectif_connu) for e in enrichies)
 
     t0 = time.perf_counter()
     proj, _ = projeter_ecoles(ecoles, enseignants, cfg, hyp)
@@ -61,7 +63,7 @@ def test_diagnostic_et_prevision_nationale_en_temps_raisonnable():
     p = prev.construire(proj, enseignants, traj, suivi, hyp, annee_scolaire="2026-2027")
     t_prev = time.perf_counter() - t0
 
-    assert p["ecoles"] == NB_ECOLES and p["ecoles_minimum_provisoire"] == NB_ECOLES // 3
+    assert p["ecoles"] == NB_ECOLES and p["ecoles_eleves_inconnus"] == sum(1 for e in enrichies if not e.effectif_connu)
     assert [g["code"] for g in p["groupes"]] == ["A", "B", "C", "D", "E"]
     assert t_diag < 60, f"diagnostic : {t_diag:.1f} s"
     assert t_prev < 240, f"prévisionnel : {t_prev:.1f} s"

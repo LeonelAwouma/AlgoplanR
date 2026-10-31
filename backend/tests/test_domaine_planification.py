@@ -3,7 +3,16 @@ import pytest
 
 from domaine.donnees.modeles import Ecole, Enseignant
 from domaine.nominations import cycle
-from domaine.parametrage.config import defaut
+from domaine.parametrage.config import defaut as _defaut
+
+
+def defaut():
+    """Référentiel de ces calculs faits à la main : norme de 74,4 et minimum pédagogique commun de 6, réglés
+    explicitement (les valeurs par défaut sont désormais 60 et 3). La méthode de calcul est la même pour toutes les
+    écoles ; seuls les trois paramètres changent."""
+    cfg = _defaut()
+    cfg["besoin"].update({"norme_eleves_par_maitre": 74.4, "plancher_pedagogique": 6})
+    return cfg
 from domaine.planification import parametres as par
 from domaine.planification.projection import annee_depart, calculer_annees, projeter_ecoles
 from domaine.planification.suivi import appliquer_suivi

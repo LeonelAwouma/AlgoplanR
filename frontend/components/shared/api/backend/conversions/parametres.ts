@@ -49,15 +49,9 @@ export interface ConfigDjango {
   besoin: {
     norme_eleves_par_maitre: number
     effectif_premiere_section: number
-    nombre_niveaux: number
-    niveaux_par_maitre_multigrade: number
-    minimum_selon_multigrades: boolean
+    /** Minimum pédagogique commun M. */
+    plancher_pedagogique: number
     double_flux_autorise: boolean
-    /** Référentiel d'octobre 2026 (absents d'un serveur plus ancien). */
-    plancher_pedagogique?: number
-    groupes_secours?: number
-    groupes_depuis_classes_ouvertes?: boolean
-    mobiliser_excedent_incertain?: boolean
   }
   regles_dreb: {
     phase1_voeux_actif: boolean
@@ -78,10 +72,9 @@ const SITUATIONS_DJANGO = ['celibataire', 'divorce', 'veuf', 'marie']
 const REGLES_FIXES: Omit<EngineSettings, 'scoring'> & { scoring: Omit<EngineSettings['scoring'], 'seuils'> } = {
   anneeScolaire: '',
   besoin: {
-    elevesParMaitre: 74.4,
+    elevesParMaitre: 60,
     toleranceArrondi: 20,
-    niveauxParMaitre: 2,
-    minimumSelonMultigrades: true,
+    plancherPedagogique: 3,
     doubleFluxAutorise: true,
     ageRetraite: 60,
   },
@@ -140,13 +133,8 @@ export function versEngineSettings(c: ConfigDjango, anneeScolaire: string = anne
       ageRetraite: c.seuils.age_retraite_ans,
       elevesParMaitre: c.besoin.norme_eleves_par_maitre,
       toleranceArrondi: c.besoin.effectif_premiere_section,
-      niveauxParMaitre: c.besoin.niveaux_par_maitre_multigrade,
-      minimumSelonMultigrades: c.besoin.minimum_selon_multigrades,
-      doubleFluxAutorise: c.besoin.double_flux_autorise,
       plancherPedagogique: c.besoin.plancher_pedagogique,
-      groupesSecours: c.besoin.groupes_secours,
-      groupesDepuisClassesOuvertes: c.besoin.groupes_depuis_classes_ouvertes,
-      mobiliserExcedentIncertain: c.besoin.mobiliser_excedent_incertain,
+      doubleFluxAutorise: c.besoin.double_flux_autorise,
     },
     priorite: { ...f.priorite, coefAccessibilite: c.vulnerabilite.t1, coefSecurite: c.vulnerabilite.t2 },
     mobilite: {
@@ -246,13 +234,8 @@ export function versConfigDjango(p: MiseAJourParametres): Partial<ConfigDjango> 
 
   poser(c, ['besoin', 'norme_eleves_par_maitre'], p.besoin?.elevesParMaitre)
   poser(c, ['besoin', 'effectif_premiere_section'], p.besoin?.toleranceArrondi)
-  poser(c, ['besoin', 'niveaux_par_maitre_multigrade'], p.besoin?.niveauxParMaitre)
-  poser(c, ['besoin', 'minimum_selon_multigrades'], p.besoin?.minimumSelonMultigrades)
   poser(c, ['besoin', 'double_flux_autorise'], p.besoin?.doubleFluxAutorise)
   poser(c, ['besoin', 'plancher_pedagogique'], p.besoin?.plancherPedagogique)
-  poser(c, ['besoin', 'groupes_secours'], p.besoin?.groupesSecours)
-  poser(c, ['besoin', 'groupes_depuis_classes_ouvertes'], p.besoin?.groupesDepuisClassesOuvertes)
-  poser(c, ['besoin', 'mobiliser_excedent_incertain'], p.besoin?.mobiliserExcedentIncertain)
   poser(c, ['vulnerabilite', 't1'], p.priorite?.coefAccessibilite)
   poser(c, ['vulnerabilite', 't2'], p.priorite?.coefSecurite)
   poser(c, ['regles_dreb', 'phase1_voeux_actif'], p.mobilite?.phaseVoeux)

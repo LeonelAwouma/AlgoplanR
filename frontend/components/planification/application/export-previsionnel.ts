@@ -54,20 +54,13 @@ const NON_DISPONIBLE = 'Non disponible'
 const nomFichier = (p: PrevisionnelComplet, extension: string) =>
   `projection-5-ans-${p.perimetre.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}.${extension}`
 
-/** Lignes de la feuille « Minimum pédagogique » : la méthode retenue école par école, comptée. */
+/** Lignes de la feuille « Minimum pédagogique » : la méthode unique du minimum commun, comptée. */
 export function lignesMinimumPedagogique(p: PrevisionnelComplet): (string | number)[][] {
-  const m = p.minimumPedagogique
   const b = p.besoinsParStatut
   return [
     ['Écoles du périmètre', p.ecoles],
-    ['Groupes observés (Classes_Ouvertes, seulement si le réglage est activé)', m.observe],
-    ['Groupes estimés à partir de Classes_Multigrades (G = 6 − M)', m.estime],
-    ['Groupes de secours (Classes_Multigrades non renseigné) : besoin provisoire', m.secours],
-    ['Groupes indéterminés', m.indetermine],
-    ['Écoles dont le minimum pédagogique est provisoire', p.ecolesMinimumProvisoire],
     ['Écoles dont l’effectif d’élèves est inconnu', p.ecolesElevesInconnus],
     ['Postes manquants : besoin confirmé', b.confirme],
-    ['Postes manquants : besoin estimé', b.estime],
     ['Postes manquants : besoin provisoire', b.provisoire],
     ...lignesFiabilite(p),
   ]
@@ -175,7 +168,6 @@ export function feuillesPrevisionnel(p: PrevisionnelComplet): FeuilleXlsx[] {
           `Cohérence${a.gravite === 'important' ? ' (important)' : ''}`,
           a.message,
         ]),
-        ...(p.messageMinimumProvisoire ? [['Classes multigrades', p.messageMinimumProvisoire]] : []),
         ...(p.avertissementPersonnels ? [['Personnels enseignants', p.avertissementPersonnels]] : []),
         ...raisonsIndisponibles(p).map(r => [`Non disponible : ${r.cellules.join(' ; ')}`, r.raison]),
       ],
@@ -256,20 +248,6 @@ export function documentPrevisionnel(p: PrevisionnelComplet): Document {
             text: `REM de référence : ${texte(p.remReference)} élèves par enseignant. ${p.ecoles.toLocaleString('fr-FR')} écoles dans le périmètre.`,
           }),
           ...(p.hypotheseTransition ? [new Paragraph({ spacing: { before: 120 }, text: p.hypotheseTransition })] : []),
-          ...(p.messageMinimumProvisoire
-            ? [
-                new Paragraph({
-                  spacing: { before: 120 },
-                  children: [
-                    new TextRun({
-                      text: `${p.ecolesMinimumProvisoire.toLocaleString('fr-FR')} école(s) : `,
-                      bold: true,
-                    }),
-                    new TextRun(p.messageMinimumProvisoire),
-                  ],
-                }),
-              ]
-            : []),
           ...(p.avertissementPersonnels
             ? [
                 new Paragraph({

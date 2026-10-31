@@ -9,11 +9,9 @@
 import type { SchoolDiagnostic } from '@shared/api'
 import {
   LIBELLE_CLASSEMENT,
-  LIBELLE_PROVENANCE_GROUPES,
   LIBELLE_SOUS_SYSTEME,
   LIBELLE_STATUT_BESOIN,
-  MESSAGE_MINIMUM_SANS_EFFET,
-  MESSAGE_MULTIGRADES_NON_RENSEIGNES,
+  MESSAGE_EFFECTIF_INCONNU,
 } from '@shared/kernel'
 import { Notice, Panel, Pill, fmt, fmtDec, fmtPct, type Tone } from '@shared/ui/commun'
 
@@ -80,16 +78,11 @@ export function CalculBesoinEcole({ diagnostic: d, elevesParMaitre }: Proprietes
         )}
       </p>
 
-      {calcul.minimumProvisoire &&
-        (calcul.statutBesoin === 'confirme' ? (
-          <Notice tone="neutral" title="Minimum pédagogique provisoire, besoin final confirmé.">
-            {MESSAGE_MULTIGRADES_NON_RENSEIGNES} {MESSAGE_MINIMUM_SANS_EFFET}
-          </Notice>
-        ) : (
-          <Notice tone="warn" title="Besoin provisoire.">
-            {MESSAGE_MULTIGRADES_NON_RENSEIGNES}
-          </Notice>
-        ))}
+      {calcul.statutBesoin === 'provisoire' && (
+        <Notice tone="warn" title="Besoin provisoire.">
+          {MESSAGE_EFFECTIF_INCONNU}
+        </Notice>
+      )}
       <div className="situation-block">
         <Ligne libelle="N — élèves attendus" valeur={calcul.eleves == null ? 'Non renseigné' : fmt(calcul.eleves)} />
         <Ligne
@@ -113,39 +106,18 @@ export function CalculBesoinEcole({ diagnostic: d, elevesParMaitre }: Proprietes
         {calcul.statutMultigrades !== undefined && (
           <Ligne libelle="Classes multigrades (fichier)" valeur={multigrades(calcul)} />
         )}
-        {calcul.groupesPedagogiques !== undefined && (
-          <Ligne
-            libelle={`G — groupes pédagogiques${calcul.provenanceGroupes ? ` : ${LIBELLE_PROVENANCE_GROUPES[calcul.provenanceGroupes].toLowerCase()}` : ''}`}
-            valeur={fmt(calcul.groupesPedagogiques)}
-          />
-        )}
-        <Ligne
-          libelle={
-            calcul.groupesPedagogiques !== undefined ? 'm — minimum pédagogique, max(3 ; G)' : 'm — minimum pédagogique'
-          }
-          valeur={fmt(calcul.minimumPedagogique)}
-        />
-        <Ligne libelle="D — dotation théorique, max(P ; m)" valeur={fmt(calcul.dotation)} />
+        <Ligne libelle="m — minimum pédagogique commun" valeur={fmt(calcul.minimumPedagogique)} />
+        <Ligne libelle="B = D — besoin théorique, max(m ; P)" valeur={fmt(calcul.dotation)} />
         <Ligne
           libelle="BMAX — maîtres affectables selon les salles"
           valeur={calcul.bmax == null ? 'Salles non renseignées' : fmt(calcul.bmax)}
         />
         <Ligne libelle="K — cible, min(D ; BMAX)" valeur={fmt(calcul.cible)} />
-        <Ligne
-          libelle={
-            calcul.besoinFinalIncertain &&
-            calcul.besoinMin !== undefined &&
-            calcul.besoinMax !== undefined &&
-            calcul.besoinMin !== calcul.besoinMax
-              ? `b — besoin en maîtres (entre ${fmt(calcul.besoinMin)} et ${fmt(calcul.besoinMax)} selon l’organisation réelle de l’école)`
-              : 'b — besoin en maîtres'
-          }
-          valeur={fmt(calcul.besoin)}
-        />
+        <Ligne libelle="b — besoin en maîtres" valeur={fmt(calcul.besoin)} />
         <Ligne libelle="x — excédent théorique" valeur={fmt(calcul.excedent)} />
         {!!calcul.excedentAVerifier && (
           <Ligne
-            libelle="dont excédent à vérifier (dépend d’une hypothèse sur les groupes : aucune sortie automatique)"
+            libelle="dont excédent en attente (effectif d’élèves inconnu : aucune sortie automatique)"
             valeur={fmt(calcul.excedentAVerifier)}
           />
         )}
@@ -166,14 +138,6 @@ export function CalculBesoinEcole({ diagnostic: d, elevesParMaitre }: Proprietes
         <p className="hint">
           Le fichier ne précise pas si les salles fonctionnent en simple ou en double flux : BMAX compte le total des
           salles en simple flux.
-        </p>
-      )}
-
-      {calcul.provenanceGroupes === 'estime' && !calcul.minimumProvisoire && (
-        <p className="hint">
-          Minimum pédagogique estimé : chaque classe multigrade est supposée réunir deux années d’études, sans
-          chevauchement. Tant que ce regroupement n’est pas confirmé, l’excédent qui en découle reste à vérifier
-          {calcul.statutBesoin === 'confirme' ? ' ; le besoin final, lui, ne dépend pas de ce regroupement' : ''}.
         </p>
       )}
 

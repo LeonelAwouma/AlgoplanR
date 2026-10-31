@@ -39,7 +39,7 @@ def _changer(cfg, chemin):
 
 
 def _empreinte(cfg):
-    e, n = construire_jeu_demonstration(11, 70, 700)
+    e, n = construire_jeu_demonstration(21, 100, 500)
     # Du relief : structures d'encadrement, motifs ciblés, ancienneté et âges variés, pour que les ajustements et le
     # barème aient prise.
     for i, l in enumerate(e):

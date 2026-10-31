@@ -279,7 +279,7 @@ export interface CalculBesoin {
   enseignantsRetenus: number
   /** P : maîtres nécessaires selon la norme d'élèves par maître. */
   norme: number
-  /** m : minimum pédagogique. */
+  /** m : minimum pédagogique commun. */
   minimumPedagogique: number
   /** D = max(P ; m). */
   dotation: number
@@ -304,40 +304,29 @@ export interface CalculBesoin {
    */
   /** C = ⌈N ÷ REM de référence⌉ : enseignants nécessaires par ratio, distinct de P ; `null` sans effectif connu. */
   besoinSelonRem?: number | null
-  /** G : groupes pédagogiques retenus pour le minimum m = max(plancher ; G). */
-  groupesPedagogiques?: number
-  /** Provenance de G : observé (classes ouvertes), estimé (6 − classes multigrades), secours ou indéterminé. */
-  provenanceGroupes?: ProvenanceGroupes
-  /** Classes multigrades lues dans le fichier (`null` : cellule vide ou illisible). */
+  /** Classes multigrades lues dans le fichier (`null` : cellule vide ou illisible) : information sans effet sur le besoin. */
   classesMultigradesLues?: number | null
   /** Lecture de la colonne Classes_Multigrades. */
   statutMultigrades?: StatutMultigrades
-  /** Minimum pédagogique fondé sur l'hypothèse de secours (Classes_Multigrades non renseigné). */
-  minimumProvisoire?: boolean
-  /**
-   * Fiabilité du besoin final (b et x), distincte de celle du minimum : un minimum provisoire laisse le besoin
-   * « confirmé » quand l'effectif d'élèves ou les salles fixent le résultat.
-   */
+  /** Fiabilité du besoin (b et x) : provisoire quand l'effectif d'élèves est inconnu, confirmé sinon. */
   statutBesoin?: StatutBesoin
-  /** Besoin final incertain (estimé ou provisoire). */
+  /** Besoin provisoire (effectif d'élèves inconnu). */
   besoinFinalIncertain?: boolean
-  /** Fourchette du besoin b sur les organisations pédagogiques plausibles de l'école. */
-  besoinMin?: number
-  besoinMax?: number
-  /** Part de l'excédent mobilisable sans validation administrative. */
+  /** Part de l'excédent mobilisable (effectif d'élèves connu). */
   excedentSur?: number
-  /** Part de l'excédent qui dépend d'une hypothèse sur les groupes : aucune sortie automatique. */
+  /** Part de l'excédent tenue en attente : effectif d'élèves inconnu, aucune sortie automatique. */
   excedentAVerifier?: number
   /** Salles connues sans leur mode d'utilisation (simple / double flux) : BMAX approché par le total des salles. */
   bmaxIncertain?: boolean
 }
 
-/** Provenance du nombre de groupes pédagogiques G d'une école. */
-export type ProvenanceGroupes = 'observe' | 'estime' | 'secours' | 'indetermine'
 /** Lecture de la colonne Classes_Multigrades. */
 export type StatutMultigrades =
   'renseigne' | 'non_renseigne' | 'invalide' | 'incoherent' | 'historique_oui' | 'historique_non'
-/** Fiabilité d'un besoin : confirmé (données observées), estimé (hypothèse de regroupement) ou provisoire. */
+/**
+ * Fiabilité d'un besoin : confirmé (effectif d'élèves connu) ou provisoire (effectif inconnu). « estime » ne se
+ * rencontre que dans d'anciennes simulations archivées, calculées avec l'ancienne méthode multigrade.
+ */
 export type StatutBesoin = 'confirme' | 'estime' | 'provisoire'
 
 /** Poids de vulnérabilité et indice de priorité d'une école ou d'une structure (référentiel §3.1). */

@@ -51,6 +51,9 @@ def _ignoree(url):
 def jeu_et_scenario(drh):
     r = drh.post(B + "jeux/demonstration/", {"nb_ecoles": 25, "nb_enseignants": 180}, content_type="application/json")
     jeu = r.json()["id"]
+    # Minimum pédagogique commun de 6 : le jeu fictif garde des postes ouverts pour exercer les routes d'écriture.
+    drh.patch(B + f"jeux/{jeu}/parametres/", {"besoin": {"plancher_pedagogique": 6}}, content_type="application/json")
+    drh.post(B + f"jeux/{jeu}/scenarios/base/")
     return jeu, drh.get(B + f"jeux/{jeu}/scenarios/").json()[0]["id"]
 
 

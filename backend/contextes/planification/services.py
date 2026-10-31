@@ -486,7 +486,7 @@ def contexte_jeu(ctx: Contexte, p: dict, ecoles: List[ProjectionEcole]) -> dict:
     jamais croire à une couverture nationale qu'il n'a pas."""
     jeu = ctx.jeu
     ids = {e.id for e in ecoles}
-    incompletes = sum(1 for e in ecoles if not e.eleves_connus or e.minimum_provisoire or e.bmax_incertain)
+    incompletes = sum(1 for e in ecoles if not e.eleves_connus or e.bmax_incertain)
     return {
         "jeu_nom": jeu.nom, "jeu_source": jeu.source, "jeu_portee": jeu.portee, "jeu_region": jeu.region,
         # Année saisie à la création, son sens, et année des données qui en découle (la base des projections).
@@ -505,7 +505,6 @@ def contexte_jeu(ctx: Contexte, p: dict, ecoles: List[ProjectionEcole]) -> dict:
         "mode_import": "complet" if jeu.nominatif_disponible else "etablissements_seuls",
         "ecoles_donnees_incompletes": incompletes,
         "ecoles_eleves_inconnus": sum(1 for e in ecoles if not e.eleves_connus),
-        "ecoles_minimum_provisoire": sum(1 for e in ecoles if e.minimum_provisoire),
         "ecoles_salles_flux_inconnu": sum(1 for e in ecoles if e.bmax_incertain),
         "version_planification": ctx.etat.version if ctx.etat else None,
     }
@@ -701,8 +700,8 @@ def reserves_validation_quotas(ctx: Contexte, annee: str, region: str = "") -> L
         ajouter("age_mesure_non_precisee", "Âges supposés mesurés au début de N+1 : les retraites sont provisoires.")
     provisoires = sum(1 for e in ecoles if e.statut_besoin == "provisoire")
     if provisoires:
-        ajouter("besoin_provisoire", f"{provisoires} école(s) au besoin final provisoire : il sera recalculé lorsque "
-                                     "le nombre de classes multigrades sera renseigné.")
+        ajouter("besoin_provisoire", f"{provisoires} école(s) au besoin provisoire : l'effectif d'élèves est inconnu, "
+                                     "le besoin se limite au minimum pédagogique commun.")
     ligne = next((a for a in annees(ctx, p, ecoles, suivi=False) if a["annee"] == annee), None)
     if ligne and (ligne.get("depassement_plafond") or 0) > 0:
         ajouter("depassement_plafond", f"Plafond {ligne['plafond']}, retraites à remplacer "

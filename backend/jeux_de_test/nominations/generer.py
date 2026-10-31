@@ -145,7 +145,7 @@ NOMINATIONS = [
     _n("MAT00207", "ECO012_P2", statut="MISE_EN_OEUVRE", reference="ACTE-2027-001", date_effet="2027-09-01",
        motif="Poste vacant en zone verte"),
     _n("MAT00159", "ECO012_P3", statut="VALIDEE", reference="DEC-2027-014", motif="Commission du 12 juin"),
-    _n("MAT00273", "ECO008_P2", statut="PROPOSEE", motif="Même région que l'école d'origine"),
+    _n("MAT00224", "ECO008_P2", statut="PROPOSEE", motif="Même région que l'école d'origine"),
     _n("REI-0001", "ECO011_P3", statut="VALIDEE", reference="DEC-2027-015", motif="Réintégration à Yaoundé"),
     _n("DET-0001", ecole="ECO012", statut="VALIDEE", reference="DEC-2027-016",
        motif="Fin de détachement : première école libre"),

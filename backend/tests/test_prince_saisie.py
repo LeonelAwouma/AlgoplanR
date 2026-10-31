@@ -36,15 +36,15 @@ def test_les_rejets_du_pretraitement_deviennent_des_motifs_de_refus():
 
 def test_l_ecole_de_destination_qui_passe_en_excedent_est_signalee():
     cfg = defaut()
-    # B (180 élèves) a déjà 6 maîtres pour une dotation de 6 : un de plus la fait passer en excédent.
-    ecoles = enrichir_ecoles([_ecole("A", 240, 5), _ecole("B", 180, 6)], cfg)
+    # B (180 élèves) a déjà 3 maîtres pour une dotation de 3 : un de plus la fait passer en excédent.
+    ecoles = enrichir_ecoles([_ecole("A", 240, 5), _ecole("B", 180, 3)], cfg)
     assert ecoles[1].ind.xe == 0
     app = appliquer_effets_prince(ecoles, [_ens("X", "A")], [{"id_ens": "X", "id_etab": "B", "motif": "d"}], cfg)
     d = app.decisions[0]
     assert d.statut == APPLIQUE_AVEC_ALERTE
     assert any("destination passe en excédent" in a for a in d.alertes)
     # Une école de destination en déficit n'a pas cette alerte.
-    ecoles = enrichir_ecoles([_ecole("A", 240, 5), _ecole("B", 180, 3)], cfg)
+    ecoles = enrichir_ecoles([_ecole("A", 240, 5), _ecole("B", 180, 2)], cfg)
     app = appliquer_effets_prince(ecoles, [_ens("X", "A")], [{"id_ens": "X", "id_etab": "B", "motif": "d"}], cfg)
     assert not any("passe en excédent" in a for a in app.decisions[0].alertes)
 

@@ -98,11 +98,8 @@ class ProjectionEcole:
     excedents: List[int] = field(default_factory=list)
     #: Excédent sûr de chaque année (après les retraites de l'année, élèves projetés).
     excedents_surs: List[int] = field(default_factory=list)
-    #: Excédent initial mobilisable sans validation (hors part qui dépend d'un minimum pédagogique non observé).
+    #: Excédent initial mobilisable (nul tant que l'effectif d'élèves de l'école est inconnu).
     excedent_sur_initial: int = 0
-    #: Minimum pédagogique fondé sur l'hypothèse de secours (Classes_Multigrades non renseigné ou illisible).
-    minimum_provisoire: bool = False
-    provenance_groupes: str = "secours"
     statut_besoin: str = "provisoire"
     bmax_incertain: bool = False
     #: Effectif déclaré à l'import (Enseignants_Actuels), avant les mouvements du scénario retenu.
@@ -241,7 +238,6 @@ def projeter_ecoles(ecoles: Iterable[Ecole], enseignants: Iterable[Enseignant], 
             effectif_initial=initial, arrivees=arrivees.get(e.id, 0), effectif_declare=arrondi(e.enseignants_actuels),
             deficit_initial=int(ind0.be), excedent_initial=int(ind0.xe), cible_initial=int(ind0.Ke),
             eleves_initial=e.effectif_eleves, excedent_sur_initial=int(ind0.xe_sur),
-            minimum_provisoire=ind0.minimum_provisoire, provenance_groupes=ind0.Ge_provenance,
             statut_besoin=ind0.statut_besoin, bmax_incertain=ind0.bmax_incertain, pe_initial=ind0.Pe,
             me_initial=ind0.me, de_initial=ind0.De)
         par_annee = retraites.get(e.id, [0] * n)
@@ -359,7 +355,6 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
     # répartir. Après, l'attrition, les directeurs et les recrutements ne sont projetés que pour le périmètre entier :
     # sans école à effectif inconnu le périmètre EST la population commune ; sinon le taux n'est pas calculable.
     nb_inconnues = sum(1 for e in ecoles if not e.eleves_connus)
-    nb_provisoires = sum(1 for e in ecoles if e.minimum_provisoire)
     initial_connus = somme(lambda e: e.effectif_initial if e.eleves_connus else 0)
     effectif = initial                      # S(t) : stock administratif en début d'année
     decharges = 0                           # H(t − 1) : décharges cumulées avant l'année
@@ -425,7 +420,7 @@ def calculer_annees(ecoles: List[ProjectionEcole], hyp: dict, *, ressources_supp
             "besoin_rem": besoin_rem(eleves, rem_ref), "somme_pe": somme(lambda e: e.pe[k]),
             "somme_me": somme(lambda e: e.me[k]), "somme_de": somme(lambda e: e.de[k]),
             "somme_ke": somme(lambda e: e.cibles[k]), "besoin_non_couvert": somme(lambda e: e.besoins[k]),
-            "ecoles": len(ecoles), "ecoles_eleves_inconnus": nb_inconnues, "ecoles_minimum_provisoire": nb_provisoires,
+            "ecoles": len(ecoles), "ecoles_eleves_inconnus": nb_inconnues,
         })
         if scenario == "min":
             recrutes = retraites

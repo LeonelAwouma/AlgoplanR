@@ -354,6 +354,8 @@ def test_parametres_pedagogiques_et_modele_excel_preserves():
     from domaine.donnees import colonnes as C
     from domaine.parametrage.config import defaut
     d = defaut()
-    assert d["besoin"]["norme_eleves_par_maitre"] == 74.4 and _hyp()["drh"]["REM_REF_PRI"] == 74.4
-    assert d["besoin"]["plancher_pedagogique"] == 3
+    # Norme d'encadrement du besoin d'une école : 60 par défaut (réglable, 74,4 sélectionnable) ; le REM de référence
+    # des projections reste celui du rapport MINEDUB.
+    assert d["besoin"]["norme_eleves_par_maitre"] == 60 and _hyp()["drh"]["REM_REF_PRI"] == 74.4
+    assert (d["besoin"]["plancher_pedagogique"], d["besoin"]["effectif_premiere_section"]) == (3, 20)
     assert "Nombre_Groupes_Pedagogiques" not in " ".join(C.COLONNES_ATTENDUES_ETAB + C.COLONNES_OPTIONNELLES_ETAB)

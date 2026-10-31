@@ -20,6 +20,11 @@ def jeu(c):
     r = c.post(B + "jeux/demonstration/", {"nb_ecoles": 40, "nb_enseignants": 300}, content_type="application/json")
     assert r.status_code == 201, r.content
     ident = r.json()["id"]
+    r = c.patch(B + f"jeux/{ident}/parametres/", {"besoin": {"plancher_pedagogique": 6}},
+                content_type="application/json")
+    assert r.status_code == 200, r.content
+    r = c.post(B + f"jeux/{ident}/scenarios/base/")          # le changement de paramètre rend les scénarios obsolètes
+    assert r.status_code in (200, 201), r.content
     sc = next(s for s in get(c, f"jeux/{ident}/scenarios/") if s["code"] == "geo_departement")
     r = c.put(B + f"jeux/{ident}/scenario-retenu/", {"scenario": str(sc["id"])}, content_type="application/json")
     assert r.status_code == 200, r.content

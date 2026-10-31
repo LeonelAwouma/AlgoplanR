@@ -22,7 +22,6 @@ import {
   LIBELLE_CLASSEMENT,
   LIBELLE_ISSUE,
   LIBELLE_NATURE,
-  LIBELLE_PROVENANCE_GROUPES,
   LIBELLE_PROXIMITE,
   LIBELLE_SOUS_SYSTEME,
   LIBELLE_STATUT_BESOIN,
@@ -31,7 +30,7 @@ import {
   LIBELLE_ZONE_SECURITE,
   ZONES_SECURITE,
   libelleZoneSecurite,
-  MESSAGE_MULTIGRADES_NON_RENSEIGNES,
+  MESSAGE_EFFECTIF_INCONNU,
 } from '../../../shared/kernel'
 import type { CellValue } from '../../../shared/exports/export-csv'
 import { classeurEnOctets, type FeuilleXlsx } from '../../../shared/exports/export-xlsx'
@@ -99,6 +98,10 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
     ['Indicateur', 'Valeur'],
     [
       ['Année scolaire', parametres.anneeScolaire],
+      ['Méthode du besoin', 'Minimum pédagogique commun : B = max(M ; max(1 ; ⌈(N − T) ÷ R⌉))'],
+      ['Minimum pédagogique commun M (enseignants)', parametres.besoin.plancherPedagogique],
+      ['Norme d’encadrement R (élèves par enseignant)', parametres.besoin.elevesParMaitre],
+      ['Tolérance pédagogique T (élèves)', parametres.besoin.toleranceArrondi],
       ['Établissements analysés', t.ecolesAnalysees],
       ['Établissements en déficit', t.ecolesEnDeficit],
       ['Établissements avec excédent', t.ecolesAvecExcedent],
@@ -141,8 +144,6 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Norme P',
       'Besoin selon le REM C',
       'Classes multigrades M',
-      'Groupes pédagogiques G',
-      'Provenance de G',
       'Minimum pédagogique m',
       'Dotation D',
       'BMAX',
@@ -165,8 +166,6 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       'Méthode',
       'Situation',
       'Fiabilité du besoin final',
-      'Fourchette du besoin b',
-      'Minimum pédagogique provisoire',
       'Avertissement',
     ],
     diagnostics.map(d => [
@@ -189,8 +188,6 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       d.calcul.norme,
       d.calcul.besoinSelonRem ?? '',
       d.calcul.classesMultigradesLues ?? 'Non renseigné',
-      d.calcul.groupesPedagogiques ?? '',
-      d.calcul.provenanceGroupes ? LIBELLE_PROVENANCE_GROUPES[d.calcul.provenanceGroupes] : '',
       d.calcul.minimumPedagogique,
       d.calcul.dotation,
       d.calcul.bmax ?? '',
@@ -213,11 +210,7 @@ export async function exporterClasseurComplet(input: ExcelExportInput): Promise<
       d.calcul.methode === 'norme_eleves' ? 'Norme élèves' : 'Repli : effectif d’élèves inconnu',
       SEVERITE_LABEL[d.severite],
       d.calcul.statutBesoin ? LIBELLE_STATUT_BESOIN[d.calcul.statutBesoin] : '',
-      d.calcul.besoinMin !== undefined && d.calcul.besoinMax !== undefined && d.calcul.besoinMin !== d.calcul.besoinMax
-        ? `${d.calcul.besoinMin} à ${d.calcul.besoinMax}`
-        : '',
-      d.calcul.minimumProvisoire === undefined ? '' : d.calcul.minimumProvisoire ? 'Oui' : 'Non',
-      d.calcul.minimumProvisoire ? MESSAGE_MULTIGRADES_NON_RENSEIGNES : '',
+      d.calcul.statutBesoin === 'provisoire' ? MESSAGE_EFFECTIF_INCONNU : '',
     ]),
   )
 

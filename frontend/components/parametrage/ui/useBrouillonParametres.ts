@@ -14,7 +14,7 @@ import { useCallback, useState } from 'react'
 import type { EngineSettings, IdJeu } from '@shared/api'
 
 import { useParametres, useParametresDefaut, useRemplacerParametres } from '../application/hooks'
-import type { MajParametres } from '../domain/edition'
+import { erreursBesoin, type MajParametres } from '../domain/edition'
 
 /** Brouillon et actions d'enregistrement. */
 export function useBrouillonParametres(jeu: IdJeu | null) {
@@ -41,8 +41,11 @@ export function useBrouillonParametres(jeu: IdJeu | null) {
     if (defaut.data) setBrouillon(defaut.data)
   }, [defaut.data])
 
+  /** Saisies invalides du besoin (M, R, T) : l'enregistrement est refusé tant qu'il en reste. */
+  const erreursSaisie = parametres ? erreursBesoin(parametres.besoin) : []
+
   const enregistrer = useCallback(() => {
-    if (!brouillon) return
+    if (!brouillon || erreursBesoin(brouillon.besoin).length > 0) return
     enregistrement.mutate(brouillon, { onSuccess: () => setBrouillon(null) })
   }, [brouillon, enregistrement])
 
@@ -57,6 +60,7 @@ export function useBrouillonParametres(jeu: IdJeu | null) {
     /** Lecture des règles du serveur, pour les états d'attente et d'erreur. */
     requete: serveur,
     modifie: brouillon !== null,
+    erreursSaisie,
     maj,
     retablirDefaut,
     enregistrer,
