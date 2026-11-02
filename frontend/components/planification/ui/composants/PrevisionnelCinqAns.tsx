@@ -167,21 +167,10 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
             {phraseContexte(p)} {p.hypotheseTransition}
           </Notice>
         )}
-        {p.messageMinimumProvisoire && (
-          <Notice
-            tone="warn"
-            title={`${fmt(p.ecolesMinimumProvisoire)} école(s) au minimum pédagogique provisoire${
-              f ? `, dont ${fmt(f.besoinProvisoire)} au besoin final provisoire` : ''
-            }.`}
-          >
-            {p.messageMinimumProvisoire}
-            {f && f.minimumProvisoireSansEffet > 0 && (
-              <>
-                {' '}
-                Pour {fmt(f.minimumProvisoireSansEffet)} de ces écoles, le besoin final ne dépend pas de cette
-                information : il est fixé par l’effectif d’élèves ou par les salles.
-              </>
-            )}
+        {f && f.besoinProvisoire > 0 && (
+          <Notice tone="warn" title={`${fmt(f.besoinProvisoire)} école(s) au besoin provisoire.`}>
+            L’effectif d’élèves de ces écoles est inconnu : leur besoin se limite au minimum pédagogique commun et leur
+            excédent n’alimente aucune sortie automatique.
           </Notice>
         )}
         {p.avertissementPersonnels && (
@@ -536,15 +525,7 @@ export function PrevisionnelCinqAns({ jeu, requete }: { jeu: IdJeu; requete: Req
               <div>
                 <h3 className="titre-section">Minimum pédagogique</h3>
                 <div className="situation-block">
-                  <Ligne libelle="Groupes observés" valeur={fmt(p.minimumPedagogique.observe)} />
-                  <Ligne libelle="Groupes estimés (G = 6 − M)" valeur={fmt(p.minimumPedagogique.estime)} />
-                  <Ligne
-                    libelle="Groupes de secours (multigrades non renseignées)"
-                    valeur={fmt(p.minimumPedagogique.secours)}
-                  />
-                  <Ligne libelle="Groupes indéterminés" valeur={fmt(p.minimumPedagogique.indetermine)} />
                   <Ligne libelle="Postes manquants : besoin confirmé" valeur={fmt(p.besoinsParStatut.confirme)} />
-                  <Ligne libelle="Postes manquants : besoin estimé" valeur={fmt(p.besoinsParStatut.estime)} />
                   <Ligne libelle="Postes manquants : besoin provisoire" valeur={fmt(p.besoinsParStatut.provisoire)} />
                   <Ligne libelle="Écoles à l’effectif d’élèves inconnu" valeur={fmt(p.ecolesElevesInconnus)} />
                 </div>

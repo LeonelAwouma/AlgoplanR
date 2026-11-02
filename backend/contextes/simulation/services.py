@@ -60,7 +60,11 @@ def executer_moteur(jeu, cfg: dict, *, faits: Optional[list] = None, arbitrages:
 #: Versions des règles du calcul inscrites dans la configuration stockée avec chaque résultat : un résultat calculé sous
 #: d'autres versions est obsolète. Même mécanisme que la règle des régions étanches.
 MARQUE_REGLES = "_regles_du_calcul"
-REGLES_DU_CALCUL = {"situation_matrimoniale": REGLE_SITUATION_VERSION}
+#: `besoin` : méthode unique du minimum pédagogique commun, B = max(M ; max(1 ; ⌈(N − T) ÷ R⌉)). Une simulation archivée
+#: avant cette méthode (minimum selon les classes multigrades) reste lisible, mais est signalée obsolète : elle n'a
+#: pas été calculée avec la méthode en vigueur et n'est jamais présentée comme telle.
+METHODE_BESOIN = "minimum_commun_v1"
+REGLES_DU_CALCUL = {"situation_matrimoniale": REGLE_SITUATION_VERSION, "besoin": METHODE_BESOIN}
 
 
 @transaction.atomic

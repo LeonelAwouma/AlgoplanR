@@ -71,6 +71,7 @@ export function ReferentielPage() {
       <BarreEnregistrement
         modifie={brouillon.modifie}
         enCours={brouillon.enregistrement.isPending}
+        invalide={brouillon.erreursSaisie.length > 0}
         erreur={brouillon.enregistrement.error}
         onEnregistrer={brouillon.enregistrer}
         onAnnuler={brouillon.annuler}

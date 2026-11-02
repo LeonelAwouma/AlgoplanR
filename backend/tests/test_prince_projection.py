@@ -8,7 +8,16 @@ from domaine.donnees.demonstration import construire_jeu_demonstration
 from domaine.donnees.modeles import Ecole, Enseignant, construire_ecole, construire_enseignant
 from domaine.mobilite.analyses import verifier_invariants
 from domaine.mobilite.moteur import lancer_affectation
-from domaine.parametrage.config import defaut
+from domaine.parametrage.config import defaut as _defaut
+
+
+def defaut():
+    """Référentiel de ces calculs faits à la main : norme de 74,4 et minimum pédagogique commun de 6, réglés
+    explicitement (les valeurs par défaut sont désormais 60 et 3). La méthode de calcul est la même pour toutes les
+    écoles ; seuls les trois paramètres changent."""
+    cfg = _defaut()
+    cfg["besoin"].update({"norme_eleves_par_maitre": 74.4, "plancher_pedagogique": 6})
+    return cfg
 from domaine.prince.projection import APPLIQUE, APPLIQUE_AVEC_ALERTE, REJETE, appliquer_effets_prince
 
 

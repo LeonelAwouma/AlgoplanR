@@ -55,7 +55,7 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
   const [stabilite, setStabilite] = useState(parametres.mobilite.stabiliteMinimaleAns)
   const [norme, setNorme] = useState(parametres.besoin.elevesParMaitre)
   const [tolerance, setTolerance] = useState(parametres.besoin.toleranceArrondi)
-  const [niveauxParMaitre, setNiveauxParMaitre] = useState(parametres.besoin.niveauxParMaitre)
+  const [minimum, setMinimum] = useState(parametres.besoin.plancherPedagogique)
   const [doubleFlux, setDoubleFlux] = useState(parametres.besoin.doubleFluxAutorise)
 
   /** Description lisible du scénario, enregistrée avec lui. */
@@ -63,7 +63,7 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
     return [
       `Périmètre ${LIBELLE_SCOPE[scope].toLowerCase()}`,
       `un maître pour ${norme} élèves${tolerance > 0 ? ` (tolérance ${tolerance})` : ''}`,
-      `${niveauxParMaitre} niveau(x) par maître`,
+      `minimum pédagogique commun ${minimum}`,
       `stabilité ${stabilite} ans`,
       ...(doubleFlux ? [] : ['sans double flux']),
     ].join(', ')
@@ -75,7 +75,7 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
     regles.mobilite.stabiliteMinimaleAns = stabilite
     regles.besoin.elevesParMaitre = norme
     regles.besoin.toleranceArrondi = tolerance
-    regles.besoin.niveauxParMaitre = niveauxParMaitre
+    regles.besoin.plancherPedagogique = minimum
     regles.besoin.doubleFluxAutorise = doubleFlux
 
     creation.mutate(
@@ -132,12 +132,16 @@ export function ScenarioPersonnalise({ jeu, parametres, onScenarioCree }: Propri
           />
         </div>
         <div className="field">
-          <label htmlFor="sc-niv">Niveaux tenus par un maître</label>
-          <select id="sc-niv" value={niveauxParMaitre} onChange={e => setNiveauxParMaitre(Number(e.target.value))}>
-            <option value={1}>1 — chaque niveau a son maître</option>
-            <option value={2}>2 — niveaux regroupés deux à deux</option>
-            <option value={3}>3 — niveaux regroupés trois à trois</option>
-          </select>
+          <label htmlFor="sc-min">Minimum pédagogique commun (enseignants)</label>
+          <input
+            id="sc-min"
+            type="number"
+            min={1}
+            max={30}
+            step={1}
+            value={minimum}
+            onChange={e => setMinimum(Number(e.target.value))}
+          />
         </div>
         <div className="field">
           <label htmlFor="sc-stab">Stabilité minimale au poste (ans)</label>

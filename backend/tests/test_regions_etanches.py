@@ -15,7 +15,7 @@ from tests.test_selection import _situation
 PHASES_HUMAINES = ("effet_de_prince", "arbitrage_commission")
 
 
-def _jeu(graine=3, nb_e=90, nb_n=600):
+def _jeu(graine=7, nb_e=90, nb_n=600):
     lignes_e, lignes_n = construire_jeu_demonstration(graine, nb_e, nb_n)
     return [construire_ecole(l) for l in lignes_e], [construire_enseignant(l) for l in lignes_n]
 

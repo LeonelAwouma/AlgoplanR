@@ -45,7 +45,7 @@ import {
 } from '../components/planification/domain/previsionnel'
 import { camelProfond } from '../components/shared/api/backend/routes/planification'
 import type { PrevisionnelComplet, RapportPrevisionnel, TableauPlanification } from '../components/shared/api/contrat'
-import { AVERTISSEMENT_PERSONNELS, MESSAGE_MULTIGRADES_NON_RENSEIGNES } from '../components/shared/kernel/libelles'
+import { AVERTISSEMENT_PERSONNELS } from '../components/shared/kernel/libelles'
 
 const RACINE = path.resolve(__dirname, '..', '..')
 
@@ -76,7 +76,7 @@ describe('Tableau prévisionnel complet', () => {
 
   it('conserve les sous-objets du serveur en camelCase', () => {
     const p = prevision()
-    assert.equal(typeof p.minimumPedagogique.secours, 'number')
+    assert.equal(typeof p.besoinsParStatut.confirme, 'number')
     assert.equal(typeof p.besoinsParStatut.provisoire, 'number')
     assert.ok(p.scenarios.every(s => Array.isArray(s.disponiblesFin) && 'recrutementsTotal' in s))
     assert.ok(p.nonDisponibles.every(d => d.valeur === null && d.sourceManquante.length > 0))
@@ -157,17 +157,6 @@ describe('Tableau prévisionnel complet', () => {
     assert.ok(xml.includes('Comparaison des scénarios'))
     assert.ok(xml.includes('Données non disponibles'))
   })
-
-  it('affiche le message du mode « non renseigné » quand des écoles sont provisoires', async () => {
-    const p = {
-      ...prevision(),
-      ecolesMinimumProvisoire: 3,
-      messageMinimumProvisoire: MESSAGE_MULTIGRADES_NON_RENSEIGNES,
-    }
-    const xml = documentXml(await Packer.toBuffer(documentPrevisionnel(p)))
-    assert.ok(xml.includes('Le nombre de classes multigrades n'))
-    assert.ok(feuille(p, 'Avertissements').lignes.some(l => l[1] === MESSAGE_MULTIGRADES_NON_RENSEIGNES))
-  })
 })
 
 describe('Provenance, natures et audit des retraites', () => {
@@ -220,20 +209,6 @@ describe('Provenance, natures et audit des retraites', () => {
     assert.ok(controlesAuditRetraites(p).some(([c]) => c.includes('sans âge')))
     assert.ok(feuille(p, 'Audit des retraites').lignes.length >= 5)
     assert.ok(!a.methode.includes('1,08 % est') && a.methode.includes('Nominative'))
-  })
-})
-
-describe('Message du mode « Classes_Multigrades non renseigné »', () => {
-  it('est le même texte que celui du serveur', () => {
-    const source = readFileSync(path.join(RACINE, '..', 'backend', 'domaine', 'diagnostic', 'indicateurs.py'), 'utf8')
-    // Le texte Python est découpé en plusieurs littéraux concaténés : on les rassemble.
-    const affectation = /MESSAGE_MULTIGRADES_NON_RENSEIGNES = \(([^)]*)\)/.exec(source)?.[1] ?? ''
-    const serveur = [...affectation.matchAll(/"([^"]*)"/g)].map(m => m[1]).join('')
-    assert.equal(serveur, MESSAGE_MULTIGRADES_NON_RENSEIGNES, 'message différent de celui du serveur')
-    assert.equal(
-      MESSAGE_MULTIGRADES_NON_RENSEIGNES,
-      "Le nombre de classes multigrades n'est pas renseigné. Le besoin en enseignants est provisoire et sera recalculé lorsque cette information sera disponible.",
-    )
   })
 })
 
@@ -305,14 +280,15 @@ describe('Valeurs non disponibles et fiabilité', () => {
     assert.ok(/Non disponible \(\d\)/.test(xml))
   })
 
-  it('compte à part le minimum provisoire et le besoin final incertain', () => {
+  it('compte le besoin provisoire (effectif d’élèves inconnu) et le besoin confirmé', () => {
     const p = prevision()
     const f = p.fiabilite
     assert.ok(f)
-    assert.equal(f.besoinProvisoire + f.besoinEstime + f.besoinConfirme, p.ecoles)
+    assert.equal(f.besoinProvisoire + f.besoinConfirme, p.ecoles)
+    assert.equal(f.besoinProvisoire, p.ecolesElevesInconnus)
     const lignes = lignesFiabilite(p)
-    assert.equal(lignes.length, 5)
-    assert.ok(lignesMinimumPedagogique(p).some(l => String(l[0]).includes('besoin final')))
+    assert.equal(lignes.length, 2)
+    assert.ok(lignesMinimumPedagogique(p).some(l => String(l[0]).includes('besoin provisoire')))
   })
 
   it('signale que les personnels de la cartographie ne sont pas tous chargés de classe', async () => {

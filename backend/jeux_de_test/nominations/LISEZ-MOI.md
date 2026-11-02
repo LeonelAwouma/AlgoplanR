@@ -48,10 +48,10 @@ disponibilités DIS-0001 à 0003, fins de détachement DET-0001 et 0002, deux pe
 
 ## État attendu avant import des nominations
 
-- **Vivier : 30 personnes** : 18 excédentaires, 1 lauréat sans poste (`laureat-LAU-008`), 4 réintégrations,
+- **Vivier : 26 personnes** : 14 excédentaires, 1 lauréat sans poste (`laureat-LAU-008`), 4 réintégrations,
   3 disponibilités, 2 fins de détachement, 2 autres.
-- **Postes ouverts : 11**, tous libres : 9 en zone verte (ECO012_P2 à P5, ECO008_P2 à P4, ECO011_P3 et P4) et 2 en
-  zone rouge (ECO040_P4, ECO026_P2). Aucun poste anglophone ne reste : les lauréats les ont pris.
+- **Postes ouverts : 16**, tous libres : 12 en zone verte et 4 en zone rouge (ECO026_P2 à P4, ECO040_P4). Ces chiffres
+  sont ceux de la méthode unique du minimum pédagogique commun, réglée à M = 6, R = 60, T = 20 par le test. Aucun poste anglophone ne reste : les lauréats les ont pris.
 - **Registre** : faits du Prince, redéploiements et déploiements de recrues sont présents, sans nomination.
 
 ## `nominations.xlsx` : 15 lignes
@@ -60,7 +60,7 @@ disponibilités DIS-0001 à 0003, fins de détachement DET-0001 et 0002, deux pe
 |-------|-----------|-------|--------|----------|
 | 2 | MAT00207 | ECO012_P2 | MISE_EN_OEUVRE | importée, poste *pourvu* |
 | 3 | MAT00159 | ECO012_P3 | VALIDEE | importée, poste *réservé* |
-| 4 | MAT00273 | ECO008_P2 | PROPOSEE | importée |
+| 4 | MAT00224 | ECO008_P2 | PROPOSEE | importée |
 | 5 | REI-0001 | ECO011_P3 | VALIDEE | importée (personne d'une autre source) |
 | 6 | DET-0001 | école ECO012 | VALIDEE | importée, résolue sur ECO012_P4 (première école libre) |
 | 7 | MAT00067 | ECO008_P2 | PROPOSEE | importée : concurrente de la ligne 4 |
@@ -79,7 +79,7 @@ réalisé.
 
 ## Parcours à dérouler ensuite
 
-1. **Concurrence** : valider la nomination de MAT00273 sur ECO008_P2 → celle de MAT00067 sur le même poste est
+1. **Concurrence** : valider la nomination de MAT00224 sur ECO008_P2 → celle de MAT00067 sur le même poste est
    refusée (409, poste déjà réservé).
 2. **Mise en œuvre** : réaliser le mouvement de REI-0001 (date d'effet + référence d'acte) ; la nomination devient
    définitive et ne peut plus être annulée.

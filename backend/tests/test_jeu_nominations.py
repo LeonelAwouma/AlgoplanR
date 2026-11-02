@@ -37,9 +37,11 @@ def jeu(drh):
     assert r.json()["qualite"]["statistiques"]["nb_erreurs"] == 0
     # Ce jeu a été conçu avec des redéploiements entre régions : on garde la règle des régions désactivée
     # (le comportement par défaut, régions étanches, est couvert par test_regions_etanches.py). Ses chiffres sont
-    # calibrés sur la norme historique de 60 élèves par maître (référentiel d'avant octobre 2026) : on la garde.
+    # calibrés sur une norme de 60 élèves par maître et un minimum pédagogique commun de 6 (réglages du Référentiel) :
+    # on les fixe explicitement, la méthode de calcul étant la même pour toutes les écoles.
     r = c.patch(B + f"jeux/{ident}/parametres/", {"regles_dreb": {"regions_etanches": False},
-                                                   "besoin": {"norme_eleves_par_maitre": 60}},
+                                                   "besoin": {"norme_eleves_par_maitre": 60,
+                                                              "plancher_pedagogique": 6}},
                 content_type="application/json")
     assert r.status_code == 200, r.content
     r = c.post(B + f"jeux/{ident}/scenarios/base/")
@@ -81,13 +83,13 @@ def test_vivier_et_postes_ouverts(drh, jeu):
     par_source = {}
     for v in vivier:
         par_source[v["source"]] = par_source.get(v["source"], 0) + 1
-    assert par_source == {"excedentaire": 18, "laureat_sans_poste": 1, "reintegration": 4, "disponibilite": 3,
+    assert par_source == {"excedentaire": 14, "laureat_sans_poste": 1, "reintegration": 4, "disponibilite": 3,
                           "fin_detachement": 2, "autre": 2}
     assert {v["id"] for v in vivier} >= {"ens-MAT00207", "imp-REI-0001", "imp-DET-0001", "laureat-LAU-008"}
     postes = get(c, f"jeux/{jeu}/postes-ouverts/", taille=500)["resultats"]
-    assert len(postes) == 11 and all(p["statut"] == "libre" for p in postes)
+    assert len(postes) == 16 and all(p["statut"] == "libre" for p in postes)
     rouges = sorted(p["id"] for p in postes if p["zone_securite"] == "rouge")
-    assert rouges == ["ECO026_P2", "ECO040_P4"]
+    assert rouges == ["ECO026_P2", "ECO026_P3", "ECO026_P4", "ECO040_P4"]
     types = {m["type"] for m in get(c, f"jeux/{jeu}/mouvements/", taille=500)["resultats"]}
     assert types == {"fait_prince", "redeploiement", "deploiement_recrue"}
 
@@ -144,8 +146,8 @@ def test_generation_automatique_sur_le_jeu(drh, jeu):
                content_type="application/json")
     assert r.status_code == 200, r.content
     bilan = r.json()
-    # 9 postes verts : jamais de zone rouge, jamais d'anglophone sur un poste francophone.
-    assert bilan["proposees"] == 9 and bilan["postes_sans_candidat"] == 2
+    # 12 postes verts : jamais de zone rouge, jamais d'anglophone sur un poste francophone.
+    assert bilan["proposees"] == 12 and bilan["postes_sans_candidat"] == 4
     proposees = get(c, f"jeux/{jeu}/nominations/", statut="proposee", taille=100)["resultats"]
     assert all(n["poste"]["zone_securite"] != "rouge" for n in proposees)
     assert all(n["personne"]["sous_systeme"] == "francophone" for n in proposees)

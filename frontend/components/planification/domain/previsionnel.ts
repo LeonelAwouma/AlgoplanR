@@ -235,16 +235,13 @@ export function renvoi(raisons: readonly RaisonIndisponible[], l: LignePrevision
   return i < 0 ? null : i + 1
 }
 
-/** Écoles selon la fiabilité de leur besoin : un minimum provisoire n'est pas toujours un besoin final incertain. */
+/** Écoles selon la fiabilité de leur besoin : provisoire quand l'effectif d'élèves est inconnu. */
 export function lignesFiabilite(p: PrevisionnelComplet): [string, number][] {
   const f = p.fiabilite
   if (!f) return []
   return [
-    ['Écoles au minimum pédagogique provisoire (Classes_Multigrades non renseigné)', f.minimumProvisoire],
-    ['dont minimum sans effet : besoin final fixé par les élèves ou les salles', f.minimumProvisoireSansEffet],
-    ['Écoles au besoin final provisoire', f.besoinProvisoire],
-    ['Écoles au besoin final estimé (regroupement multigrade supposé)', f.besoinEstime],
-    ['Écoles au besoin final confirmé', f.besoinConfirme],
+    ['Écoles au besoin provisoire (effectif d’élèves inconnu : minimum pédagogique commun seul)', f.besoinProvisoire],
+    ['Écoles au besoin confirmé', f.besoinConfirme],
   ]
 }
 
@@ -280,7 +277,6 @@ export function lignesContexte(p: PrevisionnelComplet): [string, string | number
     ],
     ['Écoles aux données incomplètes', c.ecolesDonneesIncompletes],
     ['dont effectif d’élèves inconnu', c.ecolesElevesInconnus],
-    ['dont minimum pédagogique provisoire', c.ecolesMinimumProvisoire],
     ['dont salles simple / double flux non renseignées', c.ecolesSallesFluxInconnu],
     ['Projection calculée le', dateFr(c.calculeLe)],
     ['Tableau édité le', dateFr(c.editeLe)],

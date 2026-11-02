@@ -32,22 +32,15 @@ class Indicateurs:
     est_zone_rouge: bool = False
     #: Besoin selon le REM de référence, ⌈N ÷ REM⌉ (rapport MINEDUB) ; None si l'effectif d'élèves est inconnu.
     Ce: Optional[int] = None
-    #: Groupes pédagogiques retenus et leur provenance (observe, estime, secours, indetermine).
-    Ge: int = 6
-    Ge_provenance: str = "secours"
-    #: Classes multigrades lues (None si vide ou illisible) et statut de lecture de la colonne.
+    #: Classes multigrades lues (None si vide ou illisible) et statut de lecture de la colonne : information
+    #: statistique, sans effet sur le besoin (méthode unique du minimum pédagogique commun).
     Me: Optional[int] = None
     multigrades_statut: str = "non_renseigne"
-    minimum_provisoire: bool = True
-    minimum_observe: bool = False
-    #: confirme | estime | provisoire : fiabilité du besoin final (b et x), et non du seul minimum pédagogique. Un
-    #: minimum provisoire laisse le besoin « confirmé » quand l'effectif d'élèves ou les salles fixent le résultat.
+    #: confirme | provisoire : « provisoire » quand l'effectif d'élèves est absent ou illisible (le besoin n'est alors
+    #: que le minimum commun).
     statut_besoin: str = "provisoire"
-    #: Besoin final incertain (statut estime ou provisoire) et fourchette du besoin b sur les organisations plausibles.
     besoin_final_incertain: bool = True
-    be_min: float = 0.0
-    be_max: float = 0.0
-    #: Excédent sûr (mobilisable sans validation) et part qui dépend d'une hypothèse sur les groupes.
+    #: Excédent mobilisable (effectif d'élèves connu) et part tenue en attente (effectif d'élèves inconnu).
     xe_sur: float = 0.0
     xe_a_verifier: float = 0.0
     #: Salles connues mais mode simple / double flux non renseigné : BMAX repose sur le total des salles.
@@ -99,10 +92,9 @@ class Ecole:
             "Up": i.Up, "niveau_difficulte": i.niveau_difficulte, "nb_postes_ouverts": i.nb_postes_ouverts,
             "est_necessiteuse": i.est_necessiteuse, "est_excedentaire": i.est_excedentaire,
             "est_zone_rouge": i.est_zone_rouge,
-            "Ce": i.Ce, "Ge": i.Ge, "Ge_provenance": i.Ge_provenance, "Me": i.Me,
-            "multigrades_statut": i.multigrades_statut, "minimum_provisoire": i.minimum_provisoire,
+            "Ce": i.Ce, "Me": i.Me, "multigrades_statut": i.multigrades_statut,
             "statut_besoin": i.statut_besoin, "xe_sur": i.xe_sur, "xe_a_verifier": i.xe_a_verifier,
-            "besoin_final_incertain": i.besoin_final_incertain, "be_min": i.be_min, "be_max": i.be_max,
+            "besoin_final_incertain": i.besoin_final_incertain,
             "bmax_incertain": i.bmax_incertain, "salles_double_flux_connues": self.salles_double_flux_connues,
         }
         if self.latitude is not None:

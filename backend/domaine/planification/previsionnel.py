@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from ..commun.encadrement import CHIFFRES_ENCADREMENT
-from ..diagnostic.indicateurs import MESSAGE_MULTIGRADES_NON_RENSEIGNES, besoin_rem
+from ..diagnostic.indicateurs import besoin_rem
 from ..donnees.annee_scolaire import _FORME
 from ..donnees.modeles import Enseignant
 from .parametres import ANNEES_PLAN, STOCK_NATIONAL_PRIMAIRE
@@ -297,11 +297,6 @@ def donnees_non_disponibles(ecoles: List[ProjectionEcole], enseignants: List[Ens
          "source_manquante": ("Enseignants_Actuels compte les personnes rattachées à l'école ; leur qualité de maître "
                               "chargé de classe n'est pas vérifiée.")},
     ]
-    sans_mg = sum(1 for e in ecoles if e.minimum_provisoire)
-    if sans_mg:
-        out.append({"indicateur": "Groupes pédagogiques réels (classes multigrades)", "valeur": None,
-                    "source_manquante": (f"Classes_Multigrades non renseigné ou illisible pour {sans_mg} école(s) : "
-                                         + MESSAGE_MULTIGRADES_NON_RENSEIGNES)})
     flux = sum(1 for e in ecoles if e.bmax_incertain)
     if flux:
         out.append({"indicateur": "Mode d'utilisation des salles (simple ou double flux)", "valeur": None,
@@ -536,12 +531,8 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
     horizon = len(suivi)
     nb = len(ecoles)
     inconnues = sum(1 for e in ecoles if not e.eleves_connus)
-    provisoires = sum(1 for e in ecoles if e.minimum_provisoire)
-    # Minimum provisoire ≠ besoin final incertain : un minimum de secours est sans effet quand l'effectif d'élèves ou
-    # les salles fixent le besoin de l'école.
+    # Besoin provisoire = effectif d'élèves inconnu (le besoin n'est alors que le minimum pédagogique commun).
     besoin_provisoire = sum(1 for e in ecoles if e.statut_besoin == "provisoire")
-    besoin_estime = sum(1 for e in ecoles if e.statut_besoin == "estime")
-    sans_effet = sum(1 for e in ecoles if e.minimum_provisoire and e.statut_besoin == "confirme")
     base_eleves = eleves_base(ecoles)
     stock = sum(e.effectif_initial for e in ecoles)
     nature_besoin = PROVISOIRE if besoin_provisoire else ESTIME
@@ -635,16 +626,11 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
                detail="N+1 : excédents sûrs des écoles après leurs retraites de N+1 (un retraité n'est pas aussi une "
                       "ressource), et personnes du vivier retenues. Les années suivantes : aucune ressource nouvelle.",
                raisons=[None] + [None] * horizon),
-        _ligne("part_provisoire", "Part des écoles au minimum pédagogique provisoire", _pct(provisoires, nb),
-               [_pct(provisoires, nb)] * horizon, nature=OBSERVE, decimal=True, unite="pourcentage",
-               detail=MESSAGE_MULTIGRADES_NON_RENSEIGNES if provisoires else "Toutes les écoles renseignent leurs "
-                                                                            "groupes pédagogiques."),
-        _ligne("part_besoin_incertain", "Part des écoles au besoin final incertain (provisoire ou estimé)",
-               _pct(besoin_provisoire + besoin_estime, nb), [_pct(besoin_provisoire + besoin_estime, nb)] * horizon,
+        _ligne("part_besoin_incertain", "Part des écoles au besoin provisoire (effectif d'élèves inconnu)",
+               _pct(besoin_provisoire, nb), [_pct(besoin_provisoire, nb)] * horizon,
                nature=OBSERVE, decimal=True, unite="pourcentage",
-               detail="Écoles dont le besoin ou l'excédent change selon l'organisation pédagogique plausible, ou dont "
-                      "l'effectif d'élèves est inconnu. Une école au minimum provisoire dont le besoin est fixé par "
-                      "les élèves ou les salles n'y figure pas."),
+               detail="Écoles dont l'effectif d'élèves est absent ou illisible : leur besoin se limite au minimum "
+                      "pédagogique commun et leur excédent n'alimente aucune sortie automatique."),
     ]
     plancher = bool(drh["PLANCHER_RET"])
     d = [_ligne(f"recrutement_{s}", f"Recrutements projetés – {LIBELLES_SCENARIOS[s]}", None,
@@ -731,19 +717,10 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
                                                    libelles_annees(annee_scolaire, horizon), audit, fiab),
         "texte_donnees_fictives": TEXTE_DONNEES_FICTIVES if contexte.get("donnees_fictives") else None,
         "avertissement_personnels": AVERTISSEMENT_PERSONNELS,
-        "ecoles": nb, "ecoles_minimum_provisoire": provisoires, "ecoles_eleves_inconnus": inconnues,
-        "fiabilite": {"minimum_provisoire": provisoires, "minimum_provisoire_sans_effet": sans_effet,
-                      "besoin_provisoire": besoin_provisoire, "besoin_estime": besoin_estime,
-                      "besoin_confirme": nb - besoin_provisoire - besoin_estime},
-        "message_minimum_provisoire": MESSAGE_MULTIGRADES_NON_RENSEIGNES if provisoires else None,
-        "minimum_pedagogique": {
-            "observe": sum(1 for x in ecoles if x.provenance_groupes == "observe"),
-            "estime": sum(1 for x in ecoles if x.provenance_groupes == "estime"),
-            "secours": sum(1 for x in ecoles if x.provenance_groupes == "secours"),
-            "indetermine": sum(1 for x in ecoles if x.provenance_groupes == "indetermine"),
-        },
+        "ecoles": nb, "ecoles_eleves_inconnus": inconnues,
+        "fiabilite": {"besoin_provisoire": besoin_provisoire, "besoin_confirme": nb - besoin_provisoire},
         "besoins_par_statut": {st: sum(x.deficit_initial for x in ecoles if x.statut_besoin == st)
-                               for st in ("confirme", "estime", "provisoire")},
+                               for st in ("confirme", "provisoire")},
         "non_disponibles": donnees_non_disponibles(ecoles, enseignants),
         "hypotheses": hypotheses_methodologiques(hyp),
     }
@@ -751,22 +728,20 @@ def construire(ecoles: List[ProjectionEcole], enseignants: List[Enseignant], tra
 
 def hypotheses_methodologiques(hyp: dict, besoin: Optional[dict] = None, annee_scolaire: str = "") -> List[dict]:
     """Hypothèses du calcul, avec leur valeur : reprises par l'interface (vue Analyste) et les exports."""
-    from ..parametrage.config import DEFAULT_CONFIG, NORME_HISTORIQUE
+    from ..parametrage.config import DEFAULT_CONFIG
     d, r = hyp["drh"], hyp["retraite"]
     b = {**DEFAULT_CONFIG["besoin"], **(besoin or {})}
     return [
         {"code": "rem_reference", "libelle": "REM de référence (rapport MINEDUB d'octobre 2026)",
          "valeur": f"{_fr(d['REM_REF_PRI'])} élèves par enseignant", "a_valider": False},
-        {"code": "norme_historique", "libelle": "Norme historique d'AlgoPlanR (avant octobre 2026)",
-         "valeur": f"{NORME_HISTORIQUE} élèves par maître", "a_valider": False},
-        {"code": "tolerance", "libelle": "Tolérance pédagogique AlgoPlanR",
+        {"code": "formule_besoin", "libelle": "Besoin d'une école : minimum pédagogique commun",
+         "valeur": "B = max(M ; max(1 ; ⌈(N − T) ÷ R⌉)), identique pour toutes les écoles", "a_valider": False},
+        {"code": "norme", "libelle": "Norme d'encadrement R (paramètre du Référentiel)",
+         "valeur": f"{_fr(b['norme_eleves_par_maitre'])} élèves par enseignant", "a_valider": False},
+        {"code": "tolerance", "libelle": "Tolérance pédagogique T (paramètre du Référentiel)",
          "valeur": f"{_fr(b['effectif_premiere_section'])} élèves", "a_valider": False},
-        {"code": "plancher", "libelle": "Plancher du minimum pédagogique",
-         "valeur": f"{b['plancher_pedagogique']} enseignants", "a_valider": True},
-        {"code": "groupes_secours", "libelle": "Groupes de secours si Classes_Multigrades est absent",
-         "valeur": f"{b['groupes_secours']} groupes (école complète de six années supposée)", "a_valider": True},
-        {"code": "regroupement", "libelle": "Années réunies par classe multigrade (estimation G = 6 − M)",
-         "valeur": f"{b['niveaux_par_maitre_multigrade']} années, sans chevauchement", "a_valider": True},
+        {"code": "plancher", "libelle": "Minimum pédagogique commun M (paramètre du Référentiel)",
+         "valeur": f"{b['plancher_pedagogique']} enseignants", "a_valider": False},
         {"code": "croissance", "libelle": "Croissance annuelle des élèves", "valeur": f"{_fr(d['G_PRI_PCT'])} %",
          "a_valider": False},
         {"code": "attrition", "libelle": "Attrition totale / dont retraites / autres départs",
@@ -778,12 +753,8 @@ def hypotheses_methodologiques(hyp: dict, besoin: Optional[dict] = None, annee_s
          "valeur": f"{d['PLAF_PRI']} ; rattrapage sur {d['ETAL_N']} an(s)", "a_valider": False},
         {"code": "salles", "libelle": "Salles sans mode de flux connu",
          "valeur": "comptées en simple flux (BMAX approché)", "a_valider": True},
-        {"code": "classes_ouvertes", "libelle": "Classes_Ouvertes lu comme le nombre de groupes-classes",
-         "valeur": ("oui" if b["groupes_depuis_classes_ouvertes"] else
-                    "non (désactivé tant que la définition de la colonne n'est pas validée)"), "a_valider": True},
-        {"code": "excedent_estime", "libelle": "Excédent reposant sur des groupes estimés ou de secours",
-         "valeur": ("mobilisable" if b["mobiliser_excedent_incertain"] else
-                    "soumis à validation administrative (aucune sortie automatique)"), "a_valider": True},
+        {"code": "effectif_inconnu", "libelle": "École dont l'effectif d'élèves est inconnu",
+         "valeur": "besoin provisoire (minimum commun) ; excédent non mobilisable automatiquement", "a_valider": True},
         {"code": "personnels", "libelle": "Enseignants_Actuels compté comme maîtres chargés de classe",
          "valeur": "personnels rapprochés dans la cartographie, statut non vérifié", "a_valider": True},
         {"code": "annee_base", "libelle": "Année de base (année scolaire des données du jeu)",

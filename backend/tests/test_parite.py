@@ -18,9 +18,19 @@ REF = Path(__file__).parent / "reference" / "app_algoplanr_origine.py"
 @pytest.fixture(scope="module")
 def legacy():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    spec = importlib.util.spec_from_file_location("legacy_algoplanr", REF)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    # Seule différence voulue avec le moteur d'origine : son minimum pédagogique dépendait des classes multigrades
+    # (6, ou 3 si multigrade). La méthode unique applique un minimum commun de 3 à toutes les écoles ; on le substitue
+    # dans la copie chargée (le fichier de référence reste intact). Tout le reste est comparé tel quel.
+    source = REF.read_text(encoding="utf-8")
+    ancien = ("        multigrade = _is_oui(row.get(COL_ETAB_MULTIGRADE, ''))\n"
+              "        nb_niv = int(row.get('_nb_niveaux', 6) or 6)\n"
+              "        if multigrade:\n"
+              "            return max(1, int(np.ceil(nb_niv / 2.0)))\n"
+              "        return max(1, nb_niv)\n")
+    assert ancien in source
+    source = source.replace(ancien, "        return 3\n")
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("legacy_algoplanr", loader=None))
+    exec(compile(source, str(REF), "exec"), mod.__dict__)
     return mod
 
 

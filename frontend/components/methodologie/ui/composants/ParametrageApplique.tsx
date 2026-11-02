@@ -27,9 +27,12 @@ export function ParametrageApplique({ parametres: p, parDefaut }: ProprietesPara
     <Panel kicker="Paramétrage actuel" title={parDefaut ? 'Valeurs par défaut' : 'Valeurs effectivement appliquées'}>
       <dl className="def-grid">
         <Valeur libelle="Année scolaire" valeur={p.anneeScolaire} texte />
-        <Valeur libelle="Un maître pour" valeur={`${p.besoin.elevesParMaitre.toLocaleString('fr-FR')} élèves`} />
-        <Valeur libelle="Tolérance d’arrondi" valeur={`${p.besoin.toleranceArrondi} élève(s)`} />
-        <Valeur libelle="Niveaux tenus par un maître" valeur={String(p.besoin.niveauxParMaitre)} />
+        <Valeur
+          libelle="Norme d’encadrement : un maître pour"
+          valeur={`${p.besoin.elevesParMaitre.toLocaleString('fr-FR')} élèves`}
+        />
+        <Valeur libelle="Tolérance pédagogique" valeur={`${p.besoin.toleranceArrondi} élève(s)`} />
+        <Valeur libelle="Minimum pédagogique commun" valeur={`${p.besoin.plancherPedagogique} enseignant(s)`} />
         <Valeur libelle="Double flux" valeur={p.besoin.doubleFluxAutorise ? 'Autorisé' : 'Non autorisé'} texte />
         <Valeur libelle="Âge de la retraite" valeur={`${p.besoin.ageRetraite} ans`} />
         <Valeur libelle="Stabilité minimale au poste" valeur={`${p.mobilite.stabiliteMinimaleAns} ans`} />

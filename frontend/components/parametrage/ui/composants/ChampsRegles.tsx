@@ -9,11 +9,14 @@ export function Regle({
   enonce,
   precision,
   htmlFor,
+  erreur,
   children,
 }: {
   enonce: string
   precision?: string
   htmlFor: string
+  /** Message de validation de la saisie, `null`/absent quand elle est valide. */
+  erreur?: string | null
   children: ReactNode
 }) {
   return (
@@ -23,6 +26,11 @@ export function Regle({
       </label>
       <div className="regle-valeur">{children}</div>
       {precision && <p className="regle-precision">{precision}</p>}
+      {erreur && (
+        <p className="regle-precision" role="alert">
+          {erreur}
+        </p>
+      )}
     </div>
   )
 }
